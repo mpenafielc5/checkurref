@@ -1,4 +1,4 @@
-import { VERDICTS, type Verdict } from "../verdicts";
+import { VERDICTS, type Verdict } from "@/shared/lib/verdicts";
 
 /** Etiqueta de veredicto. El color siempre va acompañado del nombre. */
 export function VerdictBadge({ verdict }: { verdict: Verdict }) {

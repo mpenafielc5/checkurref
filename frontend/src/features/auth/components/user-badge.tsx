@@ -10,13 +10,15 @@ const AVATAR_BY_ROLE: Record<UserRole, string> = {
   admin: "bg-surface-strong text-ink",
 };
 
-function SignOutButton({ compact = false }: { compact?: boolean }) {
+export function SignOutButton({ compact = false }: { compact?: boolean }) {
   return (
     <form action="/auth/signout" method="post" className="flex">
       <button
         type="submit"
         aria-label="Cerrar sesión"
-        className="flex items-center gap-2 rounded-control px-2 py-1 text-small text-body hover:text-ink"
+        className={`flex items-center gap-2 rounded-control text-small text-body transition-colors hover:bg-hairline-soft hover:text-ink ${
+          compact ? "p-2" : "w-full px-3 py-2"
+        }`}
       >
         <LogOut aria-hidden="true" className="size-5" />
         {compact ? null : <span>Salir</span>}
@@ -27,12 +29,15 @@ function SignOutButton({ compact = false }: { compact?: boolean }) {
 
 function Avatar({ profile }: { profile: Profile }) {
   if (profile.avatarUrl) {
+    // unoptimized: el navegador carga la foto directo desde Google, ya en
+    // tamaño pequeño; el servidor no la descarga ni guarda copias.
     return (
       <Image
         src={profile.avatarUrl}
         alt=""
         width={40}
         height={40}
+        unoptimized
         className="size-avatar shrink-0 rounded-pill object-cover"
       />
     );

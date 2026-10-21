@@ -88,6 +88,13 @@ describe("navItemsForRole", () => {
       "Usuarios",
     ]);
   });
+
+  it("cada rol enlaza a la ayuda dentro de su propia sección", () => {
+    const helpHref = (role: "estudiante" | "docente") =>
+      navItemsForRole(role).find((item) => item.label === "Ayuda")?.href;
+    expect(helpHref("estudiante")).toBe("/estudiante/ayuda");
+    expect(helpHref("docente")).toBe("/docente/ayuda");
+  });
 });
 
 describe("mensajes de error del inicio de sesión", () => {

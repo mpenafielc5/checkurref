@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { redirectWithSession, updateSession } from "@/shared/lib/supabase/proxy";
 
 /** Rutas que requieren sesión iniciada. */
-const PROTECTED_PREFIXES = ["/estudiante", "/docente", "/admin", "/ayuda", "/inicio"];
+const PROTECTED_PREFIXES = ["/estudiante", "/docente", "/admin", "/inicio"];
 
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
