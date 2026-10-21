@@ -27,6 +27,7 @@
   --cr-canvas-soft: #fafaf7;
   --cr-surface: #fdfdfb;
   --cr-surface-strong: #e6e5e0;
+  --cr-skeleton: var(--cr-surface-strong); /* marcador de carga */
 
   /* Texto */
   --cr-ink: #26251e;
@@ -42,6 +43,13 @@
   --cr-hairline: #e6e5e0;
   --cr-hairline-soft: #efeee8;
   --cr-hairline-strong: #cfcdc4;
+
+  /* Decoración de la página pública en escritorio (retícula de puntos y resplandor) */
+  --cr-pattern-dot: var(--cr-hairline-strong);
+  --cr-pattern-dot-size: 1px;
+  --cr-pattern-gap: 1.25rem; /* 20px */
+  --cr-pattern-fade: ellipse 55% 75% at 72% 50%; /* zona visible, cargada a la derecha */
+  --cr-glow: var(--cr-accent-soft);
 
   /* Estados del sistema */
   --cr-success: #1f8a65;
@@ -86,6 +94,8 @@
   --cr-tracking-wordmark: -0.02em;
   --cr-tracking-label: 0.06em;
 
+  --cr-leading-display: 1.2; /* interlineado de los titulares */
+
   /* Espaciado (unidad base de 4px) */
   --cr-space-2xs: 0.25rem; /* 4px */
   --cr-space-xs: 0.5rem; /* 8px */
@@ -107,6 +117,8 @@
   --cr-content-max: 75rem; /* 1200px */
   --cr-sidebar-width: 14rem; /* 224px, barra lateral de las pantallas internas */
   --cr-avatar-size: 2.5rem; /* 40px */
+  /* Indicador a media fila: mitad del ancho menos la mitad del espacio entre tarjetas */
+  --cr-stat-half: calc(50% - var(--cr-space-md) / 2);
   --cr-nav-height: 4rem; /* 64px */
   --cr-control-height: 2.5rem; /* 40px, botones */
   --cr-input-height: 2.75rem; /* 44px, campos de formulario */

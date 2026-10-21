@@ -20,7 +20,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${dmSans.variable} ${jetbrainsMono.variable} h-full antialiased`}>
+    <html
+      lang="es"
+      // Suave dentro de la página, instantáneo al cambiar de página (Next.js 16).
+      data-scroll-behavior="smooth"
+      className={`${dmSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
+    >
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );

@@ -29,12 +29,12 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   estudiante: [
     { label: "Inicio", href: "/estudiante" },
     { label: "Mis trabajos", href: "/estudiante/trabajos" },
-    { label: "Ayuda", href: "/ayuda" },
+    { label: "Ayuda", href: "/estudiante/ayuda" },
   ],
   docente: [
     { label: "Inicio", href: "/docente" },
     { label: "Lotes", href: "/docente/lotes" },
-    { label: "Ayuda", href: "/ayuda" },
+    { label: "Ayuda", href: "/docente/ayuda" },
   ],
   admin: [
     { label: "Inicio", href: "/admin" },

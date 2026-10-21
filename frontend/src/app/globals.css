@@ -24,6 +24,7 @@
   --color-canvas-soft: var(--cr-canvas-soft);
   --color-surface: var(--cr-surface);
   --color-surface-strong: var(--cr-surface-strong);
+  --color-skeleton: var(--cr-skeleton);
 
   --color-ink: var(--cr-ink);
   --color-body: var(--cr-body);
@@ -70,6 +71,8 @@
   --tracking-wordmark: var(--cr-tracking-wordmark);
   --tracking-label: var(--cr-tracking-label);
 
+  --leading-display: var(--cr-leading-display);
+
   --radius-control: var(--cr-radius-md);
   --radius-row: var(--cr-radius-sm);
   --radius-card: var(--cr-radius-lg);
@@ -83,11 +86,39 @@
   --spacing-input: var(--cr-input-height);
   --spacing-sidebar: var(--cr-sidebar-width);
   --spacing-avatar: var(--cr-avatar-size);
+  --spacing-stat-half: var(--cr-stat-half);
+}
+
+/*
+ * Decoración sin sombras: dan profundidad al hero en escritorio sin elevar
+ * superficies. La retícula se desvanece hacia los bordes con una máscara (el
+ * color de la máscara solo aporta opacidad).
+ */
+@utility bg-dot-pattern {
+  background-image: radial-gradient(
+    var(--cr-pattern-dot) var(--cr-pattern-dot-size),
+    transparent var(--cr-pattern-dot-size)
+  );
+  background-size: var(--cr-pattern-gap) var(--cr-pattern-gap);
+  mask-image: radial-gradient(var(--cr-pattern-fade), var(--cr-ink), transparent);
+}
+
+@utility bg-glow {
+  background-image: radial-gradient(closest-side, var(--cr-glow), transparent);
 }
 
 @layer base {
   html {
     background-color: var(--cr-canvas);
+    /* Desplazamiento suave en los enlaces internos (#como-funciona, #para-docentes). */
+    scroll-behavior: smooth;
+  }
+
+  /* Tailwind 4 deja los botones con el cursor por defecto: se restituye la manito. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
   }
 
   body {
@@ -104,7 +135,7 @@
     color: var(--cr-ink);
     font-weight: 400;
     letter-spacing: var(--cr-tracking-display);
-    line-height: 1.2;
+    line-height: var(--cr-leading-display);
   }
 
   code,
@@ -119,6 +150,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
     *,
     *::before,
     *::after {

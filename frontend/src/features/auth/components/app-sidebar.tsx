@@ -1,3 +1,4 @@
+import { Skeleton, SkeletonText } from "@/shared/components/ui/skeleton";
 import { Wordmark } from "@/shared/components/ui/wordmark";
 import { getCurrentProfile } from "../api";
 import { homePathForRole, navItemsForRole } from "../rules";
@@ -36,12 +37,38 @@ export async function AppSidebar() {
   );
 }
 
-/** Marcador de posición mientras se carga el perfil. */
+/** Esqueleto mientras se carga el perfil: menú y bloque del usuario. */
 export function AppSidebarSkeleton() {
   return (
     <aside className={SIDEBAR_CLASSES}>
-      <div className="flex items-center md:px-1 md:pb-4">
+      <div className="flex items-center justify-between md:px-1 md:pb-4">
         <Wordmark />
+        <div className="flex items-center gap-2 md:hidden">
+          <Skeleton className="size-avatar rounded-pill" />
+          <Skeleton className="size-9 rounded-control" />
+        </div>
+      </div>
+
+      <div className="flex gap-1 md:flex-col">
+        {[0, 1, 2].map((item) => (
+          <span key={item} className="flex px-3 py-2">
+            <SkeletonText textClass="text-small" widthClass="w-20" />
+          </span>
+        ))}
+      </div>
+
+      <div className="hidden md:flex md:flex-1" />
+      <div className="hidden md:flex md:flex-col md:gap-3 md:border-t md:border-hairline md:px-1 md:pt-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-avatar shrink-0 rounded-pill" />
+          <span className="flex flex-1 flex-col">
+            <SkeletonText textClass="text-small" widthClass="w-24" />
+            <SkeletonText textClass="text-caption" widthClass="w-16" />
+          </span>
+        </div>
+        <span className="flex px-3 py-2">
+          <SkeletonText textClass="text-small" widthClass="w-14" />
+        </span>
       </div>
     </aside>
   );

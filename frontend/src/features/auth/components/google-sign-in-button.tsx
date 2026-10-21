@@ -6,7 +6,24 @@ import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { INSTITUTIONAL_DOMAIN } from "../rules";
 
-export function GoogleSignInButton() {
+type GoogleSignInButtonProps = {
+  label?: string;
+  variant?: "primary" | "secondary";
+  fullWidth?: boolean;
+  withIcon?: boolean;
+};
+
+/**
+ * Inicia el acceso con Google. La tarjeta "Ingresar" lo usa con su estilo por
+ * defecto; el botón "Revisar mi trabajo" de la página pública, como acción
+ * principal.
+ */
+export function GoogleSignInButton({
+  label = "Continuar con Google",
+  variant = "secondary",
+  fullWidth = true,
+  withIcon = true,
+}: GoogleSignInButtonProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,10 +53,11 @@ export function GoogleSignInButton() {
         type="button"
         onClick={handleClick}
         disabled={pending}
-        className={buttonStyles({ variant: "secondary", fullWidth: true })}
+        aria-busy={pending}
+        className={buttonStyles({ variant, fullWidth })}
       >
-        <LogIn aria-hidden="true" className="size-5" />
-        {pending ? "Redirigiendo a Google…" : "Continuar con Google"}
+        {withIcon ? <LogIn aria-hidden="true" className="size-5" /> : null}
+        {pending ? "Redirigiendo a Google…" : label}
       </button>
       {error ? (
         <p role="alert" className="text-small text-error">

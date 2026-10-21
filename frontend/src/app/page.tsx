@@ -1,11 +1,35 @@
 import { CircleCheck, FileUp, Globe, Lightbulb, ListChecks, Users } from "lucide-react";
-import Link from "next/link";
+import { Suspense } from "react";
 import { AccessCard } from "@/features/auth/components/access-card";
-import { VerdictBadge } from "@/features/reports/components/verdict-badge";
-import { VERDICT_ORDER, VERDICTS } from "@/features/reports/verdicts";
+import {
+  LandingAccessCard,
+  ReviewWorkAction,
+  ReviewWorkActionFallback,
+} from "@/features/auth/components/landing-access";
+import { VerdictBadge } from "@/shared/components/ui/verdict-badge";
+import { VERDICT_ORDER, VERDICTS } from "@/shared/lib/verdicts";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { Eyebrow } from "@/shared/components/ui/eyebrow";
 import { Wordmark } from "@/shared/components/ui/wordmark";
+
+const STEPS = [
+  {
+    icon: FileUp,
+    title: "Sube tu PDF",
+    description: "Hasta 10 MB, con referencias en APA o IEEE en español.",
+  },
+  {
+    icon: ListChecks,
+    title: "Verificamos cada una",
+    description:
+      "Separamos sus campos, los buscamos en Crossref y los comparamos con un modelo de inteligencia artificial en español.",
+  },
+  {
+    icon: CircleCheck,
+    title: "Recibe tu informe",
+    description: "Cada referencia recibe un veredicto y el dato registrado para corregirla.",
+  },
+];
 
 /** Página pública: propuesta de valor y acceso (maqueta 01, HU-03). */
 export default function HomePage() {
@@ -32,44 +56,59 @@ export default function HomePage() {
       </header>
 
       <main className="flex flex-1 flex-col">
-        <section
-          aria-labelledby="titulo-principal"
-          className="mx-auto flex w-full max-w-content flex-col gap-10 px-4 py-12 md:px-8 md:py-20 lg:flex-row lg:items-center"
-        >
-          <div className="flex flex-1 flex-col gap-5">
-            <Eyebrow>Auditoría de referencias con IA</Eyebrow>
-            <h1 id="titulo-principal" className="text-display-md md:text-display-lg">
-              ¿Tus referencias existen de verdad?
-            </h1>
-            <p className="max-w-xl text-title font-normal">
-              Sube el PDF de tu trabajo y CheckUrRef coteja cada referencia con su fuente oficial
-              antes de que la revise tu tutor.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/inicio" className={buttonStyles()}>
-                Revisar mi trabajo
-              </Link>
-              <a href="#como-funciona" className={buttonStyles({ variant: "secondary" })}>
-                Cómo funciona
-              </a>
+        <section aria-labelledby="titulo-principal" className="relative overflow-hidden">
+          {/* Solo en escritorio: retícula de puntos detrás del hero. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 hidden bg-dot-pattern lg:block"
+          />
+          <div className="relative mx-auto flex w-full max-w-content flex-col gap-10 px-4 py-12 md:px-8 md:py-20 lg:flex-row lg:items-center">
+            <div className="flex flex-1 flex-col gap-5">
+              <Eyebrow>Auditoría de referencias con IA</Eyebrow>
+              <h1 id="titulo-principal" className="text-display-md md:text-display-lg">
+                ¿Tus referencias existen de verdad?
+              </h1>
+              <p className="max-w-xl text-title font-normal">
+                Sube el PDF de tu trabajo y CheckUrRef coteja cada referencia con su fuente oficial
+                antes de que la revise tu tutor.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Suspense
+                  fallback={<ReviewWorkActionFallback>Revisar mi trabajo</ReviewWorkActionFallback>}
+                >
+                  <ReviewWorkAction>Revisar mi trabajo</ReviewWorkAction>
+                </Suspense>
+                <a href="#como-funciona" className={buttonStyles({ variant: "secondary" })}>
+                  Cómo funciona
+                </a>
+              </div>
+              <ul className="flex flex-wrap gap-x-6 gap-y-2 text-small">
+                <li className="flex items-center gap-2">
+                  <CircleCheck aria-hidden="true" className="size-5 text-verdict-verified" />
+                  APA e IEEE
+                </li>
+                <li className="flex items-center gap-2">
+                  <Globe aria-hidden="true" className="size-5 text-body" />
+                  Crossref
+                </li>
+                <li className="flex items-center gap-2">
+                  <Lightbulb aria-hidden="true" className="size-5 text-body" />
+                  IA en español
+                </li>
+              </ul>
             </div>
-            <ul className="flex flex-wrap gap-x-6 gap-y-2 text-small">
-              <li className="flex items-center gap-2">
-                <CircleCheck aria-hidden="true" className="size-5 text-verdict-verified" />
-                APA e IEEE
-              </li>
-              <li className="flex items-center gap-2">
-                <Globe aria-hidden="true" className="size-5 text-body" />
-                Crossref
-              </li>
-              <li className="flex items-center gap-2">
-                <Lightbulb aria-hidden="true" className="size-5 text-body" />
-                IA en español
-              </li>
-            </ul>
-          </div>
 
-          <AccessCard />
+            <div className="relative isolate flex w-full md:max-w-sm">
+              {/* Solo en escritorio: resplandor tenue detrás de la tarjeta de acceso. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -inset-16 -z-10 hidden bg-glow lg:block"
+              />
+              <Suspense fallback={<AccessCard />}>
+                <LandingAccessCard />
+              </Suspense>
+            </div>
+          </div>
         </section>
 
         <section
@@ -86,28 +125,21 @@ export default function HomePage() {
             </div>
 
             <ol className="flex flex-col gap-4 md:flex-row">
-              <li className="flex flex-1 flex-col gap-2 rounded-card border border-hairline bg-surface p-6">
-                <FileUp aria-hidden="true" className="size-6 text-primary" />
-                <h3 className="text-title font-semibold tracking-normal">1. Sube tu PDF</h3>
-                <p className="text-small">Hasta 10 MB, con referencias en APA o IEEE en español.</p>
-              </li>
-              <li className="flex flex-1 flex-col gap-2 rounded-card border border-hairline bg-surface p-6">
-                <ListChecks aria-hidden="true" className="size-6 text-primary" />
-                <h3 className="text-title font-semibold tracking-normal">
-                  2. Verificamos cada una
-                </h3>
-                <p className="text-small">
-                  Separamos sus campos, los buscamos en Crossref y los comparamos con un modelo de
-                  inteligencia artificial en español.
-                </p>
-              </li>
-              <li className="flex flex-1 flex-col gap-2 rounded-card border border-hairline bg-surface p-6">
-                <CircleCheck aria-hidden="true" className="size-6 text-primary" />
-                <h3 className="text-title font-semibold tracking-normal">3. Recibe tu informe</h3>
-                <p className="text-small">
-                  Cada referencia recibe un veredicto y el dato registrado para corregirla.
-                </p>
-              </li>
+              {STEPS.map(({ icon: Icon, title, description }, index) => (
+                <li
+                  key={title}
+                  className="flex flex-1 flex-col gap-2 rounded-card border border-hairline bg-surface p-6 transition-colors hover:border-hairline-strong"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <Icon aria-hidden="true" className="size-6 text-primary" />
+                    <span className="font-mono text-label tracking-label text-accent-text uppercase">
+                      Paso {String(index + 1).padStart(2, "0")}
+                    </span>
+                  </div>
+                  <h3 className="text-title font-semibold tracking-normal">{title}</h3>
+                  <p className="text-small">{description}</p>
+                </li>
+              ))}
             </ol>
 
             <ul aria-label="Veredictos" className="flex flex-col gap-3">
