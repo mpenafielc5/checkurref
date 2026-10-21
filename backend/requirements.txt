@@ -1,3 +1,5 @@
 # Dependencias de producción del backend.
 fastapi[standard]>=0.115
 pydantic-settings>=2.6
+# Validación de los tokens de Supabase (firmados con ES256).
+pyjwt[crypto]>=2.10
