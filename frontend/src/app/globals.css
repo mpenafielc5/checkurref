@@ -1,0 +1,107 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/*
+ * Conecta los tokens con Tailwind: cada variable de tokens.css se expone como
+ * utilidad (bg-canvas, text-ink, rounded-card, etc.). Los valores viven solo
+ * en tokens.css.
+ */
+@theme inline {
+  --color-primary: var(--cr-primary);
+  --color-primary-active: var(--cr-primary-active);
+  --color-on-primary: var(--cr-on-primary);
+
+  --color-canvas: var(--cr-canvas);
+  --color-canvas-soft: var(--cr-canvas-soft);
+  --color-surface: var(--cr-surface);
+  --color-surface-strong: var(--cr-surface-strong);
+
+  --color-ink: var(--cr-ink);
+  --color-body: var(--cr-body);
+  --color-muted: var(--cr-muted);
+  --color-muted-soft: var(--cr-muted-soft);
+
+  --color-hairline: var(--cr-hairline);
+  --color-hairline-soft: var(--cr-hairline-soft);
+  --color-hairline-strong: var(--cr-hairline-strong);
+
+  --color-success: var(--cr-success);
+  --color-error: var(--cr-error);
+
+  --color-verdict-verified: var(--cr-verdict-verified);
+  --color-verdict-verified-text: var(--cr-verdict-verified-text);
+  --color-verdict-discrepancy: var(--cr-verdict-discrepancy);
+  --color-verdict-discrepancy-text: var(--cr-verdict-discrepancy-text);
+  --color-verdict-contradiction: var(--cr-verdict-contradiction);
+  --color-verdict-contradiction-text: var(--cr-verdict-contradiction-text);
+  --color-verdict-unsupported: var(--cr-verdict-unsupported);
+  --color-verdict-unsupported-text: var(--cr-verdict-unsupported-text);
+  --color-verdict-unverifiable: var(--cr-verdict-unverifiable);
+  --color-verdict-unverifiable-text: var(--cr-verdict-unverifiable-text);
+
+  --font-sans: var(--cr-font-sans);
+  --font-mono: var(--cr-font-mono);
+
+  --text-display-xl: var(--cr-text-display-xl);
+  --text-display-lg: var(--cr-text-display-lg);
+  --text-display-md: var(--cr-text-display-md);
+  --text-display-sm: var(--cr-text-display-sm);
+  --text-title: var(--cr-text-title);
+  --text-body: var(--cr-text-body);
+  --text-small: var(--cr-text-small);
+  --text-caption: var(--cr-text-caption);
+  --text-label: var(--cr-text-label);
+
+  --tracking-display: var(--cr-tracking-display);
+  --tracking-label: var(--cr-tracking-label);
+
+  --radius-control: var(--cr-radius-md);
+  --radius-row: var(--cr-radius-sm);
+  --radius-card: var(--cr-radius-lg);
+  --radius-pill: var(--cr-radius-pill);
+
+  --container-content: var(--cr-content-max);
+}
+
+@layer base {
+  html {
+    background-color: var(--cr-canvas);
+  }
+
+  body {
+    background-color: var(--cr-canvas);
+    color: var(--cr-body);
+    font-family: var(--cr-font-sans);
+    font-size: var(--cr-text-body);
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--cr-ink);
+    font-weight: 400;
+    letter-spacing: var(--cr-tracking-display);
+    line-height: 1.2;
+  }
+
+  code,
+  kbd,
+  pre {
+    font-family: var(--cr-font-mono);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--cr-primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

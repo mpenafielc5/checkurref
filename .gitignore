@@ -1,0 +1,40 @@
+# Secretos: nunca se suben
+.env
+.env.*
+!.env.example
+
+# Dependencias (en cualquier carpeta)
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Bases de datos locales y registros
+*.sqlite
+*.sqlite3
+*.db
+*.log
+
+# Modelos y datos pesados (se descargan al desplegar)
+*.onnx
+models/
+
+# PDF reales para pruebas manuales: nunca se suben (son de terceros)
+backend/pdf-locales/
+
+# Capturas temporales de la herramienta de navegador automático (playwright-cli)
+.playwright-cli/
+
+# Editores y sistema operativo
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

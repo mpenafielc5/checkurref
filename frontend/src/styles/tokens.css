@@ -1,0 +1,92 @@
+/*
+ * Tokens de diseño de CheckUrRef.
+ *
+ * Única fuente de colores, tipografía, espacios, bordes y medidas del sistema.
+ * Ningún componente escribe valores a mano: usa estas variables, directamente
+ * o a través de las utilidades de Tailwind definidas en globals.css.
+ *
+ * Estilo: editorial cálido (lienzo crema, tinta casi negra, un único acento naranja).
+ */
+
+:root {
+  /* Marca */
+  --cr-primary: #f54e00;
+  --cr-primary-active: #d04200;
+  --cr-on-primary: #ffffff;
+
+  /* Superficies */
+  --cr-canvas: #f7f7f4;
+  --cr-canvas-soft: #fafaf7;
+  --cr-surface: #ffffff;
+  --cr-surface-strong: #e6e5e0;
+
+  /* Texto */
+  --cr-ink: #26251e;
+  --cr-body: #5a5852;
+  --cr-muted: #807d72;
+  --cr-muted-soft: #a09c92;
+
+  /* Líneas (la profundidad se logra con líneas finas, sin sombras) */
+  --cr-hairline: #e6e5e0;
+  --cr-hairline-soft: #efeee8;
+  --cr-hairline-strong: #cfcdc4;
+
+  /* Estados del sistema */
+  --cr-success: #1f8a65;
+  --cr-error: #cf2d56;
+
+  /*
+   * Veredictos: cada uno tiene un color de ícono y un color de texto más oscuro
+   * para cumplir el contraste. El color nunca va solo: siempre con su nombre.
+   */
+  --cr-verdict-verified: #1f8a65;
+  --cr-verdict-verified-text: #17704f;
+  --cr-verdict-discrepancy: #c08532;
+  --cr-verdict-discrepancy-text: #8a5a12;
+  --cr-verdict-contradiction: #cf2d56;
+  --cr-verdict-contradiction-text: #b0213f;
+  --cr-verdict-unsupported: #7a5fb0;
+  --cr-verdict-unsupported-text: #6a4fa0;
+  --cr-verdict-unverifiable: #a09c92;
+  --cr-verdict-unverifiable-text: #5a5852;
+
+  /* Tipografía: las familias las carga next/font en layout.tsx */
+  --cr-font-sans: var(--font-dm-sans), system-ui, "Helvetica Neue", Arial, sans-serif;
+  --cr-font-mono: var(--font-jetbrains-mono), "Fira Code", monospace;
+
+  --cr-text-display-xl: 4.5rem; /* 72px, titular de la página pública */
+  --cr-text-display-lg: 2.25rem; /* 36px, títulos de sección */
+  --cr-text-display-md: 1.625rem; /* 26px */
+  --cr-text-display-sm: 1.375rem; /* 22px */
+  --cr-text-title: 1.125rem; /* 18px */
+  --cr-text-body: 1rem; /* 16px */
+  --cr-text-small: 0.875rem; /* 14px */
+  --cr-text-caption: 0.8125rem; /* 13px */
+  --cr-text-label: 0.6875rem; /* 11px, etiquetas en mayúsculas */
+
+  /* Los titulares van en peso 400 con interletrado negativo: voz editorial */
+  --cr-tracking-display: -0.03em;
+  --cr-tracking-label: 0.08em;
+
+  /* Espaciado (unidad base de 4px) */
+  --cr-space-2xs: 0.25rem; /* 4px */
+  --cr-space-xs: 0.5rem; /* 8px */
+  --cr-space-sm: 0.75rem; /* 12px */
+  --cr-space-md: 1rem; /* 16px */
+  --cr-space-lg: 1.5rem; /* 24px */
+  --cr-space-xl: 2rem; /* 32px */
+  --cr-space-2xl: 3rem; /* 48px */
+  --cr-space-section: 5rem; /* 80px */
+
+  /* Bordes redondeados */
+  --cr-radius-sm: 0.375rem; /* 6px, filas compactas */
+  --cr-radius-md: 0.5rem; /* 8px, botones y campos */
+  --cr-radius-lg: 0.75rem; /* 12px, tarjetas */
+  --cr-radius-pill: 9999px; /* etiquetas y veredictos */
+
+  /* Medidas de la interfaz */
+  --cr-content-max: 75rem; /* 1200px */
+  --cr-nav-height: 4rem; /* 64px */
+  --cr-control-height: 2.5rem; /* 40px, botones */
+  --cr-input-height: 2.75rem; /* 44px, campos de formulario */
+}
