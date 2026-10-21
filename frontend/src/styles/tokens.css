@@ -6,25 +6,37 @@
  * o a través de las utilidades de Tailwind definidas en globals.css.
  *
  * Estilo: editorial cálido (lienzo crema, tinta casi negra, un único acento naranja).
+ * Los valores siguen las maquetas aprobadas en la presentación de la Semana 1.
  */
 
 :root {
-  /* Marca */
+  /* Marca: el naranja se reserva para acentos (íconos, etiquetas, enlaces) */
   --cr-primary: #f54e00;
   --cr-primary-active: #d04200;
   --cr-on-primary: #ffffff;
+  --cr-accent-text: #b93a00; /* naranja oscuro legible sobre fondo claro */
+  --cr-accent-soft: #f6e3d8;
+
+  /* Acción principal: botón de tinta en forma de píldora */
+  --cr-action: #26251e;
+  --cr-action-hover: #3a3930;
+  --cr-on-action: #f7f7f4;
 
   /* Superficies */
   --cr-canvas: #f7f7f4;
   --cr-canvas-soft: #fafaf7;
-  --cr-surface: #ffffff;
+  --cr-surface: #fdfdfb;
   --cr-surface-strong: #e6e5e0;
 
   /* Texto */
   --cr-ink: #26251e;
   --cr-body: #5a5852;
-  --cr-muted: #807d72;
+  --cr-muted: #6b6860;
   --cr-muted-soft: #a09c92;
+
+  /* Información (avatar del docente, datos extraídos) */
+  --cr-info: #2f5f9e;
+  --cr-info-soft: #dde7f5;
 
   /* Líneas (la profundidad se logra con líneas finas, sin sombras) */
   --cr-hairline: #e6e5e0;
@@ -41,14 +53,19 @@
    */
   --cr-verdict-verified: #1f8a65;
   --cr-verdict-verified-text: #17704f;
+  --cr-verdict-verified-soft: #e3f1ea;
   --cr-verdict-discrepancy: #c08532;
   --cr-verdict-discrepancy-text: #8a5a12;
+  --cr-verdict-discrepancy-soft: #f6ead6;
   --cr-verdict-contradiction: #cf2d56;
   --cr-verdict-contradiction-text: #b0213f;
+  --cr-verdict-contradiction-soft: #f8e1e7;
   --cr-verdict-unsupported: #7a5fb0;
   --cr-verdict-unsupported-text: #6a4fa0;
+  --cr-verdict-unsupported-soft: #ece6f6;
   --cr-verdict-unverifiable: #a09c92;
   --cr-verdict-unverifiable-text: #5a5852;
+  --cr-verdict-unverifiable-soft: #efeee8;
 
   /* Tipografía: las familias las carga next/font en layout.tsx */
   --cr-font-sans: var(--font-dm-sans), system-ui, "Helvetica Neue", Arial, sans-serif;
@@ -66,7 +83,8 @@
 
   /* Los titulares van en peso 400 con interletrado negativo: voz editorial */
   --cr-tracking-display: -0.03em;
-  --cr-tracking-label: 0.08em;
+  --cr-tracking-wordmark: -0.02em;
+  --cr-tracking-label: 0.06em;
 
   /* Espaciado (unidad base de 4px) */
   --cr-space-2xs: 0.25rem; /* 4px */
@@ -81,11 +99,14 @@
   /* Bordes redondeados */
   --cr-radius-sm: 0.375rem; /* 6px, filas compactas */
   --cr-radius-md: 0.5rem; /* 8px, botones y campos */
-  --cr-radius-lg: 0.75rem; /* 12px, tarjetas */
-  --cr-radius-pill: 9999px; /* etiquetas y veredictos */
+  --cr-radius-lg: 0.75rem; /* 12px, tarjetas y filas */
+  --cr-radius-xl: 1rem; /* 16px, paneles grandes */
+  --cr-radius-pill: 9999px; /* botones, etiquetas y veredictos */
 
   /* Medidas de la interfaz */
   --cr-content-max: 75rem; /* 1200px */
+  --cr-sidebar-width: 14rem; /* 224px, barra lateral de las pantallas internas */
+  --cr-avatar-size: 2.5rem; /* 40px */
   --cr-nav-height: 4rem; /* 64px */
   --cr-control-height: 2.5rem; /* 40px, botones */
   --cr-input-height: 2.75rem; /* 44px, campos de formulario */

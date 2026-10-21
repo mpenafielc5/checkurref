@@ -10,6 +10,15 @@
   --color-primary: var(--cr-primary);
   --color-primary-active: var(--cr-primary-active);
   --color-on-primary: var(--cr-on-primary);
+  --color-accent-text: var(--cr-accent-text);
+  --color-accent-soft: var(--cr-accent-soft);
+
+  --color-action: var(--cr-action);
+  --color-action-hover: var(--cr-action-hover);
+  --color-on-action: var(--cr-on-action);
+
+  --color-info: var(--cr-info);
+  --color-info-soft: var(--cr-info-soft);
 
   --color-canvas: var(--cr-canvas);
   --color-canvas-soft: var(--cr-canvas-soft);
@@ -30,14 +39,19 @@
 
   --color-verdict-verified: var(--cr-verdict-verified);
   --color-verdict-verified-text: var(--cr-verdict-verified-text);
+  --color-verdict-verified-soft: var(--cr-verdict-verified-soft);
   --color-verdict-discrepancy: var(--cr-verdict-discrepancy);
   --color-verdict-discrepancy-text: var(--cr-verdict-discrepancy-text);
+  --color-verdict-discrepancy-soft: var(--cr-verdict-discrepancy-soft);
   --color-verdict-contradiction: var(--cr-verdict-contradiction);
   --color-verdict-contradiction-text: var(--cr-verdict-contradiction-text);
+  --color-verdict-contradiction-soft: var(--cr-verdict-contradiction-soft);
   --color-verdict-unsupported: var(--cr-verdict-unsupported);
   --color-verdict-unsupported-text: var(--cr-verdict-unsupported-text);
+  --color-verdict-unsupported-soft: var(--cr-verdict-unsupported-soft);
   --color-verdict-unverifiable: var(--cr-verdict-unverifiable);
   --color-verdict-unverifiable-text: var(--cr-verdict-unverifiable-text);
+  --color-verdict-unverifiable-soft: var(--cr-verdict-unverifiable-soft);
 
   --font-sans: var(--cr-font-sans);
   --font-mono: var(--cr-font-mono);
@@ -53,14 +67,22 @@
   --text-label: var(--cr-text-label);
 
   --tracking-display: var(--cr-tracking-display);
+  --tracking-wordmark: var(--cr-tracking-wordmark);
   --tracking-label: var(--cr-tracking-label);
 
   --radius-control: var(--cr-radius-md);
   --radius-row: var(--cr-radius-sm);
   --radius-card: var(--cr-radius-lg);
+  --radius-panel: var(--cr-radius-xl);
   --radius-pill: var(--cr-radius-pill);
 
   --container-content: var(--cr-content-max);
+
+  --spacing-nav: var(--cr-nav-height);
+  --spacing-control: var(--cr-control-height);
+  --spacing-input: var(--cr-input-height);
+  --spacing-sidebar: var(--cr-sidebar-width);
+  --spacing-avatar: var(--cr-avatar-size);
 }
 
 @layer base {
