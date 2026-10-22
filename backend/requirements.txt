@@ -3,5 +3,5 @@ fastapi[standard]>=0.115
 pydantic-settings>=2.6
 # Validación de los tokens de Supabase (firmados con ES256).
 pyjwt[crypto]>=2.10
-# Lectura del texto de los PDF (licencia AGPL: el repositorio oficial es público).
+# Lectura del texto de los PDF (licencia AGPL-3.0).
 pymupdf>=1.24
