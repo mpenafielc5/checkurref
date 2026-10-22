@@ -1,7 +1,7 @@
 import { LogOut } from "lucide-react";
-import Image from "next/image";
 import { initialsOf, ROLE_LABELS, shortDisplayName } from "../rules";
 import type { Profile, UserRole } from "../types";
+import { AvatarPhoto } from "./avatar-photo";
 
 /** Color del avatar según el rol, como en las maquetas. */
 const AVATAR_BY_ROLE: Record<UserRole, string> = {
@@ -28,22 +28,7 @@ export function SignOutButton({ compact = false }: { compact?: boolean }) {
 }
 
 function Avatar({ profile }: { profile: Profile }) {
-  if (profile.avatarUrl) {
-    // unoptimized: el navegador carga la foto directo desde Google, ya en
-    // tamaño pequeño; el servidor no la descarga ni guarda copias.
-    return (
-      <Image
-        src={profile.avatarUrl}
-        alt=""
-        width={40}
-        height={40}
-        unoptimized
-        className="size-avatar shrink-0 rounded-pill object-cover"
-      />
-    );
-  }
-
-  return (
+  const initials = (
     <span
       aria-hidden="true"
       className={`flex size-avatar shrink-0 items-center justify-center rounded-pill text-small font-semibold ${AVATAR_BY_ROLE[profile.role]}`}
@@ -51,6 +36,8 @@ function Avatar({ profile }: { profile: Profile }) {
       {initialsOf(profile.fullName)}
     </span>
   );
+
+  return profile.avatarUrl ? <AvatarPhoto src={profile.avatarUrl} fallback={initials} /> : initials;
 }
 
 /** Bloque del usuario al pie de la barra lateral: avatar, nombre, rol y Salir. */
