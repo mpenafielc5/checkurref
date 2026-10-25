@@ -18,6 +18,11 @@ export function homePathForRole(role: UserRole): string {
   return HOME_BY_ROLE[role];
 }
 
+/** Pantalla Mi cuenta, dentro de la sección de cada rol. */
+export function accountPathForRole(role: UserRole): string {
+  return `${HOME_BY_ROLE[role]}/cuenta`;
+}
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   estudiante: "Estudiante",
   docente: "Docente",
@@ -27,24 +32,33 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 /** Menú principal de cada rol (decisión 12 del documento de decisiones). */
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   estudiante: [
-    { label: "Inicio", href: "/estudiante" },
-    { label: "Mis trabajos", href: "/estudiante/trabajos" },
-    { label: "Ayuda", href: "/estudiante/ayuda" },
+    { label: "Inicio", href: "/estudiante", icon: "home" },
+    { label: "Mis trabajos", href: "/estudiante/trabajos", icon: "works" },
+    { label: "Ayuda", href: "/estudiante/ayuda", icon: "help" },
   ],
   docente: [
-    { label: "Inicio", href: "/docente" },
-    { label: "Lotes", href: "/docente/lotes" },
-    { label: "Ayuda", href: "/docente/ayuda" },
+    { label: "Inicio", href: "/docente", icon: "home" },
+    { label: "Lotes", href: "/docente/lotes", icon: "batches" },
+    { label: "Ayuda", href: "/docente/ayuda", icon: "help" },
   ],
   admin: [
-    { label: "Inicio", href: "/admin" },
-    { label: "Laboratorio", href: "/admin/laboratorio" },
-    { label: "Usuarios", href: "/admin/usuarios" },
+    { label: "Inicio", href: "/admin", icon: "home" },
+    { label: "Laboratorio", href: "/admin/laboratorio", icon: "lab" },
+    { label: "Usuarios", href: "/admin/usuarios", icon: "users" },
   ],
 };
 
 export function navItemsForRole(role: UserRole): NavItem[] {
   return NAV_BY_ROLE[role];
+}
+
+/**
+ * Si una opción del menú corresponde a la página actual. Las secciones se
+ * marcan también en sus páginas internas; "Inicio", solo en su propia página.
+ */
+export function isNavItemActive(pathname: string, href: string, homeHref: string): boolean {
+  if (pathname === href) return true;
+  return href !== homeHref && pathname.startsWith(`${href}/`);
 }
 
 function capitalize(word: string): string {
@@ -65,13 +79,21 @@ function splitName(fullName: string): { first: string; surname: string | null } 
   return { first, surname: null };
 }
 
-/** Nombre corto para la barra lateral, por ejemplo "Miguel P.". */
+/**
+ * Nombre completo con mayúscula inicial en cada palabra. Google suele
+ * entregarlo todo en mayúsculas ("ANA TORRES VERA" pasa a "Ana Torres Vera").
+ */
+export function displayFullName(fullName: string): string {
+  return fullName.trim().split(/\s+/).filter(Boolean).map(capitalize).join(" ");
+}
+
+/** Nombre corto para la barra lateral, por ejemplo "Ana T.". */
 export function shortDisplayName(fullName: string): string {
   const { first, surname } = splitName(fullName);
   return surname ? `${first} ${surname.charAt(0)}.` : first;
 }
 
-/** Iniciales para el avatar, por ejemplo "MP". */
+/** Iniciales para el avatar, por ejemplo "AT". */
 export function initialsOf(fullName: string): string {
   const { first, surname } = splitName(fullName);
   return `${first.charAt(0)}${surname?.charAt(0) ?? ""}`;

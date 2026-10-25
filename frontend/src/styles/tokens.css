@@ -116,6 +116,11 @@
   /* Medidas de la interfaz */
   --cr-content-max: 75rem; /* 1200px */
   --cr-sidebar-width: 14rem; /* 224px, barra lateral de las pantallas internas */
+  /* 76px, barra contraída: íconos de 20px con 12px a cada lado y el margen de la barra */
+  --cr-sidebar-rail-width: 4.75rem;
+  --cr-sidebar-expand-delay: 200ms; /* espera antes de desplegarla al pasar el mouse */
+  --cr-duration-fast: 150ms; /* transiciones breves */
+  --cr-z-sidebar: 40; /* la barra desplegada queda encima del contenido */
   --cr-avatar-size: 2.5rem; /* 40px */
   /* Indicador a media fila: mitad del ancho menos la mitad del espacio entre tarjetas */
   --cr-stat-half: calc(50% - var(--cr-space-md) / 2);

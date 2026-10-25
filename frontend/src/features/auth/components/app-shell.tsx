@@ -12,11 +12,14 @@ import { AppSidebar, AppSidebarSkeleton } from "./app-sidebar";
  */
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-1 flex-col md:flex-row">
+    <div className="flex flex-1 flex-col desktop-nav:flex-row">
       <Suspense fallback={<AppSidebarSkeleton />}>
         <AppSidebar />
       </Suspense>
-      <main className="flex min-w-0 flex-1 flex-col bg-surface">{children}</main>
+      {/* pb-nav: con la barra inferior (celular, tableta), el final del contenido no queda tapado */}
+      <main className="flex min-w-0 flex-1 flex-col bg-surface pb-nav desktop-nav:pb-0">
+        {children}
+      </main>
     </div>
   );
 }

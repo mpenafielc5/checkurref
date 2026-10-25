@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+  <!--
+    Ícono de la pestaña: el mismo isotipo de BrandLogo, con un trazo más grueso
+    porque a 16 px uno fino se pierde. Un archivo estático no puede leer
+    tokens.css, así que repite sus valores de tinta, lienzo (hoja sobre
+    pestañas oscuras) y naranja de marca.
+  -->
+  <style>
+    .sheet { stroke: #26251e; }
+    .check { stroke: #f54e00; }
+    @media (prefers-color-scheme: dark) {
+      .sheet { stroke: #f7f7f4; }
+    }
+  </style>
+  <path class="sheet" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+  <path class="sheet" d="M14 3v5h5" />
+  <path class="check" d="m8.5 14 2.5 2.5 5-5.5" />
+</svg>

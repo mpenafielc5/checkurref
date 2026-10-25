@@ -7,6 +7,8 @@ type AvatarPhotoProps = {
   src: string;
   /** Lo que se muestra si la foto no carga (las iniciales). */
   fallback: ReactNode;
+  /** Tamaño; por omisión, el del avatar de la barra lateral. */
+  sizeClass?: string;
 };
 
 /**
@@ -20,7 +22,7 @@ type AvatarPhotoProps = {
  *   Se revisa también al montar, porque el error puede ocurrir antes de que la
  *   página termine de cargar y entonces el aviso onError no llega.
  */
-export function AvatarPhoto({ src, fallback }: AvatarPhotoProps) {
+export function AvatarPhoto({ src, fallback, sizeClass = "size-avatar" }: AvatarPhotoProps) {
   const [failed, setFailed] = useState(false);
   const image = useRef<HTMLImageElement>(null);
 
@@ -41,7 +43,7 @@ export function AvatarPhoto({ src, fallback }: AvatarPhotoProps) {
       unoptimized
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className="size-avatar shrink-0 rounded-pill object-cover"
+      className={`${sizeClass} shrink-0 rounded-pill object-cover`}
     />
   );
 }

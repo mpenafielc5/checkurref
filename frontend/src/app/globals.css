@@ -85,9 +85,19 @@
   --spacing-control: var(--cr-control-height);
   --spacing-input: var(--cr-input-height);
   --spacing-sidebar: var(--cr-sidebar-width);
+  --spacing-sidebar-rail: var(--cr-sidebar-rail-width);
   --spacing-avatar: var(--cr-avatar-size);
   --spacing-stat-half: var(--cr-stat-half);
 }
+
+/*
+ * Navegación de escritorio (barra lateral que se despliega con el mouse): solo
+ * con pantalla ancha (48rem, el mismo punto que md) y un puntero que puede
+ * pasar por encima. Cualquier pantalla táctil, aunque sea ancha (celular en
+ * horizontal, tableta), usa la barra inferior. La misma consulta está en
+ * shared/lib/media.ts para el código que corre en el navegador.
+ */
+@custom-variant desktop-nav (@media (width >= 48rem) and (hover: hover) and (pointer: fine));
 
 /*
  * Decoración sin sombras: dan profundidad al hero en escritorio sin elevar

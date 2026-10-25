@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  accountPathForRole,
+  displayFullName,
   errorCodeFromOAuthFailure,
   homePathForRole,
   initialsOf,
   isInstitutionalEmail,
+  isNavItemActive,
   loginErrorMessage,
   navItemsForRole,
   safeAvatarUrl,
@@ -28,25 +31,25 @@ describe("safeAvatarUrl", () => {
 
 describe("nombre corto e iniciales", () => {
   it("usa el primer nombre y la inicial del primer apellido", () => {
-    expect(shortDisplayName("MIGUEL ANGEL PEÑAFIEL CADENA")).toBe("Miguel P.");
-    expect(initialsOf("MIGUEL ANGEL PEÑAFIEL CADENA")).toBe("MP");
+    expect(shortDisplayName("MARÍA JOSÉ ÑAUPARI CASTRO")).toBe("María Ñ.");
+    expect(initialsOf("MARÍA JOSÉ ÑAUPARI CASTRO")).toBe("MÑ");
   });
 
   it("funciona con nombres de dos y tres palabras", () => {
     expect(shortDisplayName("Ana Torres")).toBe("Ana T.");
-    expect(shortDisplayName("Jackson Reyes Ibarra")).toBe("Jackson R.");
+    expect(shortDisplayName("Carlos Mendoza Vera")).toBe("Carlos M.");
     expect(initialsOf("Ana Torres")).toBe("AT");
   });
 
   it("funciona con una sola palabra", () => {
-    expect(shortDisplayName("mpenafielc5")).toBe("Mpenafielc5");
-    expect(initialsOf("mpenafielc5")).toBe("M");
+    expect(shortDisplayName("atorres9")).toBe("Atorres9");
+    expect(initialsOf("atorres9")).toBe("A");
   });
 });
 
 describe("isInstitutionalEmail", () => {
   it("acepta correos @unemi.edu.ec sin importar mayúsculas ni espacios", () => {
-    expect(isInstitutionalEmail("mpenafielc5@unemi.edu.ec")).toBe(true);
+    expect(isInstitutionalEmail("atorres9@unemi.edu.ec")).toBe(true);
     expect(isInstitutionalEmail("  Docente@UNEMI.EDU.EC ")).toBe(true);
   });
 
@@ -94,6 +97,39 @@ describe("navItemsForRole", () => {
       navItemsForRole(role).find((item) => item.label === "Ayuda")?.href;
     expect(helpHref("estudiante")).toBe("/estudiante/ayuda");
     expect(helpHref("docente")).toBe("/docente/ayuda");
+  });
+});
+
+describe("displayFullName", () => {
+  it("pasa el nombre de Google de mayúsculas a mayúscula inicial", () => {
+    expect(displayFullName("JOSÉ IVÁN MUÑOZ PEÑA")).toBe("José Iván Muñoz Peña");
+  });
+
+  it("quita los espacios sobrantes", () => {
+    expect(displayFullName("  ana   torres ")).toBe("Ana Torres");
+  });
+});
+
+describe("accountPathForRole", () => {
+  it("ubica Mi cuenta dentro de la sección de cada rol", () => {
+    expect(accountPathForRole("estudiante")).toBe("/estudiante/cuenta");
+    expect(accountPathForRole("docente")).toBe("/docente/cuenta");
+    expect(accountPathForRole("admin")).toBe("/admin/cuenta");
+  });
+});
+
+describe("isNavItemActive", () => {
+  it("marca la sección también en sus páginas internas", () => {
+    expect(isNavItemActive("/docente/lotes/is-7a", "/docente/lotes", "/docente")).toBe(true);
+  });
+
+  it("marca Inicio solo en su propia página", () => {
+    expect(isNavItemActive("/docente", "/docente", "/docente")).toBe(true);
+    expect(isNavItemActive("/docente/lotes", "/docente", "/docente")).toBe(false);
+  });
+
+  it("no confunde rutas que solo empiezan igual", () => {
+    expect(isNavItemActive("/admin/usuarios-extra", "/admin/usuarios", "/admin")).toBe(false);
   });
 });
 
