@@ -23,7 +23,7 @@ export const SAMPLE_USERS: UserRow[] = [
   { id: "u2", name: "Docente Demo", email: "docente.demo@unemi.edu.ec", role: "docente" },
   { id: "u3", name: "Luis Mendoza", email: "lmendoza@unemi.edu.ec", role: "estudiante" },
   { id: "u4", name: "Carla Ruiz", email: "cruiz@unemi.edu.ec", role: "estudiante" },
-  { id: "u5", name: "Jackson R.", email: "jackson.r@unemi.edu.ec", role: "admin" },
+  { id: "u5", name: "Paola Rivas", email: "privas@unemi.edu.ec", role: "admin" },
 ];
 
 export const SAMPLE_ADMIN_STATS = {

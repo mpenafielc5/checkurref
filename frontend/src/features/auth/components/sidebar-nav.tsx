@@ -1,41 +1,61 @@
 "use client";
 
+import {
+  CircleHelp,
+  FileText,
+  FlaskConical,
+  FolderOpen,
+  House,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { NavItem } from "../types";
+import { isNavItemActive } from "../rules";
+import type { NavIcon, NavItem } from "../types";
+import { REVEAL_ON_EXPAND } from "./sidebar-reveal";
 
-type SidebarNavProps = {
+/** Dibujo de cada opción del menú; lo comparten la barra lateral y la inferior. */
+export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
+  home: House,
+  works: FileText,
+  batches: FolderOpen,
+  help: CircleHelp,
+  lab: FlaskConical,
+  users: Users,
+};
+
+type NavProps = {
   items: NavItem[];
   homeHref: string;
 };
 
-/** Menú del rol; resalta la sección en la que está el usuario. */
-export function SidebarNav({ items, homeHref }: SidebarNavProps) {
+/**
+ * Menú del rol en la barra lateral de escritorio; resalta la sección actual.
+ * Con la barra contraída solo se ven los íconos.
+ */
+export function SidebarNav({ items, homeHref }: NavProps) {
   const pathname = usePathname();
-
-  function isActive(href: string): boolean {
-    if (pathname === href) return true;
-    // "Inicio" solo se marca en su propia página, no en las secciones internas.
-    return href !== homeHref && pathname.startsWith(`${href}/`);
-  }
 
   return (
     <nav aria-label="Principal">
-      <ul className="flex gap-1 overflow-x-auto md:flex-col">
+      <ul className="flex flex-col gap-1">
         {items.map((item) => {
-          const active = isActive(item.href);
+          const active = isNavItemActive(pathname, item.href, homeHref);
+          const Icon = NAV_ICONS[item.icon];
           return (
-            <li key={item.href} className="flex shrink-0">
+            <li key={item.href} className="flex">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={
+                className={`flex w-full items-center gap-3 rounded-control px-3 py-2 text-small ${
                   active
-                    ? "flex w-full rounded-control bg-surface-strong px-3 py-2 text-small font-semibold text-ink"
-                    : "flex w-full rounded-control px-3 py-2 text-small text-body hover:bg-hairline-soft hover:text-ink"
-                }
+                    ? "bg-surface-strong font-semibold text-ink"
+                    : "text-body hover:bg-hairline-soft hover:text-ink"
+                }`}
               >
-                {item.label}
+                <Icon aria-hidden="true" className="size-5 shrink-0" />
+                <span className={REVEAL_ON_EXPAND}>{item.label}</span>
               </Link>
             </li>
           );

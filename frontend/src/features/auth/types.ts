@@ -13,7 +13,11 @@ export type Profile = {
   avatarUrl: string | null;
 };
 
+/** Ícono de cada opción del menú; SidebarNav lo traduce a su dibujo. */
+export type NavIcon = "home" | "works" | "batches" | "help" | "lab" | "users";
+
 export type NavItem = {
   label: string;
   href: string;
+  icon: NavIcon;
 };

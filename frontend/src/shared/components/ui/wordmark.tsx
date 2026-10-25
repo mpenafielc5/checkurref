@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { BrandLogo } from "./brand-logo";
 
-/** Nombre del sistema como logotipo de texto. */
+/** Logotipo con enlace (página pública, ingreso y barra superior del celular). */
 export function Wordmark({ href = "/" }: { href?: string }) {
   return (
-    <Link href={href} className="text-title font-bold tracking-wordmark text-ink">
-      CheckUrRef
+    <Link href={href} className="flex rounded-control">
+      <BrandLogo variant="expanded" />
     </Link>
   );
 }
