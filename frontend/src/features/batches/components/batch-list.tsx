@@ -11,7 +11,9 @@ function BatchStatusChip({ status, works }: { status: BatchStatus; works: number
       </StatusChip>
     );
   }
-  const tone = status.count >= 5 ? "danger" : "success";
+  // Verde solo sin alertas: cualquier alerta pide revisión.
+  if (status.count === 0) return <StatusChip tone="success">Sin alertas</StatusChip>;
+  const tone = status.count >= 5 ? "danger" : "warning";
   return (
     <StatusChip tone={tone}>
       {status.count} {status.count === 1 ? "alerta" : "alertas"}
@@ -35,7 +37,7 @@ export function BatchList({ batches }: { batches: BatchSummary[] }) {
             <span className="flex flex-1 flex-col">
               <span className="font-semibold text-ink">{batch.name}</span>
               <span className="text-small">
-                {batch.works} trabajos · {batch.period}
+                {batch.works} trabajos · <span className="whitespace-nowrap">{batch.period}</span>
               </span>
             </span>
             <BatchStatusChip status={batch.status} works={batch.works} />

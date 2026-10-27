@@ -12,7 +12,7 @@ import { Avatar, UserBadge } from "./user-badge";
 
 /** Pantallas táctiles: arriba solo el logotipo (no queda fija); el menú y la cuenta van abajo, en BottomNav. */
 const MOBILE_BAR_CLASSES =
-  "flex h-nav items-center border-b border-hairline bg-canvas px-4 desktop-nav:hidden";
+  "flex h-nav items-center border-b border-hairline bg-canvas px-4 short-screen:h-nav-compact desktop-nav:hidden";
 
 /** Escritorio (desktop-nav): reserva el ancho de la barra contraída para que el contenido no quede debajo. */
 const RAIL_CLASSES = "hidden w-sidebar-rail shrink-0 desktop-nav:flex";
@@ -89,7 +89,7 @@ export function AppSidebarSkeleton() {
       <div className={MOBILE_BAR_CLASSES}>
         <BrandLogo variant="expanded" />
       </div>
-      <div className="fixed inset-x-0 bottom-0 flex h-nav border-t border-hairline bg-canvas desktop-nav:hidden">
+      <div className="fixed inset-x-0 bottom-0 flex h-nav border-t border-hairline bg-canvas short-screen:h-nav-compact desktop-nav:hidden">
         {tabSlots.map((slot) => (
           <span key={slot} className="flex flex-1 items-center justify-center">
             <Skeleton className="size-5 rounded-row" />

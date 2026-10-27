@@ -12,7 +12,7 @@ const VALUE_TONES: Record<StatTone, string> = {
 
 /** Caja compartida por la tarjeta y su esqueleto, para que midan lo mismo. */
 const CARD_CLASSES =
-  "flex w-full flex-col gap-0.5 rounded-card border border-hairline bg-canvas px-5 py-3 md:w-stat-half lg:w-auto lg:flex-1 lg:basis-0";
+  "flex w-stat-half flex-col gap-0.5 rounded-card border border-hairline bg-canvas px-4 py-3 md:px-5 lg:w-auto lg:flex-1 lg:basis-0";
 const VALUE_TEXT = "text-display-sm font-bold tracking-normal";
 const LABEL_TEXT = "text-small";
 
@@ -43,7 +43,7 @@ export function StatCardSkeleton() {
 }
 
 /**
- * Fila de indicadores con flexbox: una columna en el celular, dos en tableta y
+ * Fila de indicadores con flexbox: de dos en dos en el celular y la tableta, y
  * todos en una fila con el mismo ancho en escritorio.
  */
 export function StatRow({ children }: { children: ReactNode }) {

@@ -82,6 +82,7 @@
   --container-content: var(--cr-content-max);
 
   --spacing-nav: var(--cr-nav-height);
+  --spacing-nav-compact: var(--cr-nav-compact-height);
   --spacing-control: var(--cr-control-height);
   --spacing-input: var(--cr-input-height);
   --spacing-sidebar: var(--cr-sidebar-width);
@@ -89,6 +90,13 @@
   --spacing-avatar: var(--cr-avatar-size);
   --spacing-stat-half: var(--cr-stat-half);
 }
+
+/*
+ * Pantalla baja (celular en horizontal): las barras de arriba y de abajo se
+ * vuelven delgadas y la de abajo muestra solo íconos. Se declara antes que
+ * desktop-nav para que, en una ventana de escritorio baja, gane desktop-nav.
+ */
+@custom-variant short-screen (@media (height < 30rem));
 
 /*
  * Navegación de escritorio (barra lateral que se despliega con el mouse): solo

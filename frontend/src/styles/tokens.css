@@ -125,6 +125,7 @@
   /* Indicador a media fila: mitad del ancho menos la mitad del espacio entre tarjetas */
   --cr-stat-half: calc(50% - var(--cr-space-md) / 2);
   --cr-nav-height: 4rem; /* 64px */
+  --cr-nav-compact-height: 3rem; /* 48px, barras del celular en horizontal: solo íconos */
   --cr-control-height: 2.5rem; /* 40px, botones */
   --cr-input-height: 2.75rem; /* 44px, campos de formulario */
 }

@@ -4,6 +4,8 @@ import { Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import {
+  cardClass,
+  cardListClass,
   DataTable,
   DataTableSkeleton,
   numericClass,
@@ -13,13 +15,19 @@ import {
 } from "@/shared/components/ui/data-table";
 import { SkeletonText } from "@/shared/components/ui/skeleton";
 import { workHref } from "../sample-data";
-import type { WorkVersion } from "../types";
+import type { Work } from "../types";
+import { WorkStatusChip } from "./work-status-chip";
 
 const SEARCH_CLASSES =
   "flex h-input w-full items-center gap-2 rounded-control border border-hairline-strong bg-canvas px-4 md:max-w-xs";
 
-/** Historial de trabajos con búsqueda por nombre (maqueta 13). */
-export function WorkHistory({ works }: { works: WorkVersion[] }) {
+const EMPTY_MESSAGE = "Ningún trabajo coincide con la búsqueda.";
+
+/**
+ * Historial de trabajos con búsqueda por nombre (maqueta 13). Cada archivo es
+ * un trabajo independiente, del más reciente al más antiguo.
+ */
+export function WorkHistory({ works }: { works: Work[] }) {
   const [query, setQuery] = useState("");
   const visible = works.filter((work) =>
     work.fileName.toLowerCase().includes(query.trim().toLowerCase()),
@@ -39,14 +47,26 @@ export function WorkHistory({ works }: { works: WorkVersion[] }) {
         />
       </label>
 
-      <DataTable caption="Historial de trabajos y versiones">
+      <ul className={cardListClass}>
+        {visible.map((work) => (
+          <li key={work.analysisId} className="flex">
+            <Link href={workHref(work)} className={`${cardClass} hover:border-hairline-strong`}>
+              <span className="font-semibold break-words text-ink">{work.fileName}</span>
+              <span className="flex items-center justify-between gap-3">
+                <span className="text-small">{work.date}</span>
+                <WorkStatusChip work={work} />
+              </span>
+            </Link>
+          </li>
+        ))}
+        {visible.length === 0 ? <li className="text-small">{EMPTY_MESSAGE}</li> : null}
+      </ul>
+
+      <DataTable caption="Historial de trabajos" cardsOnMobile>
         <thead className={tableHeadClass}>
           <tr>
             <th scope="col" className={thClass}>
-              Trabajo
-            </th>
-            <th scope="col" className={thClass}>
-              Versión
+              Archivo
             </th>
             <th scope="col" className={thClass}>
               Fecha
@@ -67,7 +87,6 @@ export function WorkHistory({ works }: { works: WorkVersion[] }) {
                   {work.fileName}
                 </Link>
               </td>
-              <td className={tdClass}>v{work.version}</td>
               <td className={tdClass}>{work.date}</td>
               <td className={`${tdClass} ${numericClass}`}>{work.index ?? "—"}</td>
               <td
@@ -83,8 +102,8 @@ export function WorkHistory({ works }: { works: WorkVersion[] }) {
           ))}
           {visible.length === 0 ? (
             <tr>
-              <td colSpan={5} className={`${tdClass} text-body`}>
-                Ningún trabajo coincide con la búsqueda.
+              <td colSpan={4} className={`${tdClass} text-body`}>
+                {EMPTY_MESSAGE}
               </td>
             </tr>
           ) : null}
@@ -94,14 +113,14 @@ export function WorkHistory({ works }: { works: WorkVersion[] }) {
   );
 }
 
-/** Esqueleto de WorkHistory: buscador y tabla. */
+/** Esqueleto de WorkHistory: buscador y lista (tarjetas en el celular, tabla desde md). */
 export function WorkHistorySkeleton() {
   return (
     <div className="flex flex-col gap-4">
       <span className={SEARCH_CLASSES}>
         <SkeletonText textClass="text-small" widthClass="w-32" />
       </span>
-      <DataTableSkeleton columns={5} rows={4} />
+      <DataTableSkeleton columns={4} rows={4} cardsOnMobile />
     </div>
   );
 }

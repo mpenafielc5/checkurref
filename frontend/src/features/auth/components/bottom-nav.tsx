@@ -20,6 +20,8 @@ type BottomNavProps = {
 };
 
 const TAB_CLASSES = "flex flex-1 flex-col items-center justify-center gap-1 text-caption";
+/** En el celular en horizontal el texto se oculta a la vista, pero lo siguen leyendo los lectores de pantalla. */
+const LABEL_CLASSES = "short-screen:sr-only";
 
 /** Texto de la pestaña y píldora detrás del ícono según si es la pantalla actual. */
 function tabState(active: boolean) {
@@ -34,6 +36,7 @@ function tabState(active: boolean) {
  * con las opciones siempre visibles y, al final, Cuenta (abajo, como el bloque
  * del usuario en la barra lateral de escritorio). Cada pestaña abre una
  * pantalla; la actual lleva una píldora detrás del ícono y el texto en negrita.
+ * En el celular en horizontal la barra es más delgada y muestra solo íconos.
  */
 export function BottomNav({ items, homeHref, account }: BottomNavProps) {
   const pathname = usePathname();
@@ -43,7 +46,7 @@ export function BottomNav({ items, homeHref, account }: BottomNavProps) {
   return (
     <nav
       aria-label="Principal"
-      className="fixed inset-x-0 bottom-0 z-(--cr-z-sidebar) flex h-nav border-t border-hairline bg-canvas desktop-nav:hidden"
+      className="fixed inset-x-0 bottom-0 z-(--cr-z-sidebar) flex h-nav border-t border-hairline bg-canvas short-screen:h-nav-compact desktop-nav:hidden"
     >
       <ul className="flex flex-1">
         {items.map((item) => {
@@ -60,7 +63,7 @@ export function BottomNav({ items, homeHref, account }: BottomNavProps) {
                 <span className={`${state.pill} py-1`}>
                   <Icon aria-hidden="true" className="size-5" />
                 </span>
-                {item.label}
+                <span className={LABEL_CLASSES}>{item.label}</span>
               </Link>
             </li>
           );
@@ -73,7 +76,7 @@ export function BottomNav({ items, homeHref, account }: BottomNavProps) {
           >
             {/* py-0.5: el avatar de 24 px ocupa lo mismo que un ícono con py-1 */}
             <span className={`${accountState.pill} py-0.5`}>{account.avatar}</span>
-            Cuenta
+            <span className={LABEL_CLASSES}>Cuenta</span>
           </Link>
         </li>
       </ul>

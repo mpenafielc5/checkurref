@@ -22,7 +22,7 @@ export function EngineComparison({
         />
       </label>
       <div className="flex justify-end">
-        <button type="button" disabled className={buttonStyles()}>
+        <button type="button" disabled className={`${buttonStyles({ fullWidth: true })} md:w-auto`}>
           Comparar motores
         </button>
       </div>

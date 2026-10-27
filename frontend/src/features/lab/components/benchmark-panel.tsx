@@ -19,7 +19,7 @@ export function BenchmarkPanel({ benchmark }: { benchmark: typeof SAMPLE_BENCHMA
           <span className="font-semibold text-ink">Conjunto de oro: {benchmark.goldSet}</span>
           <span>{benchmark.goldDetail}</span>
         </p>
-        <button type="button" disabled className={buttonStyles()}>
+        <button type="button" disabled className={`${buttonStyles({ fullWidth: true })} md:w-auto`}>
           Ejecutar benchmark
         </button>
       </div>
