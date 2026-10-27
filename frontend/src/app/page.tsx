@@ -22,12 +22,13 @@ const STEPS = [
     icon: ListChecks,
     title: "Verificamos cada una",
     description:
-      "Separamos sus campos, los buscamos en Crossref y los comparamos con un modelo de inteligencia artificial en español.",
+      "Separamos sus campos, los buscamos en Crossref y OpenAlex, los comparamos con un modelo de inteligencia artificial en español y revisamos que estén bien escritas.",
   },
   {
     icon: CircleCheck,
     title: "Recibe tu informe",
-    description: "Cada referencia recibe un veredicto y el dato registrado para corregirla.",
+    description:
+      "Cada referencia recibe un veredicto, el dato registrado y sus errores de formato para corregirla.",
   },
 ];
 
@@ -38,7 +39,8 @@ export default function HomePage() {
       <header className="border-b border-hairline">
         <div className="mx-auto flex min-h-nav w-full max-w-content flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3 md:px-8">
           <Wordmark />
-          <nav aria-label="Secciones">
+          {/* En el celular se ocultan: las secciones quedan a un desplazamiento del botón de acceso. */}
+          <nav aria-label="Secciones" className="hidden md:flex">
             <ul className="flex items-center gap-6">
               <li>
                 <a href="#como-funciona" className="text-small text-body hover:text-ink">
@@ -89,7 +91,7 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Globe aria-hidden="true" className="size-5 text-body" />
-                  Crossref
+                  Crossref y OpenAlex
                 </li>
                 <li className="flex items-center gap-2">
                   <Lightbulb aria-hidden="true" className="size-5 text-body" />
@@ -159,7 +161,13 @@ export default function HomePage() {
               <strong className="text-ink">
                 &ldquo;Sin respaldo&rdquo; no significa &ldquo;falsa&rdquo;.
               </strong>{" "}
-              Muchas obras en español no tienen DOI: el sistema señala y el docente decide.
+              Algunas revistas en español no están en Crossref ni en OpenAlex: el sistema señala y
+              el docente decide.
+            </p>
+            <p className="text-small">
+              <strong className="text-ink">Además, el formato.</strong> El informe señala los
+              errores de escritura según APA 7 o IEEE, por ejemplo un DOI que falta. No cambian el
+              veredicto: una referencia puede ser real y estar mal escrita.
             </p>
           </div>
         </section>

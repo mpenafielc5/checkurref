@@ -19,11 +19,21 @@ export type NliResult = {
   contradiction: number;
 };
 
+/**
+ * Problema de escritura según la norma APA o IEEE (tabla hallazgos, tipo
+ * "formato"): qué está mal, cómo aparece en el trabajo y cómo debería ir.
+ */
+export type FormatFinding = {
+  message: string;
+  given: string;
+  expected: string;
+};
+
 export type ReferenceResult = {
   order: number;
   verdict: Verdict;
   page: number;
-  formatFindings: number;
+  formatFindings: FormatFinding[];
   segments: ReferenceSegment[];
   comparisons: FieldComparison[];
   nli: NliResult | null;

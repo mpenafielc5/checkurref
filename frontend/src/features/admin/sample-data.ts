@@ -30,5 +30,5 @@ export const SAMPLE_ADMIN_STATS = {
   users: "128",
   analysesToday: "37",
   goldSet: "150",
-  lastBenchmark: "09/10",
+  lastBenchmark: "9 oct 2026",
 };

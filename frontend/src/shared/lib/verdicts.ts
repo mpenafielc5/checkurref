@@ -18,7 +18,7 @@ type VerdictInfo = {
 export const VERDICTS: Record<Verdict, VerdictInfo> = {
   verificada: {
     label: "Verificada",
-    description: "Coincide con el registro de Crossref.",
+    description: "Coincide con el registro de Crossref u OpenAlex.",
     badgeClass: "bg-verdict-verified-soft text-verdict-verified-text",
     swatchClass: "bg-verdict-verified",
   },
@@ -42,7 +42,8 @@ export const VERDICTS: Record<Verdict, VerdictInfo> = {
   },
   no_verificable: {
     label: "No verificable",
-    description: "Libro, tesis o sitio web fuera de la cobertura de las fuentes.",
+    description:
+      "Crossref y OpenAlex no registran este tipo de obra, así que no se pudo comprobar.",
     badgeClass: "bg-verdict-unverifiable-soft text-verdict-unverifiable-text",
     swatchClass: "bg-verdict-unverifiable",
   },

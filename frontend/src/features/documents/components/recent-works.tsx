@@ -1,11 +1,11 @@
 import { FileText } from "lucide-react";
 import Link from "next/link";
 import { workHref } from "../sample-data";
-import type { WorkVersion } from "../types";
+import type { Work } from "../types";
 import { WorkStatusChip } from "./work-status-chip";
 
 /** Análisis recientes del estudiante (maqueta 10). Cada fila es clicable. */
-export function RecentWorks({ works }: { works: WorkVersion[] }) {
+export function RecentWorks({ works }: { works: Work[] }) {
   return (
     <section aria-labelledby="titulo-recientes" className="flex flex-col gap-3">
       <h2 id="titulo-recientes" className="text-small font-semibold tracking-normal text-ink">

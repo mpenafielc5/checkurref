@@ -1,10 +1,12 @@
 export type AnalysisStatus = "listo" | "en_proceso";
 
-/** Una versión de un trabajo y el estado de su análisis. */
-export type WorkVersion = {
+/**
+ * Un trabajo subido y el estado de su análisis. Cada archivo es un trabajo
+ * independiente: no hay versiones, aunque el nombre coincida.
+ */
+export type Work = {
   analysisId: string;
   fileName: string;
-  version: number;
   date: string;
   references: number;
   /** Índice de veracidad de 0 a 100; null mientras se analiza. */

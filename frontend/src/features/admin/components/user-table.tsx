@@ -4,6 +4,8 @@ import { Search } from "lucide-react";
 import { useState } from "react";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import {
+  cardClass,
+  cardListClass,
   DataTable,
   DataTableSkeleton,
   tableHeadClass,
@@ -11,6 +13,7 @@ import {
   thClass,
 } from "@/shared/components/ui/data-table";
 import { SkeletonText } from "@/shared/components/ui/skeleton";
+import { StatusChip } from "@/shared/components/ui/status-chip";
 import type { UserRole } from "@/shared/lib/supabase/database.types";
 import type { UserRow } from "../sample-data";
 
@@ -32,6 +35,18 @@ const ROLE_LABELS: Record<UserRole, string> = {
 /** Clases compartidas con el esqueleto, para que ambos midan lo mismo. */
 const TOOLBAR_CLASSES = "flex w-full flex-wrap items-center justify-between gap-4";
 const FILTER_CLASSES = "rounded-pill border px-4 py-1.5 text-small font-semibold";
+const EMPTY_MESSAGE = "Ninguna cuenta coincide con el filtro.";
+
+/** Botón de cambio de rol; en las cuentas de administrador no aparece. */
+function RoleAction({ role, fullWidth = false }: { role: UserRole; fullWidth?: boolean }) {
+  if (role === "admin") return <span className="text-muted">—</span>;
+  return (
+    <button type="button" disabled className={buttonStyles({ variant: "secondary", fullWidth })}>
+      Cambiar rol
+    </button>
+  );
+}
+
 const SEARCH_CLASSES =
   "flex h-input w-full items-center gap-2 rounded-control border border-hairline-strong bg-canvas px-4 md:w-auto md:max-w-xs md:flex-1";
 
@@ -88,7 +103,23 @@ export function UserTable({
         </label>
       </div>
 
-      <DataTable caption="Usuarios del sistema">
+      <ul className={cardListClass}>
+        {visible.map((user) => (
+          <li key={user.id} className={cardClass}>
+            <span className="flex items-start justify-between gap-3">
+              <span className="flex min-w-0 flex-col">
+                <span className="font-semibold text-ink">{user.name}</span>
+                <span className="text-small break-all">{user.email}</span>
+              </span>
+              <StatusChip tone="neutral">{ROLE_LABELS[user.role]}</StatusChip>
+            </span>
+            {user.role === "admin" ? null : <RoleAction role={user.role} fullWidth />}
+          </li>
+        ))}
+        {visible.length === 0 ? <li className="text-small">{EMPTY_MESSAGE}</li> : null}
+      </ul>
+
+      <DataTable caption="Usuarios del sistema" cardsOnMobile>
         <thead className={tableHeadClass}>
           <tr>
             <th scope="col" className={thClass}>
@@ -112,20 +143,14 @@ export function UserTable({
               <td className={`${tdClass} text-body`}>{user.email}</td>
               <td className={tdClass}>{ROLE_LABELS[user.role]}</td>
               <td className={tdClass}>
-                {user.role === "admin" ? (
-                  <span className="text-muted">—</span>
-                ) : (
-                  <button type="button" disabled className={buttonStyles({ variant: "secondary" })}>
-                    Cambiar rol
-                  </button>
-                )}
+                <RoleAction role={user.role} />
               </td>
             </tr>
           ))}
           {visible.length === 0 ? (
             <tr>
               <td colSpan={4} className={`${tdClass} text-body`}>
-                Ninguna cuenta coincide con el filtro.
+                {EMPTY_MESSAGE}
               </td>
             </tr>
           ) : null}
@@ -151,7 +176,7 @@ export function UserTableSkeleton() {
           <SkeletonText textClass="text-small" widthClass="w-32" />
         </span>
       </div>
-      <DataTableSkeleton columns={4} rows={5} withAction />
+      <DataTableSkeleton columns={4} rows={5} withAction cardsOnMobile />
     </div>
   );
 }

@@ -10,9 +10,14 @@ export type BatchSummary = {
 
 export type RiskLevel = "alto" | "medio" | "bajo";
 
+/**
+ * Un trabajo del lote. Se identifica por los autores leídos de la portada; si
+ * la portada no se reconoce, la lista queda vacía y se usa el nombre del archivo.
+ */
 export type BatchWork = {
   analysisId: string;
-  name: string;
+  fileName: string;
+  authors: string[];
   references: number;
   index: number;
   alerts: number;

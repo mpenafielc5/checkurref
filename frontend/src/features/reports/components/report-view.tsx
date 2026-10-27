@@ -1,8 +1,7 @@
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { StatusChip } from "@/shared/components/ui/status-chip";
 import type { Report } from "../types";
-import { ReferenceCard } from "./reference-card";
-import { ReportSummary } from "./report-summary";
+import { ReportResults } from "./report-results";
 
 /** Informe del documento: el diagnóstico de veracidad (maqueta 12). */
 export function ReportView({ report }: { report: Report }) {
@@ -20,13 +19,7 @@ export function ReportView({ report }: { report: Report }) {
         </button>
       </div>
 
-      <ReportSummary index={report.index} counts={report.counts} />
-
-      <section aria-label="Referencias" className="flex flex-col gap-4">
-        {report.references.map((reference) => (
-          <ReferenceCard key={reference.order} reference={reference} />
-        ))}
-      </section>
+      <ReportResults report={report} />
     </div>
   );
 }

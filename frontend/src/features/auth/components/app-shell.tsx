@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <AppSidebar />
       </Suspense>
       {/* pb-nav: con la barra inferior (celular, tableta), el final del contenido no queda tapado */}
-      <main className="flex min-w-0 flex-1 flex-col bg-surface pb-nav desktop-nav:pb-0">
+      <main className="flex min-w-0 flex-1 flex-col bg-surface pb-nav short-screen:pb-nav-compact desktop-nav:pb-0">
         {children}
       </main>
     </div>
