@@ -20,6 +20,25 @@ class Settings(BaseSettings):
     # la clave pública del proyecto, así que no hace falta ningún secreto.
     supabase_url: str = ""
 
+    # Clave secreta de Supabase (sb_secret_... o service_role). Solo existe en el
+    # servidor: con ella el backend guarda los PDF y crea los análisis.
+    supabase_service_role_key: str = ""
+
+    # Bucket privado de los PDF (migración 2) y modelo con el que se registran
+    # los análisis nuevos hasta que el worker use el modelo NLI (T12).
+    storage_bucket: str = "documentos"
+    analysis_model_version: str = "bert-xnli-es-onnx-int8"
+
+    @property
+    def supabase_rest_url(self) -> str:
+        """Dirección de la API de datos (PostgREST) del proyecto."""
+        return f"{self.supabase_url.rstrip('/')}/rest/v1"
+
+    @property
+    def supabase_storage_url(self) -> str:
+        """Dirección de Supabase Storage, donde se guardan los PDF."""
+        return f"{self.supabase_url.rstrip('/')}/storage/v1"
+
     @property
     def supabase_auth_url(self) -> str:
         """Dirección de Supabase Auth: emisor de los tokens y origen de sus claves."""
