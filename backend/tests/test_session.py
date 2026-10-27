@@ -2,8 +2,6 @@
 
 import time
 from collections.abc import Iterator
-from typing import Any
-from uuid import uuid4
 
 import jwt
 import pytest
@@ -14,41 +12,13 @@ from app.api.dependencies import get_token_verifier
 from app.core.config import Settings, get_settings
 from app.core.security import TokenVerifier
 from app.main import create_app
-
-ISSUER = "https://proyecto-de-prueba.supabase.co/auth/v1"
-USER_ID = str(uuid4())
-
-PRIVATE_KEY = ec.generate_private_key(ec.SECP256R1())
-PUBLIC_JWK = jwt.PyJWK(
-    jwt.algorithms.ECAlgorithm.to_jwk(PRIVATE_KEY.public_key(), as_dict=True),
-    algorithm="ES256",
-)
-
-
-def make_token(key: Any = PRIVATE_KEY, algorithm: str = "ES256", **claims: Any) -> str:
-    now = int(time.time())
-    payload = {
-        "sub": USER_ID,
-        "email": "estudiante@unemi.edu.ec",
-        "aud": "authenticated",
-        "iss": ISSUER,
-        "iat": now,
-        "exp": now + 3600,
-        **claims,
-    }
-    return jwt.encode(payload, key, algorithm=algorithm)
-
-
-def bearer(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+from tests.session_helpers import ISSUER, USER_ID, bearer, make_token, trust_test_tokens
 
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     app = create_app()
-    app.dependency_overrides[get_token_verifier] = lambda: TokenVerifier(
-        issuer=ISSUER, key_resolver=lambda _token: PUBLIC_JWK
-    )
+    trust_test_tokens(app)
     yield TestClient(app)
 
 
