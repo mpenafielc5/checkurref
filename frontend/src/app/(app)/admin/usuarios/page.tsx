@@ -19,7 +19,7 @@ export default function UsersPage() {
       <PageSection
         eyebrow="Administración"
         title="Usuarios"
-        description="Las cuentas nuevas entran como estudiante. Asciende a docente solo al personal verificado."
+        description="Las cuentas nuevas se registran con el rol de estudiante. Asigna el rol de docente únicamente al personal verificado."
       >
         <SampleDataNotice story="la HU-11" />
         <UserTable users={SAMPLE_USERS} counts={SAMPLE_ROLE_COUNTS} />

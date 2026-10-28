@@ -22,13 +22,13 @@ const STEPS = [
     icon: ListChecks,
     title: "Verificamos cada una",
     description:
-      "Separamos sus campos, los buscamos en Crossref y OpenAlex, los comparamos con un modelo de inteligencia artificial en español y revisamos que estén bien escritas.",
+      "Identificamos los campos de cada referencia, la contrastamos con Crossref y OpenAlex mediante un modelo de inteligencia artificial en español y revisamos su formato.",
   },
   {
     icon: CircleCheck,
     title: "Recibe tu informe",
     description:
-      "Cada referencia recibe un veredicto, el dato registrado y sus errores de formato para corregirla.",
+      "Cada referencia incluye su veredicto, el dato registrado y sus errores de formato, para que puedas corregirla.",
   },
 ];
 
@@ -72,7 +72,7 @@ export default function HomePage() {
               </h1>
               <p className="max-w-xl text-title font-normal">
                 Sube el PDF de tu trabajo y CheckUrRef coteja cada referencia con su fuente oficial
-                antes de que la revise tu tutor.
+                antes de entregarlo a tu docente.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Suspense
@@ -165,9 +165,9 @@ export default function HomePage() {
               el docente decide.
             </p>
             <p className="text-small">
-              <strong className="text-ink">Además, el formato.</strong> El informe señala los
-              errores de escritura según APA 7 o IEEE, por ejemplo un DOI que falta. No cambian el
-              veredicto: una referencia puede ser real y estar mal escrita.
+              <strong className="text-ink">Revisión de formato.</strong> El informe señala los
+              errores de formato según APA 7 o IEEE, como la ausencia del DOI. Estos errores no
+              modifican el veredicto: una referencia puede existir y, aun así, estar mal escrita.
             </p>
           </div>
         </section>
@@ -181,7 +181,7 @@ export default function HomePage() {
             <div className="flex flex-1 flex-col gap-2">
               <Eyebrow>Para docentes</Eyebrow>
               <h2 id="titulo-para-docentes" className="text-display-sm md:text-display-md">
-                Revisa los trabajos de un curso a la vez
+                Revisa todos los trabajos de un curso en un solo lote
               </h2>
               <p className="max-w-xl">
                 Sube los PDF de un paralelo en un lote y revisa primero los que tienen más

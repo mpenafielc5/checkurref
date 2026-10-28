@@ -24,7 +24,8 @@ export const VERDICTS: Record<Verdict, VerdictInfo> = {
   },
   discrepancia: {
     label: "Con discrepancias",
-    description: "La obra existe, pero hay campos alterados: año, autores o título incompleto.",
+    description:
+      "La obra existe, pero algunos datos no coinciden con el registro: año, autores o título incompleto.",
     badgeClass: "bg-verdict-discrepancy-soft text-verdict-discrepancy-text",
     swatchClass: "bg-verdict-discrepancy",
   },
@@ -43,7 +44,7 @@ export const VERDICTS: Record<Verdict, VerdictInfo> = {
   no_verificable: {
     label: "No verificable",
     description:
-      "Crossref y OpenAlex no registran este tipo de obra, así que no se pudo comprobar.",
+      "Crossref y OpenAlex no registran este tipo de obra, por lo que no fue posible comprobarla.",
     badgeClass: "bg-verdict-unverifiable-soft text-verdict-unverifiable-text",
     swatchClass: "bg-verdict-unverifiable",
   },

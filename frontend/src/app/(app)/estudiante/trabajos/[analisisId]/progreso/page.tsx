@@ -14,7 +14,7 @@ export default function StudentProgressPage() {
       <PageSection
         eyebrow="Análisis en curso"
         title={progress.fileName}
-        description="El análisis sigue aunque salgas de esta pantalla; lo encontrarás en Mis trabajos."
+        description="El análisis continúa aunque salgas de esta pantalla; podrás consultarlo en Mis trabajos."
         back={{ href: "/estudiante/trabajos", label: "Mis trabajos" }}
         actions={<StatusChip tone="neutral">{progress.standard}</StatusChip>}
       >

@@ -11,6 +11,11 @@ function required(name: string, value: string | undefined): string {
   return value;
 }
 
+/** Dirección de la API (FastAPI), sin barra final. */
+export function getApiUrl(): string {
+  return required("NEXT_PUBLIC_API_URL", process.env.NEXT_PUBLIC_API_URL).replace(/\/+$/, "");
+}
+
 export function getSupabaseEnv() {
   return {
     url: required("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL),

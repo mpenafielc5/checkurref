@@ -127,5 +127,8 @@
   --cr-nav-height: 4rem; /* 64px */
   --cr-nav-compact-height: 3rem; /* 48px, barras del celular en horizontal: solo íconos */
   --cr-control-height: 2.5rem; /* 40px, botones */
+  /* El recuadro de subida no cambia de alto al elegir el archivo */
+  --cr-dropzone-min-height: 18rem; /* 288px, celular: la pista ocupa más líneas */
+  --cr-dropzone-min-height-wide: 15rem; /* 240px, desde tableta */
   --cr-input-height: 2.75rem; /* 44px, campos de formulario */
 }
