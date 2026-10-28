@@ -10,8 +10,7 @@ from pathlib import Path
 
 from app.pipeline.errors import PdfProcessingError
 from app.pipeline.references_section import extract_reference_section
-
-PREVIEW_LINES = 4
+from app.pipeline.segmentation import segment_references
 
 
 def inspect(path: Path) -> bool:
@@ -19,18 +18,19 @@ def inspect(path: Path) -> bool:
     start = time.perf_counter()
     try:
         section = extract_reference_section(path.read_bytes())
+        segmentation = segment_references(section)
     except PdfProcessingError as error:
         print(f"Error: {error}")
         return False
     elapsed = (time.perf_counter() - start) * 1000
 
+    references = segmentation.references
     print(f"Título: {section.heading!r} (página {section.page}) · {elapsed:.0f} ms")
     print(f"Líneas de la sección: {len(section.lines)}")
-    for line in section.lines[:PREVIEW_LINES]:
-        print(f"  [p{line.page} x{line.x0:.0f}] {line.text}")
-    if len(section.lines) > PREVIEW_LINES:
-        print("  …")
-        print(f"  [p{section.lines[-1].page}] {section.lines[-1].text}")
+    print(f"Referencias: {len(references)} · norma de la lista: {segmentation.norm.value}")
+    for reference in references:
+        mark = f"  << {reference.issue}" if reference.issue else ""
+        print(f"  {reference.order:>3}. [{reference.norm.value}] {reference.text}{mark}")
     return True
 
 
