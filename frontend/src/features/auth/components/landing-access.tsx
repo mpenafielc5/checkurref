@@ -21,14 +21,14 @@ export async function LandingAccessCard() {
       className="flex w-full flex-col gap-4 rounded-panel border border-hairline bg-canvas p-6 md:max-w-sm"
     >
       <h2 id="titulo-cuenta" className="text-title font-semibold tracking-normal">
-        Ya iniciaste sesión
+        Sesión iniciada
       </h2>
       <p className="text-small">
-        Entraste como <strong className="text-ink">{profile.fullName}</strong> (
+        Ingresaste como <strong className="text-ink">{profile.fullName}</strong> (
         {ROLE_LABELS[profile.role]}).
       </p>
       <Link href={homePathForRole(profile.role)} className={buttonStyles({ fullWidth: true })}>
-        Ir a mi inicio
+        Ir al inicio
       </Link>
       <SignOutButton />
     </section>

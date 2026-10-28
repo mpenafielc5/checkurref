@@ -12,7 +12,7 @@ const QUESTIONS = [
   {
     question: "¿Con qué fuentes se comparan mis referencias?",
     answer:
-      "Con los datos registrados en Crossref y, si no aparecen ahí, en OpenAlex. Las obras que ninguna de las dos registra se marcan como no verificables: confirma sus datos en la obra original.",
+      "Con los datos registrados en Crossref y, cuando no figuran allí, en OpenAlex. Las obras que ninguna de las dos registra se marcan como no verificables: confirma sus datos en la obra original.",
   },
   {
     question: "¿Un veredicto negativo significa que hice plagio?",
@@ -64,9 +64,10 @@ export function HelpContent() {
           Hallazgos de formato
         </h2>
         <p className="text-small">
-          Aparte del veredicto, CheckUrRef revisa que cada referencia esté bien escrita según la
-          norma que elegiste (APA 7 o IEEE): por ejemplo, que incluya el DOI o que el año vaya entre
-          paréntesis. Cada hallazgo muestra cómo está escrita la referencia y cómo debería ir.
+          Aparte del veredicto, CheckUrRef revisa que cada referencia esté bien escrita según su
+          norma (APA 7 o IEEE), que el sistema identifica automáticamente: por ejemplo, que incluya
+          el DOI o que el año vaya entre paréntesis. Cada hallazgo muestra cómo está escrita la
+          referencia y cómo debería ir.
         </p>
         <p className="text-small">
           <strong className="text-ink">El formato no cambia el veredicto ni el índice.</strong> Una

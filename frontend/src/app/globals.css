@@ -84,6 +84,8 @@
   --spacing-nav: var(--cr-nav-height);
   --spacing-nav-compact: var(--cr-nav-compact-height);
   --spacing-control: var(--cr-control-height);
+  --spacing-dropzone: var(--cr-dropzone-min-height);
+  --spacing-dropzone-wide: var(--cr-dropzone-min-height-wide);
   --spacing-input: var(--cr-input-height);
   --spacing-sidebar: var(--cr-sidebar-width);
   --spacing-sidebar-rail: var(--cr-sidebar-rail-width);

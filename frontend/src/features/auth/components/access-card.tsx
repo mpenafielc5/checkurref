@@ -27,8 +27,8 @@ export function AccessCard({ headingLevel = "h2" }: AccessCardProps) {
       <GoogleSignInButton />
 
       <p className="text-caption text-body">
-        Solo cuentas institucionales <strong className="text-ink">@unemi.edu.ec</strong>. Si es tu
-        primera vez, tu cuenta se crea al ingresar con el rol de estudiante.
+        Solo cuentas institucionales <strong className="text-ink">@unemi.edu.ec</strong>. En tu
+        primer ingreso, la cuenta se crea automáticamente con el rol de estudiante.
       </p>
     </section>
   );

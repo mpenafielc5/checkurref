@@ -41,7 +41,7 @@ export const SAMPLE_AGREEMENT = "2 de 4 campos";
 
 export const SAMPLE_BENCHMARK = {
   goldSet: "150 referencias",
-  goldDetail: "100 APA · 50 IEEE · última corrida 09/10/2026",
+  goldDetail: "100 APA · 50 IEEE · última ejecución: 9 oct 2026",
   summary: [
     { value: "0,93", label: "F1 medio · AnyStyle" },
     { value: "0,75", label: "F1 medio · spaCy" },

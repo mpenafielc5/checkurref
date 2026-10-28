@@ -21,7 +21,7 @@ const FIELD_CLASSES: Record<ExtractedField, string> = {
 /** Qué decir cuando no hay ninguna obra con la que comparar. */
 function noMatchMessage(verdict: Verdict): string {
   return verdict === "no_verificable"
-    ? "Crossref y OpenAlex no registran este tipo de obra, así que no se pudo comprobar. Confirma los datos de la referencia en la obra original."
+    ? "Crossref y OpenAlex no registran este tipo de obra, por lo que no fue posible comprobarla. Confirma los datos de la referencia en la obra original."
     : "No se encontró ninguna obra candidata en Crossref ni en OpenAlex. Revisa que la referencia exista: podría ser fabricada.";
 }
 
@@ -46,10 +46,10 @@ function ComparisonBlocks({ rows }: { rows: FieldComparison[] }) {
             </span>
           </dt>
           <dd className="text-ink">
-            <span className="text-body">Tu referencia:</span> {row.given}
+            <span className="text-body">En tu referencia:</span> {row.given}
           </dd>
           <dd className="text-ink">
-            <span className="text-body">Registro:</span> {row.official}
+            <span className="text-body">En el registro:</span> {row.official}
           </dd>
         </div>
       ))}
