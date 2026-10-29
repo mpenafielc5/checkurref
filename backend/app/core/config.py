@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     storage_bucket: str = "documentos"
     analysis_model_version: str = "bert-xnli-es-onnx-int8"
 
+    # Extractor de campos de las referencias (T07): anystyle o spacy. AnyStyle
+    # necesita Ruby y anystyle-cli; el comando se puede cambiar si no está en el PATH.
+    extraction_engine: Literal["anystyle", "spacy"] = "anystyle"
+    anystyle_command: str = "anystyle"
+
     @property
     def supabase_rest_url(self) -> str:
         """Dirección de la API de datos (PostgREST) del proyecto."""
