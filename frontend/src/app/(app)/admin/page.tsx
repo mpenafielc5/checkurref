@@ -55,7 +55,7 @@ export default function AdminHomePage() {
         <StatRow>
           <StatCard value={stats.users} label="Usuarios" />
           <StatCard value={stats.analysesToday} label="Análisis hoy" />
-          <StatCard value={stats.goldSet} label="Referencias en el conjunto de oro" />
+          <StatCard value={stats.goldSet} label="Referencias en el estándar de oro" />
           <StatCard value={stats.lastBenchmark} label="Último benchmark" />
         </StatRow>
         <ul className="flex flex-col gap-4 md:flex-row">

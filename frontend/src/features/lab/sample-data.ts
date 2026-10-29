@@ -1,6 +1,6 @@
 /*
  * Datos de ejemplo de las maquetas 17 y 18. Los valores son ilustrativos: los
- * reales salen del benchmark contra el conjunto de oro (HU-12 y HU-13).
+ * reales salen del benchmark contra el estándar de oro (HU-12 y HU-13).
  */
 
 export type EngineField = { label: string; value: string; missing?: boolean };
