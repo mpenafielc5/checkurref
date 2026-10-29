@@ -7,7 +7,7 @@ from uuid import UUID
 
 import httpx
 
-from app.repositories.supabase_http import SupabaseUnavailableError, ensure_ok
+from app.repositories.supabase_http import SupabaseUnavailableError, send
 
 
 @dataclass(frozen=True)
@@ -96,22 +96,13 @@ class SupabaseDocumentRepository:
         )
 
     def _get(self, table: str, params: dict[str, str]) -> list[dict[str, Any]]:
-        try:
-            response = self._client.get(f"{self._rest_url}/{table}", params=params)
-        except httpx.HTTPError as error:
-            raise SupabaseUnavailableError(str(error)) from error
-        return ensure_ok(response).json()
+        return send(self._client, "GET", f"{self._rest_url}/{table}", params=params)
 
     def _insert(self, table: str, row: dict[str, Any]) -> dict[str, Any]:
-        try:
-            response = self._client.post(
-                f"{self._rest_url}/{table}",
-                json=row,
-                headers={"Prefer": "return=representation"},
-            )
-        except httpx.HTTPError as error:
-            raise SupabaseUnavailableError(str(error)) from error
-        return ensure_ok(response).json()[0]
+        url = f"{self._rest_url}/{table}"
+        return send(
+            self._client, "POST", url, json=row, headers={"Prefer": "return=representation"}
+        )[0]
 
     def _delete(self, table: str, params: dict[str, str]) -> None:
         # La limpieza es lo último que se intenta: si falla, se informa el error original.

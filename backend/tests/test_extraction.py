@@ -275,9 +275,17 @@ def test_anystyle_real() -> None:
 
 
 def test_los_extractores_son_intercambiables_por_configuracion() -> None:
-    anystyle_extractor = create_extractor(Engine.ANYSTYLE, anystyle_command="anystyle")
+    # Un comando que siempre existe hace las veces de anystyle-cli instalado.
+    anystyle_extractor = create_extractor(Engine.ANYSTYLE, anystyle_command=sys.executable)
     spacy_extractor = create_extractor(Engine.SPACY)
 
     assert isinstance(anystyle_extractor, AnyStyleExtractor)
     assert isinstance(spacy_extractor, SpacyExtractor)
     assert {anystyle_extractor.engine, spacy_extractor.engine} == {Engine.ANYSTYLE, Engine.SPACY}
+
+
+def test_sin_anystyle_instalado_se_usa_spacy(caplog: pytest.LogCaptureFixture) -> None:
+    extractor = create_extractor(Engine.ANYSTYLE, anystyle_command="comando-que-no-existe")
+
+    assert isinstance(extractor, SpacyExtractor)
+    assert "se usa spaCy" in caplog.text

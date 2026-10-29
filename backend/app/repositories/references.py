@@ -6,7 +6,7 @@ from uuid import UUID
 import httpx
 
 from app.pipeline.segmentation import Segmentation
-from app.repositories.supabase_http import SupabaseUnavailableError, ensure_ok
+from app.repositories.supabase_http import send
 
 # Hallazgo informativo de una entrada cuya separación no se pudo confirmar. No es
 # un error del estudiante: también puede venir de la lectura del PDF.
@@ -14,8 +14,8 @@ UNCONFIRMED_SPLIT_CODE = "SEPARACION_NO_CONFIRMADA"
 
 
 class ReferenceRepository(Protocol):
-    def save_segmentation(self, analysis_id: UUID, segmentation: Segmentation) -> None:
-        """Guarda las referencias, la norma de cada una y la de la lista completa."""
+    def save_segmentation(self, analysis_id: UUID, segmentation: Segmentation) -> dict[int, str]:
+        """Guarda las referencias y la norma; devuelve el id de cada una por su orden."""
         ...
 
 
@@ -24,7 +24,7 @@ class SupabaseReferenceRepository:
         self._rest_url = rest_url
         self._client = client
 
-    def save_segmentation(self, analysis_id: UUID, segmentation: Segmentation) -> None:
+    def save_segmentation(self, analysis_id: UUID, segmentation: Segmentation) -> dict[int, str]:
         # Si el análisis se repite, se reemplaza lo anterior (sus hallazgos se borran en cascada).
         self._send("DELETE", "referencias", params={"analisis_id": f"eq.{analysis_id}"})
         rows = [
@@ -74,11 +74,7 @@ class SupabaseReferenceRepository:
                 "total_referencias": len(segmentation.references),
             },
         )
+        return ids
 
     def _send(self, method: str, table: str, **options: Any) -> list[dict[str, Any]]:
-        try:
-            response = self._client.request(method, f"{self._rest_url}/{table}", **options)
-        except httpx.HTTPError as error:
-            raise SupabaseUnavailableError(str(error)) from error
-        ensure_ok(response)
-        return response.json() if response.content else []
+        return send(self._client, method, f"{self._rest_url}/{table}", **options)

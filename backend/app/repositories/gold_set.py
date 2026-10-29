@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from app.repositories.supabase_http import SupabaseUnavailableError, ensure_ok
+from app.repositories.supabase_http import send
 
 
 class SupabaseGoldSetRepository:
@@ -14,10 +14,7 @@ class SupabaseGoldSetRepository:
 
     def replace_all(self, rows: list[dict[str, Any]]) -> None:
         """Reemplaza el estándar de oro completo: así la tabla siempre coincide con el CSV final."""
-        try:
-            # PostgREST exige un filtro para borrar: este abarca todas las filas.
-            ensure_ok(self._client.delete(self._url, params={"id": "not.is.null"}))
-            if rows:
-                ensure_ok(self._client.post(self._url, json=rows))
-        except httpx.HTTPError as error:
-            raise SupabaseUnavailableError(str(error)) from error
+        # PostgREST exige un filtro para borrar: este abarca todas las filas.
+        send(self._client, "DELETE", self._url, params={"id": "not.is.null"})
+        if rows:
+            send(self._client, "POST", self._url, json=rows)

@@ -11,6 +11,8 @@ from app.repositories.supabase_http import SupabaseUnavailableError, ensure_ok
 class PdfStorage(Protocol):
     def upload(self, path: str, content: bytes) -> None: ...
 
+    def download(self, path: str) -> bytes: ...
+
     def delete(self, path: str) -> None: ...
 
 
@@ -30,6 +32,13 @@ class SupabasePdfStorage:
         except httpx.HTTPError as error:
             raise SupabaseUnavailableError(str(error)) from error
         ensure_ok(response)
+
+    def download(self, path: str) -> bytes:
+        try:
+            response = self._client.get(f"{self._objects_url}/{path}")
+        except httpx.HTTPError as error:
+            raise SupabaseUnavailableError(str(error)) from error
+        return ensure_ok(response).content
 
     def delete(self, path: str) -> None:
         # Se usa solo para limpiar tras otro error; ese error es el que se informa.
