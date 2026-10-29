@@ -5,3 +5,5 @@ pydantic-settings>=2.6
 pyjwt[crypto]>=2.10
 # Lectura del texto de los PDF (licencia AGPL-3.0).
 pymupdf>=1.24
+# Extractor de campos basado en reglas sobre el tokenizador en español (licencia MIT).
+spacy>=3.8,<4
