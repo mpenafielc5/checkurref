@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     extraction_engine: Literal["anystyle", "spacy"] = "anystyle"
     anystyle_command: str = "anystyle"
 
+    # Fuentes (T08). Con el correo, Crossref atiende en su polite pool; la clave
+    # gratuita de OpenAlex es opcional y multiplica por 10 su presupuesto diario.
+    crossref_mailto: str = ""
+    openalex_api_key: str = ""
+
     @property
     def supabase_rest_url(self) -> str:
         """Dirección de la API de datos (PostgREST) del proyecto."""
