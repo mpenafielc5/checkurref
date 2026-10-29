@@ -95,7 +95,7 @@ def test_la_union_conserva_la_pagina_y_la_sangria_de_la_primera_linea() -> None:
 CONTENT = [
     "El problema de las referencias inventadas.",
     "Metodología del estudio.",
-    "Resultados obtenidos con el conjunto de oro.",
+    "Resultados obtenidos con el estándar de oro.",
     "Conclusiones del trabajo.",
 ]
 

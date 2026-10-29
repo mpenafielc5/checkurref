@@ -18,7 +18,7 @@ export default function LabPage() {
       <PageSection
         eyebrow="Administración"
         title="Laboratorio de extracción"
-        description="Compara AnyStyle y spaCy sobre una referencia o contra el conjunto de oro."
+        description="Compara AnyStyle y spaCy sobre una referencia o contra el estándar de oro."
       >
         <SampleDataNotice story="la HU-12 y la HU-13" />
         <LabTabs
