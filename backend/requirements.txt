@@ -3,7 +3,10 @@ fastapi[standard]>=0.115
 pydantic-settings>=2.6
 # Validación de los tokens de Supabase (firmados con ES256).
 pyjwt[crypto]>=2.10
-# Lectura del texto de los PDF (licencia AGPL-3.0).
-pymupdf>=1.24
+# Lectura del texto de los PDF (licencia AGPL-3.0). La 2.0 exige Python 3.11 y
+# trae dependencias que no se usan (onnxruntime, pymupdf4llm): todos usan la 1.x.
+pymupdf>=1.24,<2
 # Extractor de campos basado en reglas sobre el tokenizador en español (licencia MIT).
 spacy>=3.8,<4
+# Reintentos con espera exponencial al consultar Crossref y OpenAlex.
+tenacity>=9
