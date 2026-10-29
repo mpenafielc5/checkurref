@@ -215,7 +215,8 @@ def test_respeta_el_ritmo_por_segundo() -> None:
             await limiter.wait()
         return time.perf_counter() - start
 
-    assert asyncio.run(run()) >= 5 / 50 * 0.9
+    # En Windows, asyncio.sleep puede despertar hasta ~16 ms antes (resolución del reloj).
+    assert asyncio.run(run()) >= 5 / 50 - 0.02
 
 
 # --- Coordinador ----------------------------------------------------------------------------

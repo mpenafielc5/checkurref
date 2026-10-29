@@ -39,6 +39,10 @@ def texts(result: list[TextLine]) -> list[str]:
         "BIBLIOGRAFÍAS",
         "Lista de referencias",
         "References",
+        "6.- REFERENCIAS",
+        "8. Referencia Bibliograficas",
+        "Referencia bibliográfica",
+        "Bibliograf´ıa",
     ],
 )
 def test_reconoce_los_titulos_habituales(heading: str) -> None:

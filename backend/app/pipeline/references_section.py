@@ -11,6 +11,8 @@ from app.pipeline.text_cleanup import join_broken_lines, remove_page_furniture
 HEADINGS = {
     "referencias",
     "referencias bibliograficas",
+    "referencia bibliografica",  # en singular, como lo escriben algunos estudiantes
+    "referencia bibliograficas",
     "lista de referencias",
     "bibliografia",
     "bibliografias",
@@ -20,8 +22,10 @@ HEADINGS = {
     "bibliography",
 }
 SECTION_END_PREFIXES = ("anexo", "apendice", "appendix", "annex")
-# Numeración que puede preceder al título: "7.", "VII.", "5.2", "Capítulo 6".
-NUMBERING = re.compile(r"^((capitulo|chapter)\s+)?(\d+(\.\d+)*|[ivxlc]+)[.)\-:]?\s+")
+# Numeración que puede preceder al título: "7.", "6.-", "VII.", "5.2", "Capítulo 6".
+NUMBERING = re.compile(r"^((capitulo|chapter)\s+)?(\d+(\.\d+)*|[ivxlc]+)[.)\-:]*\s+")
+# LaTeX escribe la tilde como un carácter aparte y la í sin punto: "Bibliograf´ıa".
+LATEX_ACCENTS = str.maketrans({"´": "", "`": "", "¨": "", "˜": "", "ı": "i"})
 
 
 @dataclass(frozen=True)
@@ -81,7 +85,7 @@ def _is_running_header(lines: list[TextLine], previous: int, index: int) -> bool
 def _normalize(text: str) -> str:
     without_accents = "".join(
         char
-        for char in unicodedata.normalize("NFD", text.lower())
+        for char in unicodedata.normalize("NFD", text.lower().translate(LATEX_ACCENTS))
         if unicodedata.category(char) != "Mn"
     )
     return NUMBERING.sub("", " ".join(without_accents.split())).rstrip(" :.")

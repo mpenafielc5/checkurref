@@ -11,6 +11,9 @@ Una línea empieza una referencia nueva cuando:
   "Organización. (2020)", y la anterior cerraba una referencia. Es la única
   señal cuando la lista no tiene sangría.
 
+Una línea que empieza con un DOI o una URL nunca empieza una referencia: algunas
+revistas dejan el DOI en el margen, fuera de la sangría francesa.
+
 Una entrada cuya separación no se puede confirmar no detiene el análisis: se
 registra, se marca con el motivo y se sigue con las demás.
 """
@@ -31,6 +34,7 @@ IEEE_START = re.compile(rf"^{IEEE_NUMBER}")
 AUTHOR_YEAR_START = re.compile(rf"^[{UPPER}][^()]{{0,250}}?{YEAR_IN_PARENS}")
 # "Apellido, I." al inicio: en una lista de autores larga, el año queda más abajo.
 AUTHOR_START = re.compile(rf"^{SURNAME_FIRST}")
+URL_START = re.compile(r"^(?:https?://|www\.|doi:|10\.\d{4,9}/)", re.IGNORECASE)
 # Una línea que termina así sigue en la siguiente: lista de autores o apellido partidos.
 OPEN_ENDING = re.compile(r"(?:[,;:&-]|\s(?:y|e|and))$")
 # Una línea que termina así cierra una referencia: en punto o en su DOI o URL.
@@ -185,6 +189,8 @@ def _starts_entry(
 ) -> bool:
     if IEEE_START.match(line.text):
         return True
+    if URL_START.match(line.text):
+        return False
     if layout is not Layout.FLAT:
         if (indent < MIN_INDENT) == (layout is Layout.HANGING):
             return True
