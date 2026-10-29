@@ -144,6 +144,23 @@ def test_fuera_de_su_nivel_empieza_si_la_anterior_cerro_con_su_url() -> None:
     ]
 
 
+def test_doi_en_el_margen_no_empieza_otra_referencia() -> None:
+    # Así maquetan algunas revistas: la sangría francesa, pero el DOI en el margen.
+    lines = [
+        line("Moreira, L. (2022). Evaluación de fuentes académicas."),
+        line("Revista Andina, 8(1), 10-25.", HANGING),
+        line("https://doi.org/10.1234/ra.2022"),
+        line(APA_2),
+        line("doi:10.5678/eu.2020"),
+    ]
+
+    assert texts(lines) == [
+        "Moreira, L. (2022). Evaluación de fuentes académicas. Revista Andina, 8(1), 10-25. "
+        "https://doi.org/10.1234/ra.2022",
+        f"{APA_2} doi:10.5678/eu.2020",
+    ]
+
+
 def test_referencia_que_continua_en_la_pagina_siguiente() -> None:
     lines = [
         line(APA_1, page=3),

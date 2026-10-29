@@ -1,6 +1,7 @@
 """Estándar de oro: archivos, validación, acuerdo entre anotadores y alteraciones (T09)."""
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import httpx
@@ -9,12 +10,20 @@ import pytest
 from app.benchmark.gold_set import (
     ALTERATIONS,
     FIELDS,
+    MAX_PER_DOCUMENT,
+    PARTITIONS,
+    REAL_PER_NORM,
+    RESERVE_NOTE,
+    RESERVE_PER_NORM,
     GoldReference,
     agreement,
     cohen_kappa,
+    composition,
+    final_set,
     make_alterations,
     read_csv,
-    strata,
+    same_value,
+    select_sample,
     to_database_row,
     validate,
     write_csv,
@@ -121,12 +130,51 @@ def test_detecta_ids_repetidos() -> None:
     assert "R001: id repetido 2 veces" in validate([apa(), apa()])
 
 
-def test_cuenta_las_referencias_reales_por_estrato() -> None:
-    counts = strata([apa(), apa("R003"), ieee()])
+def test_cuenta_las_referencias_reales_por_norma_y_tipo() -> None:
+    counts = composition([apa(), apa("R003"), ieee()])
 
     assert counts[("APA", "articulo")] == 2
     assert counts[("IEEE", "articulo")] == 1
     assert counts[("IEEE", "web")] == 0
+
+
+def test_detecta_demasiadas_referencias_de_un_mismo_documento() -> None:
+    references = [
+        GoldReference(f"R{n:03d}", APA_TEXT, "APA", "articulo", APA_FIELDS, document="tesis-1")
+        for n in range(MAX_PER_DOCUMENT + 1)
+    ]
+
+    assert f"tesis-1: 4 referencias, el máximo es {MAX_PER_DOCUMENT}" in validate(references)
+
+
+# --- Sorteo ---------------------------------------------------------------------------------
+
+
+def candidates() -> list[GoldReference]:
+    # 120 APA repartidas en 60 tesis y 10 IEEE de una sola tesis.
+    apa_candidates = [
+        GoldReference("", f"APA {n}", "APA", "", document=f"tesis-{n // 2}") for n in range(120)
+    ]
+    ieee_candidates = [
+        GoldReference("", f"IEEE {n}", "IEEE", "", document="tesis-ieee") for n in range(10)
+    ]
+    return apa_candidates + ieee_candidates + [GoldReference("", "Sin norma", "", "")]
+
+
+def test_el_sorteo_es_reproducible_y_respeta_los_limites() -> None:
+    sample = select_sample(candidates())
+
+    assert sample == select_sample(candidates())  # misma semilla, mismo sorteo
+    apa_rows = [reference for reference in sample if reference.norm == "APA"]
+    assert len(apa_rows) == REAL_PER_NORM + RESERVE_PER_NORM
+    assert [reference.notes == RESERVE_NOTE for reference in apa_rows].count(True) == 15
+    # Las 10 IEEE salen de una sola tesis: solo entran 3.
+    assert sum(reference.norm == "IEEE" for reference in sample) == MAX_PER_DOCUMENT
+    assert all(reference.norm in ("APA", "IEEE") for reference in sample)
+    assert [reference.id for reference in sample[:2]] == ["R001", "R002"]
+    # Las que se anotan van antes que las de reserva.
+    first_reserve = next(n for n, ref in enumerate(sample) if ref.notes == RESERVE_NOTE)
+    assert all(ref.notes == RESERVE_NOTE for ref in sample[first_reserve:])
 
 
 # --- Acuerdo entre anotadores ---------------------------------------------------------------
@@ -153,6 +201,14 @@ def test_acuerdo_entre_dos_anotadores() -> None:
     assert result.differences == ["R001 · paginas: '10-25' / '10'"]
 
 
+def test_la_puntuacion_del_borde_no_es_un_desacuerdo() -> None:
+    assert same_value("titulo", "Planificación de rutas,", "Planificación de rutas")
+    assert same_value("doi", "10.1109/ICEI.2019.00087.", "10.1109/ICEI.2019.00087")
+    assert same_value("autores", "Zarchan ; Musoff", "Zarchan; Musoff")
+    assert not same_value("autores", "Parra Valencia", "Parra")
+    assert not same_value("autores", "Jie; Jasser, Ajibade", "Jie; Jasser; Ajibade")
+
+
 # --- Alteraciones ---------------------------------------------------------------------------
 
 
@@ -172,35 +228,84 @@ def real_set() -> list[GoldReference]:
 
 
 def test_las_alteraciones_son_reproducibles_y_equilibradas() -> None:
-    first = make_alterations(real_set(), total=12)
-    second = make_alterations(real_set(), total=12)
+    first = make_alterations(real_set(), total=10)
+    second = make_alterations(real_set(), total=10)
 
     assert first == second  # misma semilla, mismas alteradas
-    assert len(first) == 12
+    assert len(first) == 10
     assert {kind: sum(ref.alteration == kind for ref in first) for kind in ALTERATIONS} == {
-        "anio": 3,
-        "autor": 3,
-        "titulo": 3,
-        "doi": 3,
+        "anio": 2,
+        "autor": 2,
+        "titulo": 2,
+        "doi": 2,
+        "inventada": 2,
     }
-    assert len({ref.source_id for ref in first}) == 12  # cada real se altera una sola vez
+    assert len({ref.source_id for ref in first}) == 10  # si alcanzan, cada real se altera una vez
 
 
-def test_cada_alteracion_cambia_un_solo_dato_en_el_texto_y_en_sus_campos() -> None:
+def test_solo_se_alteran_las_reales_con_doi() -> None:
+    without_doi = [replace(ref, fields={**ref.fields, "doi": ""}) for ref in real_set()[:15]]
+
+    altered = make_alterations(without_doi + real_set()[15:], total=10)
+
+    assert {ref.source_id for ref in altered} <= {"R016", "R017", "R018", "R019", "R020"}
+    # Si no alcanzan, una real se repite, pero nunca con el mismo tipo de alteración.
+    assert len(altered) == 10
+    assert len({(ref.source_id, ref.alteration) for ref in altered}) == 10
+
+
+def test_cada_alteracion_cambia_solo_sus_datos_en_el_texto_y_en_los_campos() -> None:
     originals = {reference.id: reference for reference in real_set()}
+    expected = {
+        "anio": ["anio"],
+        "autor": ["autores"],
+        "titulo": ["titulo"],
+        "doi": ["doi"],
+        "inventada": ["autores", "anio", "titulo"],  # piezas de otras referencias
+    }
 
-    for altered in make_alterations(real_set(), total=8):
+    for altered in make_alterations(real_set(), total=10):
         original = originals[altered.source_id]
         changed = [name for name in original.fields if altered.value(name) != original.value(name)]
         assert altered.altered and altered.id == f"{original.id}-alt-{altered.alteration}"
-        assert changed == ["autores" if altered.alteration == "autor" else altered.alteration]
+        assert changed == expected[altered.alteration]
         assert altered.text != original.text
         assert validate([altered]) == []  # el campo alterado aparece en el texto alterado
 
 
+def test_el_anio_cambia_al_menos_dos_y_no_dentro_del_doi() -> None:
+    references = [
+        replace(ieee(f"R{n:03d}"), fields={**IEEE_FIELDS, "doi": f"10.5678/rc.2020.{n}"})
+        for n in range(1, 6)
+    ]
+    references = [
+        replace(ref, text=IEEE_TEXT.replace("rc.2020.14", ref.value("doi").split("/")[1]))
+        for ref in references
+    ]
+
+    [altered] = [ref for ref in make_alterations(references, total=1) if ref.alteration == "anio"]
+
+    assert 2 <= abs(int(altered.value("anio")) - 2020) <= 5
+    assert "rc.2020." in altered.text  # el DOI conserva su año
+    assert f"pp. 45–60, {altered.value('anio')}, doi" in altered.text
+
+
+def test_cada_real_y_sus_alteradas_quedan_en_la_misma_particion() -> None:
+    real = real_set()
+    altered = make_alterations(real, total=10)
+    final = final_set(real, altered)
+
+    by_source = {ref.source_id: ref.partition for ref in altered}
+    assert {ref.partition for ref in altered} == set(PARTITIONS)
+    assert sum(ref.partition == "calibracion" for ref in altered) == 4  # 40 %
+    for reference in final:
+        if not reference.altered:
+            assert reference.partition == by_source.get(reference.id, "")
+
+
 def test_el_doi_alterado_conserva_la_forma_de_un_doi() -> None:
     originals = {reference.id: reference for reference in real_set()}
-    [altered] = [ref for ref in make_alterations(real_set(), total=4) if ref.alteration == "doi"]
+    [altered] = [ref for ref in make_alterations(real_set(), total=5) if ref.alteration == "doi"]
 
     assert altered.value("doi").startswith("10.1234/obra.")
     assert altered.value("doi") != originals[altered.source_id].value("doi")
@@ -245,13 +350,18 @@ def test_flujo_completo_de_la_herramienta(
     )
     base, annotated, final = tmp_path / "base.csv", tmp_path / "anotado.csv", tmp_path / "final.csv"
 
-    assert main(["preparar", str(pdf), "--salida", str(base)]) == 0
+    assert main(["preparar", "--apa", str(pdf), "--salida", str(base)]) == 0
     [prepared] = read_csv(base)
     assert prepared.text.startswith("Pérez, M.") and prepared.norm == "APA"
+    assert (prepared.id, prepared.document) == ("R001", "trabajo")
     assert prepared.fields == {name: "" for name in prepared.fields}  # sin precargar
+
+    # La misma referencia APA dentro de un trabajo de la carpeta IEEE no entra.
+    assert main(["preparar", "--ieee", str(pdf), "--salida", str(base)]) == 0
+    assert read_csv(base) == []
 
     write_csv(annotated, [apa(), ieee()])
     assert main(["validar", str(annotated)]) == 0
     assert main(["alterar", str(annotated), "--salida", str(final)]) == 0
     assert len(read_csv(final)) > 2
-    assert "faltan" in capsys.readouterr().out  # aún no se cumple la meta por estrato
+    assert "APA: 1 de 50 (faltan 49)" in capsys.readouterr().out
