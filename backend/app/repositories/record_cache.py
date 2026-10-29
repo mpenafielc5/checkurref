@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 
 from app.extraction.base import Author
-from app.repositories.supabase_http import SupabaseUnavailableError, ensure_ok
+from app.repositories.supabase_http import SupabaseUnavailableError, send
 from app.sources.records import Source, SourceRecord
 
 logger = logging.getLogger(__name__)
@@ -30,14 +30,13 @@ class SupabaseRecordCache:
 
     def get(self, doi: str) -> SourceRecord | None:
         try:
-            response = ensure_ok(
-                self._client.get(self._url, params={"doi": f"eq.{doi}", "select": "metadatos"})
+            rows = send(
+                self._client, "GET", self._url, params={"doi": f"eq.{doi}", "select": "metadatos"}
             )
-        except (httpx.HTTPError, SupabaseUnavailableError) as error:
+        except SupabaseUnavailableError as error:
             # Sin caché el análisis sigue: solo consulta la fuente.
             logger.warning("No se pudo leer la caché del DOI %s: %s", doi, error)
             return None
-        rows = response.json()
         return _from_row(rows[0]["metadatos"]) if rows else None
 
     def put(self, records: list[SourceRecord]) -> None:
@@ -45,15 +44,15 @@ class SupabaseRecordCache:
         if not rows:
             return
         try:
-            ensure_ok(
-                self._client.post(
-                    self._url,
-                    json=rows,
-                    params={"on_conflict": "doi"},
-                    headers={"Prefer": "resolution=merge-duplicates"},
-                )
+            send(
+                self._client,
+                "POST",
+                self._url,
+                json=rows,
+                params={"on_conflict": "doi"},
+                headers={"Prefer": "resolution=merge-duplicates"},
             )
-        except (httpx.HTTPError, SupabaseUnavailableError) as error:
+        except SupabaseUnavailableError as error:
             # La obra ya se obtuvo; solo no queda en la caché.
             logger.warning("No se pudo guardar en la caché: %s", error)
 

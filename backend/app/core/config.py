@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     crossref_mailto: str = ""
     openalex_api_key: str = ""
 
+    # Worker de análisis (T11): corre dentro de la API y revisa la cola cada
+    # pocos segundos. Se puede apagar, por ejemplo, para una segunda instancia.
+    worker_enabled: bool = True
+    worker_poll_seconds: float = 3.0
+
     @property
     def supabase_rest_url(self) -> str:
         """Dirección de la API de datos (PostgREST) del proyecto."""

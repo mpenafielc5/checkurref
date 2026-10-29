@@ -4,6 +4,7 @@ La clave de servicio ignora RLS: solo la usa el backend, nunca el frontend.
 """
 
 from functools import lru_cache
+from typing import Any
 
 import httpx
 
@@ -37,3 +38,13 @@ def ensure_ok(response: httpx.Response) -> httpx.Response:
     if response.is_error:
         raise SupabaseUnavailableError(f"Supabase respondió {response.status_code}")
     return response
+
+
+def send(client: httpx.Client, method: str, url: str, **options: Any) -> list[dict[str, Any]]:
+    """Petición a la API de datos; devuelve las filas de la respuesta (o ninguna)."""
+    try:
+        response = client.request(method, url, **options)
+    except httpx.HTTPError as error:
+        raise SupabaseUnavailableError(str(error)) from error
+    ensure_ok(response)
+    return response.json() if response.content else []
