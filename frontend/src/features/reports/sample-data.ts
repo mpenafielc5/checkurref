@@ -87,6 +87,8 @@ function sampleReference(order: number, verdict: Verdict): ReferenceResult {
     page: 12 + Math.floor((order - 1) / 9),
     formatFindings: order % 6 === 0 ? [missingDoi(source, order)] : [],
     segments: segmentsOf(source),
+    notice: null,
+    corrected: null,
   };
   const sameTitle = {
     label: "Título",
@@ -174,7 +176,7 @@ function countVerdicts(references: ReferenceResult[]): Record<Verdict, number> {
     sin_respaldo: 0,
     no_verificable: 0,
   };
-  for (const reference of references) counts[reference.verdict] += 1;
+  for (const reference of references) if (reference.verdict) counts[reference.verdict] += 1;
   return counts;
 }
 
@@ -184,5 +186,6 @@ export const SAMPLE_REPORT: Report = {
   standard: "APA",
   index: 82,
   counts: countVerdicts(REFERENCES),
+  queryErrors: 0,
   references: REFERENCES,
 };
