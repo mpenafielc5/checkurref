@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import { StatusChip } from "@/shared/components/ui/status-chip";
 import { VerdictBadge } from "@/shared/components/ui/verdict-badge";
 import type { Verdict } from "@/shared/lib/verdicts";
 import { referenceText, startsCollapsed } from "../rules";
@@ -18,11 +19,19 @@ const FIELD_CLASSES: Record<ExtractedField, string> = {
   container: "italic text-verdict-verified-text",
 };
 
-/** Qué decir cuando no hay ninguna obra con la que comparar. */
-function noMatchMessage(verdict: Verdict): string {
-  return verdict === "no_verificable"
-    ? "Crossref y OpenAlex no registran este tipo de obra, por lo que no fue posible comprobarla. Confirma los datos de la referencia en la obra original."
-    : "No se encontró ninguna obra candidata en Crossref ni en OpenAlex. Revisa que la referencia exista: podría ser fabricada.";
+/**
+ * Qué decir cuando no hay ninguna obra con la que comparar. "Sin respaldo" no
+ * significa que la referencia sea falsa (HU-14): algunas revistas no están en
+ * Crossref ni en OpenAlex.
+ */
+function noMatchMessage(verdict: Verdict | null): string | null {
+  if (verdict === "no_verificable") {
+    return "Crossref y OpenAlex no registran este tipo de obra, por lo que no fue posible comprobarla. Confirma los datos de la referencia en la obra original.";
+  }
+  if (verdict === "sin_respaldo") {
+    return "No se encontró la obra en Crossref ni en OpenAlex. Esto no significa que sea falsa: algunas revistas no están registradas. Confirma los datos en la obra original.";
+  }
+  return null;
 }
 
 function matchClass(matches: boolean): string {
@@ -115,16 +124,23 @@ export function ReferenceCard({ reference }: { reference: ReferenceResult }) {
       <details open={!startsCollapsed(reference)} className="group flex w-full flex-col">
         <summary className="flex list-none items-center gap-x-4 gap-y-2 group-open:flex-wrap [&::-webkit-details-marker]:hidden">
           <span className="font-mono text-small text-body">[{reference.order}]</span>
-          <VerdictBadge verdict={reference.verdict} />
+          {reference.verdict ? (
+            <VerdictBadge verdict={reference.verdict} />
+          ) : (
+            <StatusChip tone="neutral">Sin verificar</StatusChip>
+          )}
           {/* Cerrada: la referencia en una línea. Abierta: el texto completo va debajo. */}
           <span className="min-w-0 flex-1 truncate text-small text-body group-open:hidden">
             {referenceText(reference)}
           </span>
           <span className="hidden flex-1 group-open:block" />
           <span className="hidden text-small group-open:inline">
-            <span className="text-accent-text underline">Página {reference.page}</span>
+            {reference.page !== null ? (
+              <span className="text-accent-text underline">Página {reference.page}</span>
+            ) : null}
+            {reference.page !== null && reference.formatFindings.length > 0 ? " · " : null}
             {reference.formatFindings.length > 0
-              ? ` · ${findingsLabel(reference.formatFindings.length)}`
+              ? findingsLabel(reference.formatFindings.length)
               : null}
           </span>
           <ChevronDown
@@ -145,6 +161,8 @@ export function ReferenceCard({ reference }: { reference: ReferenceResult }) {
               ),
             )}
           </p>
+
+          {reference.notice ? <p className="text-small text-body">{reference.notice}</p> : null}
 
           {reference.formatFindings.length > 0 ? (
             <FormatFindings findings={reference.formatFindings} />
@@ -193,9 +211,9 @@ export function ReferenceCard({ reference }: { reference: ReferenceResult }) {
               ) : null}
               {reference.nli ? <NliBox nli={reference.nli} /> : null}
             </div>
-          ) : (
+          ) : noMatchMessage(reference.verdict) ? (
             <p className="text-small">{noMatchMessage(reference.verdict)}</p>
-          )}
+          ) : null}
         </div>
       </details>
     </article>

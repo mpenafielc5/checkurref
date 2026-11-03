@@ -31,13 +31,14 @@ export const VERDICTS: Record<Verdict, VerdictInfo> = {
   },
   contradiccion: {
     label: "Contradicción",
-    description: "El DOI no existe o los datos contradicen el registro.",
+    description: "El DOI citado corresponde a otra obra: los datos contradicen el registro.",
     badgeClass: "bg-verdict-contradiction-soft text-verdict-contradiction-text",
     swatchClass: "bg-verdict-contradiction",
   },
   sin_respaldo: {
     label: "Sin respaldo",
-    description: "No se encontró ninguna obra candidata: posible referencia fabricada.",
+    description:
+      "No se encontró la obra en Crossref ni en OpenAlex. No significa que sea falsa: algunas revistas no están registradas.",
     badgeClass: "bg-verdict-unsupported-soft text-verdict-unsupported-text",
     swatchClass: "bg-verdict-unsupported",
   },

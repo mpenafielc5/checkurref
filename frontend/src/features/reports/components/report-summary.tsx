@@ -12,15 +12,17 @@ const LEGEND_LABELS: Record<Verdict, string> = {
   no_verificable: "no verificables",
 };
 
-/** Anillo con el índice de veracidad de 0 a 100. */
-function IndexRing({ index }: { index: number }) {
-  const filled = (index / 100) * RING_CIRCUMFERENCE;
+/** Anillo con el índice de veracidad de 0 a 100; sin índice, vacío y con una raya. */
+function IndexRing({ index }: { index: number | null }) {
+  const filled = ((index ?? 0) / 100) * RING_CIRCUMFERENCE;
   return (
     <div className="relative flex size-24 shrink-0 items-center justify-center">
       <svg
         viewBox="0 0 96 96"
         role="img"
-        aria-label={`Índice de veracidad: ${index} de 100`}
+        aria-label={
+          index === null ? "Sin índice de veracidad" : `Índice de veracidad: ${index} de 100`
+        }
         className="absolute inset-0 size-24"
       >
         <circle
@@ -44,7 +46,7 @@ function IndexRing({ index }: { index: number }) {
         />
       </svg>
       <span aria-hidden="true" className="text-display-sm font-bold tracking-normal text-ink">
-        {index}
+        {index ?? "—"}
       </span>
     </div>
   );
@@ -95,8 +97,10 @@ function FilterChip({ label, href, selected, empty = false, swatchClass }: Filte
 }
 
 type ReportSummaryProps = {
-  index: number;
+  index: number | null;
   counts: Record<Verdict, number>;
+  /** Referencias sin veredicto por un error de consulta: están en la lista, no en el índice. */
+  queryErrors?: number;
   /** Veredicto filtrado; null muestra todas. */
   active: Verdict | null;
   /** Dirección del informe con ese filtro (null: sin filtro). */
@@ -107,8 +111,14 @@ type ReportSummaryProps = {
  * Índice y distribución de veredictos del documento (maqueta 12). La leyenda
  * sirve también de filtro: tocar "1 contradicción" deja solo esa referencia.
  */
-export function ReportSummary({ index, counts, active, filterHref }: ReportSummaryProps) {
-  const total = VERDICT_ORDER.reduce((sum, verdict) => sum + counts[verdict], 0);
+export function ReportSummary({
+  index,
+  counts,
+  queryErrors = 0,
+  active,
+  filterHref,
+}: ReportSummaryProps) {
+  const total = VERDICT_ORDER.reduce((sum, verdict) => sum + counts[verdict], queryErrors);
 
   return (
     <section
@@ -148,6 +158,13 @@ export function ReportSummary({ index, counts, active, filterHref }: ReportSumma
             ))}
           </ul>
         </nav>
+        {queryErrors > 0 ? (
+          <p className="text-small text-body">
+            {queryErrors === 1
+              ? "1 referencia no se pudo verificar porque una fuente no respondió; no cuenta en el índice."
+              : `${queryErrors} referencias no se pudieron verificar porque una fuente no respondió; no cuentan en el índice.`}
+          </p>
+        ) : null}
       </div>
     </section>
   );
