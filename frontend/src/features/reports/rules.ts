@@ -25,6 +25,16 @@ export function startsCollapsed(reference: ReferenceResult): boolean {
   return reference.verdict === "verificada" && reference.formatFindings.length === 0;
 }
 
+/**
+ * La opción de copiar la referencia corregida aparece solo si hay algo que
+ * corregir (HU-19 CA01): Con discrepancias, o Verificada con hallazgos de formato.
+ */
+export function canCopyCorrected(reference: ReferenceResult): boolean {
+  if (!reference.corrected) return false;
+  if (reference.verdict === "discrepancia") return true;
+  return reference.verdict === "verificada" && reference.formatFindings.length > 0;
+}
+
 /** Texto plano de la referencia, para mostrarla en una línea cuando está contraída. */
 export function referenceText(reference: ReferenceResult): string {
   return reference.segments.map((segment) => segment.text).join("");

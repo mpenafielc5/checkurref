@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { filterByVerdict, parseVerdictFilter, referenceText, startsCollapsed } from "./rules";
+import {
+  canCopyCorrected,
+  filterByVerdict,
+  parseVerdictFilter,
+  referenceText,
+  startsCollapsed,
+} from "./rules";
 import { SAMPLE_REPORT } from "./sample-data";
 
 const REFERENCES = SAMPLE_REPORT.references;
@@ -62,5 +68,28 @@ describe("startsCollapsed", () => {
 describe("referenceText", () => {
   it("une los fragmentos coloreados en una sola línea de texto", () => {
     expect(referenceText(REFERENCES[0])).toMatch(/^Torres, A\. y Vera, C\. \(2019\)\. /);
+  });
+});
+
+describe("canCopyCorrected", () => {
+  const corrected = { text: "Pérez, M. (2021). Redes.", segments: [] };
+  const base = REFERENCES[0];
+  const finding = { message: "Falta el DOI.", given: "…", expected: "… https://doi.org/x" };
+
+  it("aparece en las referencias con discrepancias", () => {
+    expect(canCopyCorrected({ ...base, verdict: "discrepancia", corrected })).toBe(true);
+  });
+
+  it("en una verificada, solo si tiene hallazgos de formato", () => {
+    const verified = { ...base, verdict: "verificada" as const, corrected };
+    expect(canCopyCorrected({ ...verified, formatFindings: [] })).toBe(false);
+    expect(canCopyCorrected({ ...verified, formatFindings: [finding] })).toBe(true);
+  });
+
+  it("nunca en los demás veredictos ni sin referencia corregida", () => {
+    for (const verdict of ["contradiccion", "sin_respaldo", "no_verificable", null] as const) {
+      expect(canCopyCorrected({ ...base, verdict, corrected })).toBe(false);
+    }
+    expect(canCopyCorrected({ ...base, verdict: "discrepancia", corrected: null })).toBe(false);
   });
 });
