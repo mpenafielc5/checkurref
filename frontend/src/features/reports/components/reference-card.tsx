@@ -2,7 +2,7 @@ import { ChevronDown } from "lucide-react";
 import { StatusChip } from "@/shared/components/ui/status-chip";
 import { VerdictBadge } from "@/shared/components/ui/verdict-badge";
 import type { Verdict } from "@/shared/lib/verdicts";
-import { referenceText, startsCollapsed } from "../rules";
+import { canCopyCorrected, referenceText, startsCollapsed } from "../rules";
 import type {
   ExtractedField,
   FieldComparison,
@@ -10,6 +10,7 @@ import type {
   NliResult,
   ReferenceResult,
 } from "../types";
+import { CorrectedReferencePanel } from "./corrected-reference";
 
 /** Color de cada campo extraído en el texto original (maqueta 12). */
 const FIELD_CLASSES: Record<ExtractedField, string> = {
@@ -166,6 +167,10 @@ export function ReferenceCard({ reference }: { reference: ReferenceResult }) {
 
           {reference.formatFindings.length > 0 ? (
             <FormatFindings findings={reference.formatFindings} />
+          ) : null}
+
+          {reference.corrected && canCopyCorrected(reference) ? (
+            <CorrectedReferencePanel corrected={reference.corrected} />
           ) : null}
 
           {reference.comparisons.length > 0 || reference.nli ? (
