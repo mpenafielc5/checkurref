@@ -1,13 +1,12 @@
 import { Check } from "lucide-react";
-import { VerdictBadge } from "@/shared/components/ui/verdict-badge";
-import type { Verdict } from "@/shared/lib/verdicts";
 import type { ProgressStep } from "../types";
 
 type AnalysisProgressProps = {
   steps: ProgressStep[];
-  verified: number;
-  total: number;
-  latest: ReadonlyArray<{ label: string; verdict: Verdict }>;
+  /** Avance de la verificación de 0 a 100; null si la etapa en curso es otra. */
+  percent: number | null;
+  /** Datos del análisis que se conocen hasta ahora, como pares nombre y valor. */
+  details: ReadonlyArray<{ label: string; value: string }>;
 };
 
 function StepMarker({ step, position }: { step: ProgressStep; position: number }) {
@@ -31,10 +30,8 @@ function StepMarker({ step, position }: { step: ProgressStep; position: number }
   );
 }
 
-/** Etapas del análisis y últimas referencias verificadas (maqueta 11). */
-export function AnalysisProgress({ steps, verified, total, latest }: AnalysisProgressProps) {
-  const percent = Math.round((verified / total) * 100);
-
+/** Etapas del análisis y sus datos (maqueta 11). */
+export function AnalysisProgress({ steps, percent, details }: AnalysisProgressProps) {
   return (
     <div className="flex flex-col gap-8 lg:flex-row">
       <ol className="flex flex-1 flex-col gap-5">
@@ -50,7 +47,7 @@ export function AnalysisProgress({ steps, verified, total, latest }: AnalysisPro
               <p className={`text-small ${step.state === "pending" ? "text-muted" : ""}`}>
                 {step.detail}
               </p>
-              {step.state === "current" ? (
+              {step.state === "current" && percent !== null ? (
                 <div
                   role="progressbar"
                   aria-valuemin={0}
@@ -67,21 +64,21 @@ export function AnalysisProgress({ steps, verified, total, latest }: AnalysisPro
         ))}
       </ol>
 
-      <section aria-labelledby="titulo-ultimas" className="flex flex-col gap-3 lg:w-80">
-        <h2 id="titulo-ultimas" className="text-small font-semibold tracking-normal text-ink">
-          Últimas verificadas
+      <section aria-labelledby="titulo-datos" className="flex flex-col gap-3 lg:w-80">
+        <h2 id="titulo-datos" className="text-small font-semibold tracking-normal text-ink">
+          Datos del análisis
         </h2>
-        <ul className="flex flex-col gap-2">
-          {latest.map((item) => (
-            <li
+        <dl className="flex flex-col gap-2">
+          {details.map((item) => (
+            <div
               key={item.label}
-              className="flex flex-col items-start gap-2 rounded-card border border-hairline px-4 py-3 text-small text-ink"
+              className="flex flex-col gap-1 rounded-card border border-hairline px-4 py-3 text-small"
             >
-              {item.label}
-              <VerdictBadge verdict={item.verdict} />
-            </li>
+              <dt>{item.label}</dt>
+              <dd className="font-semibold text-ink">{item.value}</dd>
+            </div>
           ))}
-        </ul>
+        </dl>
       </section>
     </div>
   );

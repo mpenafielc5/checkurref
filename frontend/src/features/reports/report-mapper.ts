@@ -3,6 +3,7 @@
  * backend) a los tipos de la pantalla. La API manda los campos como códigos de
  * la base (titulo, anio…); los nombres que ve el usuario se ponen aquí.
  */
+import { standardLabel } from "@/shared/lib/standards";
 import { VERDICT_ORDER, type Verdict } from "@/shared/lib/verdicts";
 import type { ExtractedField, FieldComparison, NliResult, ReferenceResult, Report } from "./types";
 
@@ -76,12 +77,6 @@ const FIELD_LABELS: Record<string, string> = {
   paginas: "Páginas",
   numero: "Número",
   editorial: "Editorial",
-};
-
-const STANDARD_LABELS: Record<string, string> = {
-  APA: "APA",
-  IEEE: "IEEE",
-  MIXTA: "APA e IEEE",
 };
 
 /** El NLI del título es el más informativo: con autores, las iniciales lo confunden. */
@@ -164,7 +159,7 @@ export function toReport(dto: ReportDto): Report {
   return {
     analysisId: dto.analysis_id,
     fileName: dto.file_name,
-    standard: (dto.norm && STANDARD_LABELS[dto.norm]) || "Norma no identificada",
+    standard: standardLabel(dto.norm) ?? "Norma no identificada",
     index: dto.index === null ? null : Math.round(dto.index),
     counts: {
       verificada: dto.counts.verificada,
