@@ -3,6 +3,7 @@ import { getApiUrl } from "@/shared/lib/env";
 import type { PageSlice } from "@/shared/lib/pagination";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { isHistoryDto, toWorkPage } from "./history";
+import { isAnalysisItemDto, toAnalysisInfo, type AnalysisInfo } from "./progress";
 import type { Work } from "./types";
 import {
   interpretUploadResponse,
@@ -88,5 +89,38 @@ export async function fetchHistory(
       response.kind === "failed" && response.reason === "session"
         ? "No se pudo verificar tu sesión. Recarga la página e intenta de nuevo."
         : "No se pudo cargar la lista de tus trabajos. Intenta de nuevo en unos minutos.",
+  };
+}
+
+export type AnalysisOutcome =
+  { kind: "ready"; analysis: AnalysisInfo } | { kind: "error"; message: string };
+
+/** Estado actual de un análisis, para abrir la pantalla de progreso (HU-05). */
+export async function fetchAnalysis(
+  analysisId: string,
+  onSlow: () => void,
+): Promise<AnalysisOutcome> {
+  const response = await apiGet(`/analisis/${encodeURIComponent(analysisId)}`, onSlow);
+  if (response.kind === "failed") {
+    return {
+      kind: "error",
+      message:
+        response.reason === "session"
+          ? "No se pudo verificar tu sesión. Recarga la página e intenta de nuevo."
+          : "No se pudo conectar con el motor de análisis. Revisa tu conexión e intenta de nuevo.",
+    };
+  }
+  if (response.status === 200 && isAnalysisItemDto(response.body)) {
+    return { kind: "ready", analysis: toAnalysisInfo(response.body) };
+  }
+  if (response.status === 404 || response.status === 422) {
+    return {
+      kind: "error",
+      message: "No se encontró este análisis. Vuelve a la lista de tus trabajos.",
+    };
+  }
+  return {
+    kind: "error",
+    message: "No se pudo consultar el análisis. Intenta de nuevo en unos minutos.",
   };
 }

@@ -1,31 +1,12 @@
 import { RolePage } from "@/features/auth/components/role-page";
-import { AnalysisProgress } from "@/features/documents/components/analysis-progress";
-import { SAMPLE_PROGRESS } from "@/features/documents/sample-data";
-import { PageSection, PageSectionSkeleton } from "@/shared/components/page-section";
-import { SampleDataNotice } from "@/shared/components/ui/sample-data-notice";
-import { StatusChip } from "@/shared/components/ui/status-chip";
+import { ProgressLoader } from "@/features/documents/components/progress-loader";
+import { PageSectionSkeleton } from "@/shared/components/page-section";
 
-/** Progreso del análisis, en vivo (maqueta 11). */
+/** Progreso del análisis, en vivo (maqueta 11, HU-05). */
 export default function StudentProgressPage() {
-  const progress = SAMPLE_PROGRESS;
-
   return (
     <RolePage allow={["estudiante"]} skeleton={<PageSectionSkeleton back description />}>
-      <PageSection
-        eyebrow="Análisis en curso"
-        title={progress.fileName}
-        description="El análisis continúa aunque salgas de esta pantalla; podrás consultarlo en Mis trabajos."
-        back={{ href: "/estudiante/trabajos", label: "Mis trabajos" }}
-        actions={<StatusChip tone="neutral">{progress.standard}</StatusChip>}
-      >
-        <SampleDataNotice story="la HU-05" />
-        <AnalysisProgress
-          steps={progress.steps}
-          verified={progress.verified}
-          total={progress.total}
-          latest={progress.latest}
-        />
-      </PageSection>
+      <ProgressLoader />
     </RolePage>
   );
 }
