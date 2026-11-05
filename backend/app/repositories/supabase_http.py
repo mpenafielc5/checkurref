@@ -42,9 +42,27 @@ def ensure_ok(response: httpx.Response) -> httpx.Response:
 
 def send(client: httpx.Client, method: str, url: str, **options: Any) -> list[dict[str, Any]]:
     """Petición a la API de datos; devuelve las filas de la respuesta (o ninguna)."""
+    response = _request(client, method, url, **options)
+    return response.json() if response.content else []
+
+
+def get_counted(
+    client: httpx.Client, url: str, params: dict[str, str]
+) -> tuple[list[dict[str, Any]], int]:
+    """Una página de filas y el total de filas de la consulta, sin paginar.
+
+    PostgREST informa el total en la cabecera Content-Range ("0-19/57") si se
+    pide con Prefer: count=exact.
+    """
+    response = _request(client, "GET", url, params=params, headers={"Prefer": "count=exact"})
+    total = response.headers.get("content-range", "").rpartition("/")[2]
+    rows = response.json() if response.content else []
+    return rows, int(total) if total.isdigit() else len(rows)
+
+
+def _request(client: httpx.Client, method: str, url: str, **options: Any) -> httpx.Response:
     try:
         response = client.request(method, url, **options)
     except httpx.HTTPError as error:
         raise SupabaseUnavailableError(str(error)) from error
-    ensure_ok(response)
-    return response.json() if response.content else []
+    return ensure_ok(response)
