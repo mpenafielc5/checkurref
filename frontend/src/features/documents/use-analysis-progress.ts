@@ -15,7 +15,7 @@ type Result = { analysisId: string; outcome: AnalysisOutcome };
 
 /**
  * Estado en vivo de un análisis (HU-05): primero lo pide a la API y luego
- * escucha los cambios de su fila en analisis con Supabase Realtime. Al quedar
+ * escucha los cambios de su fila en t_analisis con Supabase Realtime. Al quedar
  * suscrito lo vuelve a pedir, por si cambió entre ambos pasos. Mientras no
  * termina, también lo consulta cada 10 s.
  */
@@ -74,7 +74,7 @@ export function useAnalysisProgress(analysisId: string): ProgressState {
         {
           event: "UPDATE",
           schema: "public",
-          table: "analisis",
+          table: "t_analisis",
           filter: `id=eq.${analysisId}`,
         },
         (payload) => {

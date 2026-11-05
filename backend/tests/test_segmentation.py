@@ -347,7 +347,7 @@ def test_guarda_las_referencias_la_norma_y_las_entradas_dudosas() -> None:
         table = request.url.path.rsplit("/", 1)[-1]
         body = json.loads(request.content) if request.content else None
         seen.append((request.method, table, body))
-        if request.method == "POST" and table == "referencias":
+        if request.method == "POST" and table == "t_referencias":
             assert isinstance(body, list)
             return httpx.Response(
                 201, json=[{"id": f"ref-{row['orden']}", "orden": row["orden"]} for row in body]
@@ -368,10 +368,10 @@ def test_guarda_las_referencias_la_norma_y_las_entradas_dudosas() -> None:
     repository.save_segmentation(analysis_id, segmentation)
 
     assert [(method, table) for method, table, _ in seen] == [
-        ("DELETE", "referencias"),  # reanalizar reemplaza lo anterior
-        ("POST", "referencias"),
-        ("POST", "hallazgos"),
-        ("PATCH", "analisis"),
+        ("DELETE", "t_referencias"),  # reanalizar reemplaza lo anterior
+        ("POST", "t_referencias"),
+        ("POST", "t_hallazgos"),
+        ("PATCH", "t_analisis"),
     ]
     assert seen[1][2] == [
         {

@@ -1,4 +1,4 @@
-"""Campos que extrajo cada motor de cada referencia (tabla extracciones)."""
+"""Campos que extrajo cada motor de cada referencia (tabla t_extracciones)."""
 
 from dataclasses import asdict
 from typing import Any, Protocol
@@ -8,7 +8,7 @@ import httpx
 from app.extraction.base import Engine, Extraction
 from app.repositories.supabase_http import send
 
-# Largos de las columnas de extracciones: un texto más largo se recorta.
+# Largos de las columnas de t_extracciones: un texto más largo se recorta.
 LENGTHS = {"contenedor": 255, "editorial": 255, "volumen": 20, "numero": 20, "paginas": 30}
 DOI_LENGTH = 255
 
@@ -21,7 +21,7 @@ class ExtractionRepository(Protocol):
 
 class SupabaseExtractionRepository:
     def __init__(self, rest_url: str, client: httpx.Client) -> None:
-        self._url = f"{rest_url}/extracciones"
+        self._url = f"{rest_url}/t_extracciones"
         self._client = client
 
     def save(self, engine: Engine, extractions: dict[str, Extraction]) -> None:

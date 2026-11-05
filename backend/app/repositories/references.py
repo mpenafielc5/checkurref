@@ -26,7 +26,7 @@ class SupabaseReferenceRepository:
 
     def save_segmentation(self, analysis_id: UUID, segmentation: Segmentation) -> dict[int, str]:
         # Si el análisis se repite, se reemplaza lo anterior (sus hallazgos se borran en cascada).
-        self._send("DELETE", "referencias", params={"analisis_id": f"eq.{analysis_id}"})
+        self._send("DELETE", "t_referencias", params={"analisis_id": f"eq.{analysis_id}"})
         rows = [
             {
                 "analisis_id": str(analysis_id),
@@ -40,7 +40,7 @@ class SupabaseReferenceRepository:
         saved = (
             self._send(
                 "POST",
-                "referencias",
+                "t_referencias",
                 json=rows,
                 headers={"Prefer": "return=representation"},
                 params={"select": "id,orden"},
@@ -63,11 +63,11 @@ class SupabaseReferenceRepository:
             if reference.issue
         ]
         if findings:
-            self._send("POST", "hallazgos", json=findings)
+            self._send("POST", "t_hallazgos", json=findings)
 
         self._send(
             "PATCH",
-            "analisis",
+            "t_analisis",
             params={"id": f"eq.{analysis_id}"},
             json={
                 "norma_detectada": segmentation.norm.value,

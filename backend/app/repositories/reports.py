@@ -23,7 +23,7 @@ ANALYSIS_COLUMNS = (
 EXTRACTION_COLUMNS = "motor,autores,anio,titulo,contenedor,editorial,volumen,numero,paginas,doi"
 VERIFICATION_COLUMNS = (
     "veredicto,estrategia,crossref_doi,sim_titulo,sim_autores,coincide_anio,referencia_corregida,"
-    "inferencias_nli(campo,p_implicacion,p_neutral,p_contradiccion)"
+    "t_inferencias_nli(campo,p_implicacion,p_neutral,p_contradiccion)"
 )
 FINDING_COLUMNS = "tipo,codigo,severidad,campo,valor_dado,valor_oficial,mensaje"
 
@@ -70,7 +70,7 @@ class StoredVerification:
     title_similarity: float | None
     author_similarity: float | None
     year_matches: bool | None
-    corrected: list[dict[str, Any]] | None  # verificaciones.referencia_corregida
+    corrected: list[dict[str, Any]] | None  # t_verificaciones.referencia_corregida
     inferences: tuple[StoredInference, ...] = ()
 
 
@@ -126,9 +126,9 @@ class SupabaseReportRepository:
         rows = send(
             self._client,
             "GET",
-            f"{self._rest_url}/analisis",
+            f"{self._rest_url}/t_analisis",
             params={
-                "select": f"{ANALYSIS_COLUMNS},documentos(propietario_id,nombre_archivo)",
+                "select": f"{ANALYSIS_COLUMNS},t_documentos(propietario_id,nombre_archivo)",
                 "id": f"eq.{analysis_id}",
             },
         )
@@ -138,14 +138,14 @@ class SupabaseReportRepository:
         rows = send(
             self._client,
             "GET",
-            f"{self._rest_url}/referencias",
+            f"{self._rest_url}/t_referencias",
             params={
                 "select": (
-                    f"orden,pagina,norma,texto_crudo,extracciones({EXTRACTION_COLUMNS}),"
-                    f"verificaciones({VERIFICATION_COLUMNS}),hallazgos({FINDING_COLUMNS})"
+                    f"orden,pagina,norma,texto_crudo,t_extracciones({EXTRACTION_COLUMNS}),"
+                    f"t_verificaciones({VERIFICATION_COLUMNS}),t_hallazgos({FINDING_COLUMNS})"
                 ),
                 "analisis_id": f"eq.{analysis_id}",
-                "extracciones.motor": f"eq.{engine}",
+                "t_extracciones.motor": f"eq.{engine}",
                 "order": "orden.asc",
             },
         )
@@ -156,21 +156,23 @@ class SupabaseReportRepository:
     ) -> AnalysisPage:
         # Los trabajos de un lote (HU-08) se consultan desde el lote, no desde el historial.
         params = {
-            "select": f"{ANALYSIS_COLUMNS},documentos!inner(propietario_id,nombre_archivo,lote_id)",
-            "documentos.propietario_id": f"eq.{owner_id}",
-            "documentos.lote_id": "is.null",
+            "select": (
+                f"{ANALYSIS_COLUMNS},t_documentos!inner(propietario_id,nombre_archivo,lote_id)"
+            ),
+            "t_documentos.propietario_id": f"eq.{owner_id}",
+            "t_documentos.lote_id": "is.null",
             "order": "creado_en.desc",
             "offset": str(offset),
             "limit": str(limit),
         }
         if pattern := SEARCH_WILDCARDS.sub("", search).strip():
-            params["documentos.nombre_archivo"] = f"ilike.*{pattern}*"
-        rows, total = get_counted(self._client, f"{self._rest_url}/analisis", params)
+            params["t_documentos.nombre_archivo"] = f"ilike.*{pattern}*"
+        rows, total = get_counted(self._client, f"{self._rest_url}/t_analisis", params)
         return AnalysisPage([_analysis(row) for row in rows], total)
 
 
 def _analysis(row: dict[str, Any]) -> AnalysisRecord:
-    document = row["documentos"]
+    document = row["t_documentos"]
     return AnalysisRecord(
         analysis_id=UUID(row["id"]),
         document_id=UUID(row["documento_id"]),
@@ -190,15 +192,15 @@ def _analysis(row: dict[str, Any]) -> AnalysisRecord:
 
 
 def _reference(row: dict[str, Any]) -> StoredReference:
-    extractions = row.get("extracciones") or []
+    extractions = row.get("t_extracciones") or []
     return StoredReference(
         order=row["orden"],
         page=row.get("pagina"),
         norm=row.get("norma"),
         text=row["texto_crudo"],
         fields=_fields(extractions[0]) if extractions else None,
-        verification=_verification(_one(row.get("verificaciones"))),
-        findings=tuple(_finding(item) for item in row.get("hallazgos") or []),
+        verification=_verification(_one(row.get("t_verificaciones"))),
+        findings=tuple(_finding(item) for item in row.get("t_hallazgos") or []),
     )
 
 
@@ -239,7 +241,7 @@ def _verification(row: dict[str, Any] | None) -> StoredVerification | None:
                 neutral=float(item["p_neutral"]),
                 contradiction=float(item["p_contradiccion"]),
             )
-            for item in row.get("inferencias_nli") or []
+            for item in row.get("t_inferencias_nli") or []
         ),
     )
 
@@ -257,7 +259,7 @@ def _finding(row: dict[str, Any]) -> StoredFinding:
 
 
 def _one(value: Any) -> dict[str, Any] | None:
-    """verificaciones es uno a uno: PostgREST lo devuelve como objeto (o como lista)."""
+    """t_verificaciones es uno a uno: PostgREST lo devuelve como objeto (o como lista)."""
     if isinstance(value, list):
         return value[0] if value else None
     return value

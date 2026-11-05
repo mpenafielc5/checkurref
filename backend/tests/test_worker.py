@@ -320,7 +320,7 @@ def test_la_cola_toma_el_analisis_solo_si_sigue_en_cola() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "GET":
             rows = [
-                {"id": id_, "documento_id": str(uuid4()), "documentos": {"ruta_storage": "a.pdf"}}
+                {"id": id_, "documento_id": str(uuid4()), "t_documentos": {"ruta_storage": "a.pdf"}}
                 for id_ in (first, second)
             ]
             return httpx.Response(200, json=rows)
@@ -398,7 +398,7 @@ def test_descarga_el_pdf_de_storage() -> None:
 def test_si_storage_falla_la_descarga_avisa(status: int) -> None:
     storage = SupabasePdfStorage(
         "https://proyecto.supabase.co/storage/v1",
-        "documentos",
+        "t_documentos",
         mock(lambda _: httpx.Response(status)),
     )
 
