@@ -1,5 +1,9 @@
+import { apiGet } from "@/shared/lib/api-client";
 import { getApiUrl } from "@/shared/lib/env";
+import type { PageSlice } from "@/shared/lib/pagination";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
+import { isHistoryDto, toWorkPage } from "./history";
+import type { Work } from "./types";
 import {
   interpretUploadResponse,
   SESSION_TIMEOUT_MS,
@@ -61,4 +65,28 @@ export async function submitDocument(file: File, onSlow: () => void): Promise<Up
 /** Despierta al backend antes de la subida; si no responde, no pasa nada. */
 export function wakeApi(): void {
   fetch(`${getApiUrl()}/health`).catch(() => undefined);
+}
+
+export type HistoryOutcome =
+  { kind: "ready"; page: PageSlice<Work> } | { kind: "error"; message: string };
+
+/** Una página del historial del estudiante (HU-07), con la búsqueda por nombre. */
+export async function fetchHistory(
+  page: number,
+  search: string,
+  onSlow: () => void,
+): Promise<HistoryOutcome> {
+  const params = new URLSearchParams({ pagina: String(page) });
+  if (search) params.set("buscar", search);
+  const response = await apiGet(`/analisis?${params.toString()}`, onSlow);
+  if (response.kind === "response" && response.status === 200 && isHistoryDto(response.body)) {
+    return { kind: "ready", page: toWorkPage(response.body) };
+  }
+  return {
+    kind: "error",
+    message:
+      response.kind === "failed" && response.reason === "session"
+        ? "No se pudo verificar tu sesión. Recarga la página e intenta de nuevo."
+        : "No se pudo cargar la lista de tus trabajos. Intenta de nuevo en unos minutos.",
+  };
 }

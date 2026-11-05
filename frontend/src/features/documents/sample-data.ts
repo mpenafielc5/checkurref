@@ -1,47 +1,8 @@
 /*
- * Datos de ejemplo de las maquetas 10, 11 y 13. Se reemplazan por datos de
- * Supabase en HU-04 (subida), HU-05 (progreso) y HU-07 (historial).
+ * Datos de ejemplo de la maqueta 11. Se reemplazan por datos reales en HU-05
+ * (progreso).
  */
-import type { ProgressStep, Work } from "./types";
-
-/** Del más reciente al más antiguo. Dos archivos con el mismo nombre son trabajos distintos. */
-export const SAMPLE_WORKS: Work[] = [
-  {
-    analysisId: "e2b9",
-    fileName: "Ensayo_metodologia.pdf",
-    date: "10/10/2026",
-    references: 20,
-    index: null,
-    status: "en_proceso",
-    verified: 12,
-  },
-  {
-    analysisId: "a7f3",
-    fileName: "Avance_cap2.pdf",
-    date: "08/10/2026",
-    references: 34,
-    index: 82,
-    status: "listo",
-  },
-  {
-    analysisId: "c4e6",
-    fileName: "Informe_laboratorio_redes.pdf",
-    date: "03/10/2026",
-    references: 12,
-    index: 91,
-    status: "listo",
-  },
-  {
-    analysisId: "a2d8",
-    fileName: "Avance_cap2.pdf",
-    date: "24/09/2026",
-    references: 30,
-    index: 51,
-    status: "listo",
-  },
-];
-
-export const SAMPLE_RECENT_WORKS = SAMPLE_WORKS.slice(0, 2);
+import type { ProgressStep } from "./types";
 
 export const SAMPLE_PROGRESS = {
   fileName: "Ensayo_metodologia.pdf",
@@ -69,10 +30,3 @@ export const SAMPLE_PROGRESS = {
     { label: "[10] Moreira (2022)", verdict: "sin_respaldo" },
   ] as const,
 };
-
-/** Ruta a la que lleva cada trabajo: informe si terminó, progreso si sigue. */
-export function workHref(work: Work): string {
-  return work.status === "listo"
-    ? `/estudiante/trabajos/${work.analysisId}`
-    : `/estudiante/trabajos/${work.analysisId}/progreso`;
-}
