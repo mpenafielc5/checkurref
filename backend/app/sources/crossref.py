@@ -22,7 +22,7 @@ CANDIDATES = 3
 # Campos de las búsquedas, para no traer las listas de referencias de cada obra.
 # La búsqueda no admite "journal-issue": la consulta por DOI (sin select) sí lo trae.
 SELECT = (
-    "DOI,title,author,issued,published-print,published-online,"
+    "DOI,title,subtitle,author,issued,published-print,published-online,"
     "container-title,publisher,volume,issue,page,type,score"
 )
 # "issued" es la fecha más temprana (a menudo la publicación en línea del
@@ -67,7 +67,7 @@ def _record(item: dict[str, Any]) -> SourceRecord:
     return SourceRecord(
         source=Source.CROSSREF,
         doi=normalize_doi(item.get("DOI")),
-        title=_first(item.get("title")),
+        title=_title(item),
         authors=tuple(
             Author(
                 family=str(person.get("family") or person.get("name") or "").strip(),
@@ -92,6 +92,14 @@ def _year(date: dict[str, Any] | None) -> int | None:
     parts = (date or {}).get("date-parts") or [[None]]
     year = parts[0][0] if parts and parts[0] else None
     return year if isinstance(year, int) else None
+
+
+def _title(item: dict[str, Any]) -> str | None:
+    """Título con su subtítulo: Crossref los separa y las referencias los citan juntos."""
+    title, subtitle = _first(item.get("title")), _first(item.get("subtitle"))
+    if title and subtitle and subtitle.lower() not in title.lower():
+        return f"{title}: {subtitle}"
+    return title
 
 
 def _first(values: list[str] | None) -> str | None:

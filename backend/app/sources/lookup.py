@@ -36,7 +36,9 @@ class Strategy(str, Enum):
 class LookupResult:
     strategy: Strategy
     candidates: tuple[SourceRecord, ...]  # vacío si ninguna fuente tiene la obra
-    query_failed: bool = False  # error de consulta: fuera del índice de veracidad
+    # Alguna fuente no respondió. Sin candidatos que sean la obra, es un error de
+    # consulta: fuera del índice de veracidad.
+    query_failed: bool = False
 
 
 class BibliographicSource(Protocol):
@@ -104,12 +106,15 @@ class ReferenceLookup:
                 failed = True
                 continue
             if candidates:
-                self._searches[key] = candidates
+                # Si una fuente anterior falló, los candidatos pueden no ser la obra y
+                # la que no respondió quizá la tenía: no se recuerda la búsqueda.
+                if not failed:
+                    self._searches[key] = candidates
                 # Se guardan para que la verificación pueda enlazar el registro elegido.
                 await asyncio.to_thread(
                     self._cache.put, [record for record in candidates if record.doi]
                 )
-                return LookupResult(Strategy.BIBLIOGRAPHIC_SEARCH, candidates)
+                return LookupResult(Strategy.BIBLIOGRAPHIC_SEARCH, candidates, query_failed=failed)
         if not failed:
             self._searches[key] = ()
         return LookupResult(Strategy.BIBLIOGRAPHIC_SEARCH, (), query_failed=failed)
