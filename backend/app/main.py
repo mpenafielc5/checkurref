@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import analyses, health, session
 from app.core.config import get_settings
+from app.verification.nli import NliModelError
 from app.workers.analysis_worker import create_worker
 
 logger = logging.getLogger(__name__)
@@ -30,8 +31,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s")
         # La consulta a la cola cada pocos segundos no se registra; solo sus errores.
         logging.getLogger("httpx").setLevel(logging.WARNING)
-        worker_task = asyncio.create_task(create_worker(settings).run(stop))
-        logger.info("Worker de análisis iniciado")
+        try:
+            worker = create_worker(settings)
+        except NliModelError as error:
+            # La API sigue atendiendo (subir trabajos los deja en cola), pero sin el
+            # modelo no se puede verificar: los análisis esperan a que se genere.
+            logger.error("Worker de análisis no iniciado: %s", error)
+        else:
+            worker_task = asyncio.create_task(worker.run(stop))
+            logger.info("Worker de análisis iniciado")
     yield
     stop.set()
     if worker_task:
