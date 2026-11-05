@@ -55,6 +55,8 @@ UNREGISTERED_DOI = (
     "DOI_NO_REGISTRADO",
     "Ninguna fuente registra el DOI citado; la obra se encontró en {fuente} por su título.",
 )
+# Códigos de un campo que difiere del registro (los demás son avisos sobre la referencia).
+MISMATCH_CODES = frozenset(code for code, _ in MISMATCH.values()) | {UNREGISTERED_DOI[0]}
 
 
 class Severity(str, Enum):
