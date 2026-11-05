@@ -215,6 +215,14 @@ def test_reconoce_el_apellido_en_el_nombre_completo_de_openalex() -> None:
     assert verdict_of(record) is Verdict.VERIFIED
 
 
+def test_reconoce_el_primer_apellido_que_crossref_dejo_entre_los_nombres() -> None:
+    # Caso real: Crossref registra given "Ana Beltran", family "Flandoli".
+    fields = replace(FIELDS, authors=(Author("Beltran Flandoli", "A."),))
+    record = replace(RECORD, authors=(Author("Flandoli", "Ana Beltran"),))
+
+    assert verdict_of(record, fields) is Verdict.VERIFIED
+
+
 def test_mismo_segundo_apellido_no_es_la_misma_persona() -> None:
     fields = replace(FIELDS, authors=(Author("García Vera", "J."),))
     record = replace(RECORD, authors=(Author("López Vera", "Juan"),))
@@ -262,6 +270,12 @@ def test_volumen_con_prefijo_coincide() -> None:
     assert verdict_of(RECORD, replace(FIELDS, volume="vol. 8")) is Verdict.VERIFIED
 
 
+def test_ceros_a_la_izquierda_no_son_una_diferencia() -> None:
+    record = replace(RECORD, volume="08", pages="010-025")
+
+    assert verdict_of(record) is Verdict.VERIFIED
+
+
 # --- Contradicción --------------------------------------------------------------------------
 
 
@@ -273,6 +287,43 @@ def test_doi_que_lleva_a_otra_obra_es_contradiccion() -> None:
     title = verification.check(CheckedField.TITLE)
     assert title is not None
     assert title.official == OTHER_WORK.title
+
+
+def test_doi_con_titulo_citado_traducido_es_la_misma_obra() -> None:
+    # Revista bilingüe: el registro está en inglés y la referencia cita el título en español.
+    record = replace(RECORD, title="Neural networks in higher education")
+
+    verification = decide(TEXT, FIELDS, by_doi(record), FakeNli())
+
+    assert verification.verdict is Verdict.DISCREPANCY
+    assert [check.field for check in verification.mismatches] == [CheckedField.TITLE]
+
+
+def test_doi_cuyo_registro_trae_solo_algunos_autores_sigue_siendo_la_obra() -> None:
+    # Metadatos incompletos: el registro solo lista al primer autor y el título está traducido.
+    record = replace(
+        RECORD, title="Neural networks in higher education", authors=(Author("Pérez"),)
+    )
+    fields = replace(FIELDS, authors=FIELDS.authors + (Author("Ruiz", "P."), Author("Vela", "A.")))
+
+    verification = decide(TEXT, fields, by_doi(record), FakeNli())
+
+    assert verification.verdict is Verdict.DISCREPANCY
+    authors = verification.check(CheckedField.AUTHORS)
+    assert authors is not None and authors.similarity == 0.25  # el campo sí difiere
+
+
+def test_doi_con_otro_titulo_y_un_apellido_en_comun_por_azar_es_contradiccion() -> None:
+    # "Pérez" coincide, pero no es el primer autor de ambas listas: puede ser azar.
+    record = replace(OTHER_WORK, authors=(Author("Mora", "Luis"), Author("Pérez", "Ana")))
+
+    assert verdict_of(record) is Verdict.CONTRADICTION
+
+
+def test_doi_con_otro_titulo_y_el_mismo_primer_autor_es_la_misma_obra() -> None:
+    record = replace(OTHER_WORK, authors=(Author("Pérez", "Ana"), Author("Mora", "Luis")))
+
+    assert verdict_of(record) is Verdict.DISCREPANCY
 
 
 def test_referencia_sin_titulo_se_confirma_por_los_autores() -> None:
@@ -311,6 +362,25 @@ def test_titulo_dudoso_confirmado_por_todos_los_autores() -> None:
     assert verification.verdict is Verdict.DISCREPANCY
 
 
+def test_titulo_dudoso_con_otro_anio_no_es_la_obra() -> None:
+    # El NLI acepta títulos de tema parecido; el año distinto delata otra obra.
+    fields = replace(WITHOUT_DOI, authors=(Author("Ruiz", "P."),) + FIELDS.authors, year=2014)
+
+    verification = decide(TEXT, fields, by_search(DOUBTFUL), FixedNli(ENTAILS))
+
+    assert verification.verdict is Verdict.UNSUPPORTED
+
+
+def test_titulo_dudoso_sin_autores_que_comparar_lo_decide_el_nli() -> None:
+    fields = replace(WITHOUT_DOI, authors=())
+
+    accepted = decide(TEXT, fields, by_search(DOUBTFUL), FixedNli(ENTAILS))
+    rejected = decide(TEXT, fields, by_search(DOUBTFUL), FixedNli(CONTRADICTS))
+
+    assert accepted.verdict is Verdict.DISCREPANCY
+    assert rejected.verdict is Verdict.UNSUPPORTED
+
+
 def test_titulo_muy_distinto_no_es_la_obra_aunque_el_nli_lo_acepte() -> None:
     verification = decide(TEXT, WITHOUT_DOI, by_search(OTHER_WORK), FixedNli(ENTAILS))
 
@@ -325,6 +395,33 @@ def test_elige_el_candidato_que_es_la_obra() -> None:
 
     assert verification.verdict is Verdict.VERIFIED
     assert verification.record == RECORD
+
+
+def test_en_la_busqueda_un_titulo_igual_sin_ningun_autor_en_comun_no_es_la_obra() -> None:
+    # Títulos genéricos: la búsqueda trae otra obra con el mismo título.
+    fields = replace(WITHOUT_DOI, authors=(Author("Castro", "L."),))
+
+    assert verdict_of(RECORD, fields, by_search(RECORD)) is Verdict.UNSUPPORTED
+
+
+def test_pagina_web_hallada_solo_por_un_titulo_igual_es_no_verificable() -> None:
+    text = "Wikipedia. (2025). Trastorno del espectro autista. https://es.wikipedia.org/wiki/TEA"
+    fields = ExtractedFields(
+        authors=(Author(""),), year=2025, title="Trastorno del espectro autista"
+    )
+    record = replace(
+        RECORD, title="Trastorno del espectro autista", authors=(Author("Conde", "A."),)
+    )
+
+    verification = decide(text, fields, by_search(record), FakeNli())
+
+    assert verification.verdict is Verdict.NOT_VERIFIABLE
+
+
+def test_autor_sin_apellido_no_se_compara() -> None:
+    fields = replace(FIELDS, authors=(Author(""),) + FIELDS.authors)
+
+    assert verdict_of(RECORD, fields) is Verdict.VERIFIED
 
 
 def test_candidatos_que_no_son_la_obra_es_sin_respaldo() -> None:

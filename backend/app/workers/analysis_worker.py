@@ -9,6 +9,7 @@ siguiente: nunca detiene la cola.
 import asyncio
 import logging
 from contextlib import suppress
+from pathlib import Path
 
 from app.core.config import Settings
 from app.extraction.base import Engine
@@ -16,9 +17,13 @@ from app.extraction.factory import create_extractor
 from app.repositories.analysis_queue import AnalysisQueue, SupabaseAnalysisQueue
 from app.repositories.extractions import SupabaseExtractionRepository
 from app.repositories.pdf_storage import SupabasePdfStorage
+from app.repositories.record_cache import SupabaseRecordCache
 from app.repositories.references import SupabaseReferenceRepository
 from app.repositories.supabase_http import SupabaseUnavailableError, shared_client
+from app.repositories.verifications import SupabaseVerificationRepository
 from app.services.analysis_service import AnalysisService
+from app.verification.factory import open_verifier
+from app.verification.nli import get_nli_model
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +77,18 @@ class AnalysisWorker:
 
 
 def create_worker(settings: Settings) -> AnalysisWorker:
+    """Arma el worker. Carga el modelo NLI (una sola vez): si falta, lanza NliModelError."""
     client = shared_client(settings.supabase_service_role_key)
     queue = SupabaseAnalysisQueue(settings.supabase_rest_url, client)
+    nli = get_nli_model(Path(settings.nli_model_dir))
+    cache = SupabaseRecordCache(settings.supabase_rest_url, client)
     service = AnalysisService(
         queue=queue,
         storage=SupabasePdfStorage(settings.supabase_storage_url, settings.storage_bucket, client),
         references=SupabaseReferenceRepository(settings.supabase_rest_url, client),
         extractions=SupabaseExtractionRepository(settings.supabase_rest_url, client),
         extractor=create_extractor(Engine(settings.extraction_engine), settings.anystyle_command),
+        verifications=SupabaseVerificationRepository(settings.supabase_rest_url, client),
+        open_verifier=lambda: open_verifier(settings, cache, nli),
     )
     return AnalysisWorker(queue, service, settings.worker_poll_seconds)

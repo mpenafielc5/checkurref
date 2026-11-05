@@ -16,9 +16,9 @@ Veredictos (RF12-CA02):
 - Verificada: la obra existe y los campos coinciden.
 - Con discrepancias: la obra existe y uno o más campos difieren.
 - Contradicción: el registro encontrado corresponde a otra obra: el DOI citado
-  lleva a una obra con otro título (o, sin título, con otros autores). Si el
-  título coincide es la misma obra, aunque los autores difieran: así un error
-  del extractor en los autores no se toma como otra obra.
+  lleva a una obra con otro título y otros autores. Con el título igual es la
+  misma obra aunque los autores difieran (un error del extractor no la vuelve
+  otra), y con los autores iguales también (el título pudo citarse traducido).
 - Sin respaldo: la búsqueda terminó sin encontrar la obra.
 - No verificable: faltan datos para buscarla, o no se encontró y es un tipo de
   obra que las fuentes no cubren (leyes, tesis, páginas web).
@@ -76,6 +76,9 @@ class Thresholds:
     title_candidate: float = 0.60
     # Similitud mínima entre dos apellidos para tomarlos como la misma persona.
     surname_match: float = 0.85
+    # Parte de los autores citados con la que el registro de un DOI es la obra
+    # aunque el título no coincida (citado traducido, por ejemplo).
+    doi_author_support: float = 0.50
     container_match: float = 0.85
     # Probabilidad de implicación con la que el NLI confirma un título dudoso.
     nli_entailment: float = 0.50
@@ -138,8 +141,10 @@ def decide(
     strategy = result.strategy
     if strategy is Strategy.NO_QUERY:
         return Verification(Verdict.NOT_VERIFIABLE, strategy)
+    uncovered = is_uncovered_work(text, fields)
     assessments = [
-        _assess(fields, record, strategy, nli, thresholds) for record in result.candidates
+        _assess(fields, record, strategy, nli, thresholds, uncovered)
+        for record in result.candidates
     ]
     best = max(assessments, key=_Assessment.rank, default=None)
 
@@ -148,7 +153,7 @@ def decide(
     if best is None or (not best.same_work and strategy is Strategy.BIBLIOGRAPHIC_SEARCH):
         if result.query_failed:
             return Verification(None, strategy)
-        verdict = Verdict.NOT_VERIFIABLE if is_uncovered_work(text, fields) else Verdict.UNSUPPORTED
+        verdict = Verdict.NOT_VERIFIABLE if uncovered else Verdict.UNSUPPORTED
         return Verification(verdict, strategy)
 
     if not best.same_work:
@@ -188,55 +193,94 @@ class _Assessment:
         return (self.same_work, self.title_similarity, self.author_similarity)
 
 
+@dataclass(frozen=True)
+class _Evidence:
+    """Lo que dice cada señal sobre si el registro es la obra citada."""
+
+    title: float | None  # similitud del título (None: no hay dos títulos que comparar)
+    authors: FieldCheck | None  # None: no hay autores que comparar
+    # Autores que coinciden sobre la lista más corta (la citada o la del registro):
+    # el registro puede traer solo algunos autores, y eso no la vuelve otra obra.
+    author_overlap: float
+    year: FieldCheck | None
+    nli_confirms_title: bool
+    uncovered_work: bool  # tesis, norma legal o página web (is_uncovered_work)
+
+
 def _assess(
     fields: ExtractedFields,
     record: SourceRecord,
     strategy: Strategy,
     nli: NliScorer,
     thresholds: Thresholds,
+    uncovered_work: bool,
 ) -> _Assessment:
     checks = _compare(fields, record, strategy, thresholds)
     nli_checks = _infer(fields, record, nli)
-    title = _title_identity(fields.title, record.title)
-    authors = next((c for c in checks if c.field is CheckedField.AUTHORS), None)
+    by_field = {check.field: check for check in checks}
     title_nli = next((c.scores for c in nli_checks if c.field is CheckedField.TITLE), None)
+    evidence = _Evidence(
+        title=_title_identity(fields.title, record.title),
+        authors=by_field.get(CheckedField.AUTHORS),
+        author_overlap=_author_overlap(fields.authors, record.authors, thresholds),
+        year=by_field.get(CheckedField.YEAR),
+        nli_confirms_title=title_nli is not None
+        and title_nli.entailment >= thresholds.nli_entailment
+        and title_nli.entailment > title_nli.contradiction,
+        uncovered_work=uncovered_work,
+    )
+    same_work = (
+        _doi_leads_to_the_work(evidence, thresholds)
+        if strategy is Strategy.DIRECT_DOI
+        else _search_found_the_work(evidence, thresholds)
+    )
     return _Assessment(
         record,
         checks,
         nli_checks,
-        _is_same_work(title, authors, title_nli, thresholds),
-        title if title is not None else 0.0,
-        authors.similarity if authors else 0.0,
+        same_work,
+        evidence.title if evidence.title is not None else 0.0,
+        evidence.authors.similarity if evidence.authors else 0.0,
     )
 
 
-def _is_same_work(
-    title: float | None,
-    authors: FieldCheck | None,
-    title_nli: NliScores | None,
-    thresholds: Thresholds,
-) -> bool:
-    """El registro es la obra que cita la referencia.
+def _doi_leads_to_the_work(evidence: _Evidence, thresholds: Thresholds) -> bool:
+    """El DOI citado ya señala una obra; la pregunta es si es la citada.
 
-    - Título igual: sí.
-    - Título dudoso: sí, si ningún autor lo descarta y el NLI o todos los autores
-      lo confirman.
-    - Sin título (referencia con solo DOI y autores): sí, salvo que no coincida
-      ningún autor.
+    Lo es con el título igual, o con la mitad o más de los autores en común: el
+    título pudo citarse traducido (revistas bilingües) o mal copiado. Si no, es
+    Contradicción.
     """
-    # Sin autores que comparar, no se puede descartar la obra por ellos.
-    none_of_the_authors = authors is not None and authors.similarity == 0
-    if title is None:
-        return not none_of_the_authors
-    if title >= thresholds.title_match:
+    title, authors = evidence.title, evidence.authors
+    if title is not None and title >= thresholds.title_match:
         return True
-    if title < thresholds.title_candidate or none_of_the_authors:
+    if authors is not None:
+        return evidence.author_overlap >= thresholds.doi_author_support
+    # Sin autores que comparar: lo decide el título dudoso con el NLI.
+    return title is None or (title >= thresholds.title_candidate and evidence.nli_confirms_title)
+
+
+def _search_found_the_work(evidence: _Evidence, thresholds: Thresholds) -> bool:
+    """La búsqueda por título devuelve obras parecidas; se exige que algo más lo
+    confirme, porque un título genérico se repite en obras distintas.
+
+    - Título igual: sí, salvo que ninguno de los autores coincida, o que sea una
+      tesis, norma o página web sin autores que lo confirmen.
+    - Título dudoso: sí, si el año no lo contradice y lo confirman todos los
+      autores, o el NLI junto con alguno de ellos (o solo el NLI, sin autores).
+    """
+    title, authors, year = evidence.title, evidence.authors, evidence.year
+    if title is None or title < thresholds.title_candidate:
         return False
-    nli_confirms = title_nli is not None and (
-        title_nli.entailment >= thresholds.nli_entailment
-        and title_nli.entailment > title_nli.contradiction
-    )
-    return nli_confirms or (authors is not None and authors.matches)
+    if authors is not None and authors.similarity == 0:
+        return False
+    if title >= thresholds.title_match:
+        return authors is not None or not evidence.uncovered_work
+    if year is not None and not year.matches:
+        return False
+    if authors is None:
+        return evidence.nli_confirms_title
+    return authors.matches or evidence.nli_confirms_title
 
 
 def _title_identity(given: str | None, official: str | None) -> float | None:
@@ -273,13 +317,14 @@ def _compare(
                 similarity >= thresholds.title_match,
             )
         )
-    if fields.authors and record.authors:
-        similarity = _author_similarity(fields.authors, record.authors, thresholds)
+    given_authors, official_authors = _named(fields.authors), _named(record.authors)
+    if given_authors and official_authors:
+        similarity = _author_similarity(given_authors, official_authors, thresholds)
         checks.append(
             FieldCheck(
                 CheckedField.AUTHORS,
-                _surnames(fields.authors),
-                _surnames(record.authors),
+                _surnames(given_authors),
+                _surnames(official_authors),
                 similarity,
                 similarity == 1.0,
             )
@@ -328,10 +373,29 @@ def _author_similarity(
 ) -> float:
     """Parte de los autores citados que firman la obra (solo en ese sentido: con
     "et al." la referencia nombra menos autores que el registro)."""
-    found = sum(
+    return _authors_found(given, official, thresholds) / len(given)
+
+
+def _author_overlap(
+    given: Sequence[Author], official: Sequence[Author], thresholds: Thresholds
+) -> float:
+    """Parte de los autores en común sobre la lista más corta. Con un solo autor en
+    común, solo cuenta si es el primero de ambas: un apellido frecuente coincide por azar."""
+    given, official = _named(given), _named(official)
+    if not given or not official:
+        return 0.0
+    found = _authors_found(given, official, thresholds)
+    if found == 1 and not _same_person(given[0], official[0], thresholds):
+        return 0.0
+    return found / min(len(given), len(official))
+
+
+def _authors_found(
+    given: Sequence[Author], official: Sequence[Author], thresholds: Thresholds
+) -> int:
+    return sum(
         any(_same_person(person, author, thresholds) for author in official) for person in given
     )
-    return found / len(given)
 
 
 # Partículas de los apellidos, que no distinguen a una persona de otra.
@@ -354,18 +418,20 @@ PARTICLES = {
 
 
 def _same_person(given: Author, official: Author, thresholds: Thresholds) -> bool:
-    """El primer apellido citado aparece en el autor del registro.
+    """El primer apellido citado aparece en el nombre completo del autor del registro.
 
-    OpenAlex da el nombre completo ("María Pérez Vera") y Crossref solo los
-    apellidos, así que se busca el apellido entre sus palabras. Una organización
-    (sin nombres) se compara entera.
+    Se busca en el nombre completo porque las fuentes separan mal los dos
+    apellidos: OpenAlex no los separa ("María Pérez Vera") y Crossref a veces deja
+    el primero entre los nombres (given "Ana Beltran", family "Flandoli"). Una
+    organización (sin nombres) se compara entera.
     """
     if not given.given:
         return fuzz.token_set_ratio(_normalize(given.family), _normalize(official.family)) >= (
             thresholds.surname_match * 100
         )
     surname = [word for word in _normalize(given.family).split() if word not in PARTICLES]
-    words = [word for word in _normalize(official.family).split() if word not in PARTICLES]
+    full_name = _normalize(f"{official.given} {official.family}")
+    words = [word for word in full_name.split() if word not in PARTICLES]
     if not surname:
         return False
     return any(fuzz.ratio(surname[0], word) >= thresholds.surname_match * 100 for word in words)
@@ -406,7 +472,12 @@ def _abbreviates(given: str, official: str) -> bool:
 
 
 def _volume(value: str) -> str:
-    return re.sub(r"^(vol\.?|volumen)\s*", "", value.strip().lower())
+    return _without_leading_zeros(re.sub(r"^(vol\.?|volumen)\s*", "", value.strip().lower()))
+
+
+def _without_leading_zeros(value: str) -> str:
+    """ "04" -> "4": las fuentes y las referencias no rellenan los números igual."""
+    return (value.lstrip("0") or value) if value.isdigit() else value
 
 
 def _page_bounds(value: str) -> tuple[str, str | None] | None:
@@ -414,7 +485,8 @@ def _page_bounds(value: str) -> tuple[str, str | None] | None:
     numbers = re.findall(r"[a-z]?\d+", value.lower().replace("pp.", "").replace("p.", ""))
     if not numbers:
         return None
-    return numbers[0], numbers[1] if len(numbers) > 1 else None
+    first, last = numbers[0], numbers[1] if len(numbers) > 1 else None
+    return _without_leading_zeros(first), _without_leading_zeros(last) if last else None
 
 
 def _same_pages(given: tuple[str, str | None], official: tuple[str, str | None]) -> bool:
@@ -435,7 +507,7 @@ def _infer(fields: ExtractedFields, record: SourceRecord, nli: NliScorer) -> tup
         sentence
         for _, sentence in _sentences(
             record.title,
-            [_full_name(author) for author in record.authors],
+            [_full_name(author) for author in _named(record.authors)],
             record.year,
             record.container,
         )
@@ -444,7 +516,7 @@ def _infer(fields: ExtractedFields, record: SourceRecord, nli: NliScorer) -> tup
         (field, sentence)
         for field, sentence in _sentences(
             fields.title,
-            [_full_name(author) for author in fields.authors],
+            [_full_name(author) for author in _named(fields.authors)],
             fields.year,
             fields.container,
         )
@@ -477,7 +549,7 @@ def _sentences(
 def _has(record: SourceRecord, field: CheckedField) -> bool:
     values = {
         CheckedField.TITLE: record.title,
-        CheckedField.AUTHORS: record.authors,
+        CheckedField.AUTHORS: _named(record.authors),
         CheckedField.YEAR: record.year,
         CheckedField.CONTAINER: record.container,
     }
@@ -527,6 +599,11 @@ def _normalize(text: str) -> str:
 
 def _ratio(a: str, b: str) -> float:
     return fuzz.ratio(_normalize(a), _normalize(b)) / 100
+
+
+def _named(authors: Sequence[Author]) -> tuple[Author, ...]:
+    """Autores con apellido: el extractor a veces deja uno vacío ("Wikipedia. (2025)")."""
+    return tuple(author for author in authors if author.family.strip())
 
 
 def _surnames(authors: Sequence[Author]) -> str:

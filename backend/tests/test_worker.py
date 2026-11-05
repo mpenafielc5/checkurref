@@ -1,7 +1,9 @@
-"""Cola de análisis, worker y etapas del análisis (T11). Sin Supabase real."""
+"""Cola de análisis, worker y etapas del análisis (T11, T14). Sin Supabase real."""
 
 import asyncio
 import json
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -15,7 +17,9 @@ from app.repositories.analysis_queue import QueuedAnalysis, SupabaseAnalysisQueu
 from app.repositories.extractions import SupabaseExtractionRepository
 from app.repositories.pdf_storage import SupabasePdfStorage
 from app.repositories.supabase_http import SupabaseUnavailableError
-from app.services.analysis_service import AnalysisService
+from app.services.analysis_service import AnalysisService, Verifier
+from app.sources.lookup import Strategy
+from app.verification.decision import Verdict, Verification
 from app.workers.analysis_worker import INTERNAL_ERROR, AnalysisWorker
 from tests.pdf_factory import PageSpec, make_pdf
 
@@ -84,6 +88,40 @@ class FakeExtractions:
         self.saved.update(extractions)
 
 
+class FakeVerifications:
+    def __init__(self) -> None:
+        self.saved: dict[str, Verification | None] = {}
+        self.index: float | None = None
+
+    def save(
+        self,
+        analysis_id: UUID,
+        verifications: dict[str, Verification | None],
+        index: float | None,
+    ) -> None:
+        self.saved, self.index = verifications, index
+
+
+class FakeVerifier:
+    """Verificada salvo los textos indicados; un texto en `broken` lanza un error."""
+
+    def __init__(self, verdicts: dict[str, Verdict] | None = None, broken: str = "") -> None:
+        self.verdicts = verdicts or {}
+        self.broken = broken
+        self.opened = 0
+
+    async def verify(self, text: str, fields: ExtractedFields | None) -> Verification:
+        if self.broken and text.startswith(self.broken):
+            raise RuntimeError("fallo inesperado")
+        verdict = self.verdicts.get(text, Verdict.VERIFIED)
+        return Verification(verdict, Strategy.BIBLIOGRAPHIC_SEARCH)
+
+    @asynccontextmanager
+    async def open(self) -> AsyncIterator[Verifier]:
+        self.opened += 1
+        yield self
+
+
 class TitleExtractor(ReferenceExtractor):
     engine = Engine.SPACY
 
@@ -92,11 +130,20 @@ class TitleExtractor(ReferenceExtractor):
 
 
 def service(
-    queue: FakeQueue, storage: FakeStorage | None = None
+    queue: FakeQueue,
+    storage: FakeStorage | None = None,
+    verifier: FakeVerifier | None = None,
+    verifications: FakeVerifications | None = None,
 ) -> tuple[AnalysisService, FakeReferences, FakeExtractions]:
     references, extractions = FakeReferences(), FakeExtractions()
     analysis = AnalysisService(
-        queue, storage or FakeStorage(), references, extractions, TitleExtractor()
+        queue,
+        storage or FakeStorage(),
+        references,
+        extractions,
+        TitleExtractor(),
+        verifications or FakeVerifications(),
+        (verifier or FakeVerifier()).open,
     )
     return analysis, references, extractions
 
@@ -114,11 +161,58 @@ def test_un_analisis_recorre_sus_etapas_y_termina_completado() -> None:
     assert [reference.text for reference in segmentation.references] == [APA_1, APA_2]
     assert set(extractions.saved) == {"ref-1", "ref-2"}  # una extracción por referencia
     assert queue.events == [
+        ("avance", "segmentando", 10),
         ("avance", "segmentando", 20),
-        ("avance", "segmentando", 40),
-        ("avance", "segmentando", 90),
+        ("avance", "verificando", 30),
+        ("avance", "verificando", 62),  # una de las dos referencias verificada
+        ("avance", "verificando", 95),
         ("completado", JOB.analysis_id, Engine.SPACY),
     ]
+
+
+def test_guarda_el_veredicto_de_cada_referencia_y_el_indice() -> None:
+    verifications = FakeVerifications()
+    verifier = FakeVerifier({APA_2: Verdict.UNSUPPORTED})
+    analysis, _, _ = service(FakeQueue(), verifier=verifier, verifications=verifications)
+
+    analysis.run(JOB)
+
+    assert {ref: item.verdict for ref, item in verifications.saved.items() if item} == {
+        "ref-1": Verdict.VERIFIED,
+        "ref-2": Verdict.UNSUPPORTED,
+    }
+    assert verifications.index == 50.0
+    assert verifier.opened == 1  # una conexión a las fuentes por análisis
+
+
+def test_un_error_en_una_referencia_no_detiene_las_demas() -> None:
+    queue, verifications = FakeQueue(), FakeVerifications()
+    verifier = FakeVerifier(broken=APA_1[:10])
+    analysis, _, _ = service(queue, verifier=verifier, verifications=verifications)
+
+    analysis.run(JOB)
+
+    assert verifications.saved["ref-1"] is None  # error interno: sin veredicto
+    second = verifications.saved["ref-2"]
+    assert second is not None and second.verdict is Verdict.VERIFIED
+    assert verifications.index == 100.0  # la referencia que falló no cuenta
+    assert queue.events[-1] == ("completado", JOB.analysis_id, Engine.SPACY)
+
+
+def test_si_falla_el_aviso_de_avance_la_verificacion_sigue() -> None:
+    class FlakyQueue(FakeQueue):
+        def report(self, analysis_id: UUID, status: str, progress: int) -> None:
+            if progress > 30:
+                raise SupabaseUnavailableError("caída momentánea")
+            super().report(analysis_id, status, progress)
+
+    queue, verifications = FlakyQueue(), FakeVerifications()
+    analysis, _, _ = service(queue, verifications=verifications)
+
+    analysis.run(JOB)
+
+    assert len(verifications.saved) == 2
+    assert queue.events[-1] == ("completado", JOB.analysis_id, Engine.SPACY)
 
 
 def test_un_pdf_sin_referencias_termina_con_su_mensaje() -> None:
