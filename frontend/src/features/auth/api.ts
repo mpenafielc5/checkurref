@@ -22,7 +22,7 @@ export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   if (!userId) return null;
 
   const { data, error } = await supabase
-    .from("perfiles")
+    .from("m_perfiles")
     .select("id, nombre_completo, correo, rol, carrera, activo")
     .eq("id", userId)
     .single();

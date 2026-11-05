@@ -346,14 +346,14 @@ ANALYSIS_ROW = {
     "total_referencias": 1,
     "indice_veracidad": 100,
     "mensaje_error": None,
-    "documentos": {"propietario_id": USER_ID, "nombre_archivo": "Avance_cap2.pdf"},
+    "t_documentos": {"propietario_id": USER_ID, "nombre_archivo": "Avance_cap2.pdf"},
 }
 REFERENCE_ROW = {
     "orden": 1,
     "pagina": 12,
     "norma": "APA",
     "texto_crudo": APA,
-    "extracciones": [
+    "t_extracciones": [
         {
             "motor": "anystyle",
             "autores": [{"family": "Pérez", "given": "M."}],
@@ -367,7 +367,7 @@ REFERENCE_ROW = {
             "doi": None,
         }
     ],
-    "verificaciones": {
+    "t_verificaciones": {
         "veredicto": "verificada",
         "estrategia": "doi_directo",
         "crossref_doi": "10.1234/ra.2021.8",
@@ -375,11 +375,11 @@ REFERENCE_ROW = {
         "sim_autores": 1.0,
         "coincide_anio": True,
         "referencia_corregida": None,
-        "inferencias_nli": [
+        "t_inferencias_nli": [
             {"campo": "titulo", "p_implicacion": 0.95, "p_neutral": 0.03, "p_contradiccion": 0.02}
         ],
     },
-    "hallazgos": [],
+    "t_hallazgos": [],
 }
 
 
@@ -408,7 +408,7 @@ def test_lee_las_referencias_con_la_extraccion_del_motor_principal() -> None:
 
     [reference] = repository(handler).references(ANALYSIS_ID, "anystyle")
 
-    assert seen[0].url.params["extracciones.motor"] == "eq.anystyle"
+    assert seen[0].url.params["t_extracciones.motor"] == "eq.anystyle"
     assert seen[0].url.params["order"] == "orden.asc"
     assert reference.fields is not None and reference.fields.year == 2019
     assert reference.verification is not None
@@ -416,8 +416,8 @@ def test_lee_las_referencias_con_la_extraccion_del_motor_principal() -> None:
 
 
 def test_verificacion_como_lista_o_ausente() -> None:
-    as_list = {**REFERENCE_ROW, "verificaciones": [REFERENCE_ROW["verificaciones"]]}
-    absent = {**REFERENCE_ROW, "verificaciones": None, "extracciones": []}
+    as_list = {**REFERENCE_ROW, "t_verificaciones": [REFERENCE_ROW["t_verificaciones"]]}
+    absent = {**REFERENCE_ROW, "t_verificaciones": None, "t_extracciones": []}
 
     first, second = repository(lambda _: httpx.Response(200, json=[as_list, absent])).references(
         ANALYSIS_ID, "anystyle"
@@ -438,8 +438,8 @@ def test_historial_pide_el_total_y_solo_trabajos_propios_fuera_de_lotes() -> Non
 
     params = seen[0].url.params
     assert seen[0].headers["Prefer"] == "count=exact"
-    assert params["documentos.propietario_id"] == f"eq.{OWNER}"
-    assert params["documentos.lote_id"] == "is.null"
+    assert params["t_documentos.propietario_id"] == f"eq.{OWNER}"
+    assert params["t_documentos.lote_id"] == "is.null"
     assert (params["offset"], params["limit"], params["order"]) == ("40", "20", "creado_en.desc")
     assert page.total == 41
 
@@ -559,7 +559,7 @@ def test_historial_busca_por_nombre_sin_comodines() -> None:
 
     repository(handler).list_analyses(OWNER, 0, 20, " Avance_cap*2% ")
 
-    assert seen[0].url.params["documentos.nombre_archivo"] == "ilike.*Avance_cap2*"
+    assert seen[0].url.params["t_documentos.nombre_archivo"] == "ilike.*Avance_cap2*"
 
 
 def test_ruta_del_historial_pasa_la_busqueda(

@@ -1,4 +1,4 @@
-"""Caché compartida de obras por DOI (tabla registros_crossref).
+"""Caché compartida de obras por DOI (tabla m_registros_crossref).
 
 Un DOI se consulta una sola vez para todos los usuarios. También guarda las
 obras de OpenAlex que tienen DOI: metadatos.fuente dice de dónde vino cada una,
@@ -17,7 +17,7 @@ from app.sources.records import Source, SourceRecord
 
 logger = logging.getLogger(__name__)
 
-# Largos de las columnas de registros_crossref.
+# Largos de las columnas de m_registros_crossref.
 DOI_LENGTH = 255
 CONTAINER_LENGTH = 255
 TYPE_LENGTH = 50
@@ -25,7 +25,7 @@ TYPE_LENGTH = 50
 
 class SupabaseRecordCache:
     def __init__(self, rest_url: str, client: httpx.Client) -> None:
-        self._url = f"{rest_url}/registros_crossref"
+        self._url = f"{rest_url}/m_registros_crossref"
         self._client = client
 
     def get(self, doi: str) -> SourceRecord | None:

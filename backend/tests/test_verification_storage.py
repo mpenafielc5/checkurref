@@ -95,7 +95,7 @@ class Recorder:
         table = request.url.path.rsplit("/", 1)[-1]
         body = json.loads(request.content) if request.content else None
         self.requests.append((request.method, table, body))
-        if table == "verificaciones":
+        if table == "t_verificaciones":
             rows = [{"id": f"v-{row['referencia_id']}", **row} for row in body]
             return httpx.Response(201, json=rows)
         return httpx.Response(201)
@@ -122,7 +122,7 @@ def test_guarda_verificacion_inferencias_hallazgos_e_indice() -> None:
 
     recorder = save({"ref-1": verified(), "ref-2": discrepancy}, 50.0)
 
-    first, second = recorder.body("POST", "verificaciones")
+    first, second = recorder.body("POST", "t_verificaciones")
     assert first == {
         "referencia_id": "ref-1",
         "crossref_doi": RECORD.doi,
@@ -136,11 +136,11 @@ def test_guarda_verificacion_inferencias_hallazgos_e_indice() -> None:
     }
     assert second["veredicto"] == "discrepancia" and second["coincide_anio"] is False
 
-    inferences = recorder.body("POST", "inferencias_nli")
+    inferences = recorder.body("POST", "t_inferencias_nli")
     assert {row["verificacion_id"] for row in inferences} == {"v-ref-1", "v-ref-2"}
     assert {row["campo"] for row in inferences} == {"titulo", "autores", "anio", "contenedor"}
 
-    [finding] = recorder.body("POST", "hallazgos")
+    [finding] = recorder.body("POST", "t_hallazgos")
     assert finding["referencia_id"] == "ref-2"
     assert finding["tipo"] == "veracidad"
     assert (finding["campo"], finding["valor_dado"], finding["valor_oficial"]) == (
@@ -149,7 +149,7 @@ def test_guarda_verificacion_inferencias_hallazgos_e_indice() -> None:
         "2021",
     )
 
-    assert recorder.body("PATCH", "analisis") == {"indice_veracidad": 50.0}
+    assert recorder.body("PATCH", "t_analisis") == {"indice_veracidad": 50.0}
 
 
 def test_un_error_de_consulta_solo_deja_su_hallazgo() -> None:
@@ -158,17 +158,17 @@ def test_un_error_de_consulta_solo_deja_su_hallazgo() -> None:
     recorder = save({"ref-1": query_error, "ref-2": None}, None)
 
     tables = [(method, table) for method, table, _ in recorder.requests]
-    assert ("POST", "verificaciones") not in tables
-    codes = [row["codigo"] for row in recorder.body("POST", "hallazgos")]
+    assert ("POST", "t_verificaciones") not in tables
+    codes = [row["codigo"] for row in recorder.body("POST", "t_hallazgos")]
     assert codes == [QUERY_ERROR_CODE, INTERNAL_ERROR_CODE]
-    assert recorder.body("PATCH", "analisis") == {"indice_veracidad": None}
+    assert recorder.body("PATCH", "t_analisis") == {"indice_veracidad": None}
 
 
 def test_sin_respaldo_se_guarda_sin_registro_ni_similitudes() -> None:
     unsupported = decide(TEXT, WITHOUT_DOI, by_search(), FakeNli())
     assert unsupported.verdict is Verdict.UNSUPPORTED
 
-    [row] = save({"ref-1": unsupported}, 0.0).body("POST", "verificaciones")
+    [row] = save({"ref-1": unsupported}, 0.0).body("POST", "t_verificaciones")
 
     assert row["crossref_doi"] is None
     assert row["estrategia"] == Strategy.BIBLIOGRAPHIC_SEARCH.value
@@ -179,7 +179,7 @@ def test_una_relevancia_que_no_cabe_en_la_columna_no_se_guarda() -> None:
     record = replace(RECORD, score=250_000.5)
 
     [row] = save({"ref-1": decide(TEXT, FIELDS, by_doi(record), FakeNli())}, 100.0).body(
-        "POST", "verificaciones"
+        "POST", "t_verificaciones"
     )
 
     assert row["score_crossref"] is None
@@ -196,7 +196,8 @@ def test_guarda_la_referencia_corregida_en_segmentos() -> None:
         )
     )
 
-    [row] = save({"ref-1": verified()}, 100.0, {"ref-1": corrected}).body("POST", "verificaciones")
+    recorder = save({"ref-1": verified()}, 100.0, {"ref-1": corrected})
+    [row] = recorder.body("POST", "t_verificaciones")
 
     assert row["referencia_corregida"][2] == {
         "texto": "2021",

@@ -224,7 +224,8 @@ def test_busca_el_pdf_identico_del_mismo_usuario_fuera_de_lotes() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
-        row = {"id": str(document_id), "analisis": [{"id": str(analysis_id), "estado": "en_cola"}]}
+        analysis = {"id": str(analysis_id), "estado": "en_cola"}
+        row = {"id": str(document_id), "t_analisis": [analysis]}
         return httpx.Response(200, json=[row])
 
     repository = SupabaseDocumentRepository(
@@ -247,7 +248,7 @@ def test_crea_el_documento_y_su_analisis_en_cola() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         table = request.url.path.rsplit("/", 1)[-1]
         bodies[table] = json.loads(request.content)
-        if table == "analisis":
+        if table == "t_analisis":
             return httpx.Response(201, json=[{"id": str(analysis_id), "estado": "en_cola"}])
         return httpx.Response(201, json=[bodies[table]])
 
@@ -267,10 +268,10 @@ def test_crea_el_documento_y_su_analisis_en_cola() -> None:
     created = repository.create(document, "modelo-prueba")
 
     assert created.analysis_id == analysis_id
-    assert bodies["documentos"]["propietario_id"] == str(OWNER)
-    assert "version" not in bodies["documentos"]
+    assert bodies["t_documentos"]["propietario_id"] == str(OWNER)
+    assert "version" not in bodies["t_documentos"]
     # Nadie elige la norma: el pipeline la detecta después.
-    assert bodies["analisis"] == {
+    assert bodies["t_analisis"] == {
         "documento_id": str(document.id),
         "version_modelo": "modelo-prueba",
     }
@@ -281,7 +282,7 @@ def test_si_falla_el_analisis_borra_el_documento() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         methods.append(f"{request.method} {request.url.path.rsplit('/', 1)[-1]}")
-        if request.url.path.endswith("analisis"):
+        if request.url.path.endswith("t_analisis"):
             return httpx.Response(500)
         return httpx.Response(201, json=[{}])
 
@@ -293,7 +294,7 @@ def test_si_falla_el_analisis_borra_el_documento() -> None:
     with pytest.raises(SupabaseUnavailableError):
         repository.create(document, "modelo-prueba")
 
-    assert methods == ["POST documentos", "POST analisis", "DELETE documentos"]
+    assert methods == ["POST t_documentos", "POST t_analisis", "DELETE t_documentos"]
 
 
 def test_sube_el_pdf_sin_reemplazar_otro() -> None:

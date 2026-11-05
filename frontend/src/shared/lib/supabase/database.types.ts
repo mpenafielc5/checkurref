@@ -8,7 +8,7 @@ export type UserRole = "estudiante" | "docente" | "admin";
 export type Database = {
   public: {
     Tables: {
-      perfiles: {
+      m_perfiles: {
         Row: {
           id: string;
           nombre_completo: string;

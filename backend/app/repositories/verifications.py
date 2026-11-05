@@ -1,9 +1,9 @@
 """Resultado de la verificación de un análisis (PostgREST de Supabase).
 
-Guarda una fila de verificaciones por referencia con veredicto (con su referencia
-corregida, si la hay), lo que respondió el NLI por campo (inferencias_nli), los
+Guarda una fila de t_verificaciones por referencia con veredicto (con su referencia
+corregida, si la hay), lo que respondió el NLI por campo (t_inferencias_nli), los
 hallazgos de veracidad y el índice de veracidad del análisis. Una referencia con
-error de consulta no tiene fila en verificaciones: solo su hallazgo informativo.
+error de consulta no tiene fila en t_verificaciones: solo su hallazgo informativo.
 """
 
 from typing import Any, Protocol
@@ -57,7 +57,7 @@ class SupabaseVerificationRepository:
         saved = (
             self._send(
                 "POST",
-                "verificaciones",
+                "t_verificaciones",
                 json=rows,
                 headers={"Prefer": "return=representation"},
                 params={"select": "id,referencia_id"},
@@ -73,7 +73,7 @@ class SupabaseVerificationRepository:
             for check in verification.nli
         ]
         if inferences:
-            self._send("POST", "inferencias_nli", json=inferences)
+            self._send("POST", "t_inferencias_nli", json=inferences)
 
         findings = [
             {
@@ -90,11 +90,11 @@ class SupabaseVerificationRepository:
             for finding in findings_for(verification)
         ]
         if findings:
-            self._send("POST", "hallazgos", json=findings)
+            self._send("POST", "t_hallazgos", json=findings)
 
         self._send(
             "PATCH",
-            "analisis",
+            "t_analisis",
             params={"id": f"eq.{analysis_id}"},
             json={"indice_veracidad": index},
         )
@@ -113,7 +113,7 @@ def _verification_row(
     score = record.score if record else None
     return {
         "referencia_id": reference_id,
-        # Las obras con DOI ya están en registros_crossref: la búsqueda las guarda.
+        # Las obras con DOI ya están en m_registros_crossref: la búsqueda las guarda.
         "crossref_doi": record.doi if record else None,
         "estrategia": verification.strategy.value,
         "score_crossref": round(score, 3) if score is not None and score <= MAX_SCORE else None,
@@ -126,7 +126,7 @@ def _verification_row(
 
 
 def _segments(corrected: CorrectedReference) -> list[dict[str, Any]]:
-    """Formato de verificaciones.referencia_corregida (migración 4)."""
+    """Formato de t_verificaciones.referencia_corregida (migración 4)."""
     return [
         {
             "texto": segment.text,

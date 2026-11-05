@@ -1,4 +1,4 @@
-"""Estándar de oro en la base de datos (tabla referencias_oro)."""
+"""Estándar de oro en la base de datos (tabla m_referencias_oro)."""
 
 from typing import Any
 
@@ -9,7 +9,7 @@ from app.repositories.supabase_http import send
 
 class SupabaseGoldSetRepository:
     def __init__(self, rest_url: str, client: httpx.Client) -> None:
-        self._url = f"{rest_url}/referencias_oro"
+        self._url = f"{rest_url}/m_referencias_oro"
         self._client = client
 
     def replace_all(self, rows: list[dict[str, Any]]) -> None:

@@ -1,4 +1,4 @@
-"""Cola de análisis sobre la tabla analisis (patrón Productor-Consumidor).
+"""Cola de análisis sobre la tabla t_analisis (patrón Productor-Consumidor).
 
 La API produce: crea el análisis "en_cola". El worker consume: toma el más
 antiguo con una actualización condicionada (solo si sigue "en_cola"), así dos
@@ -42,14 +42,14 @@ class AnalysisQueue(Protocol):
 
 class SupabaseAnalysisQueue:
     def __init__(self, rest_url: str, client: httpx.Client) -> None:
-        self._url = f"{rest_url}/analisis"
+        self._url = f"{rest_url}/t_analisis"
         self._client = client
 
     def claim_next(self) -> QueuedAnalysis | None:
         candidates = self._send(
             "GET",
             params={
-                "select": "id,documento_id,documentos(ruta_storage)",
+                "select": "id,documento_id,t_documentos(ruta_storage)",
                 "estado": f"eq.{QUEUED}",
                 "order": "creado_en.asc",
                 "limit": str(CANDIDATES),
@@ -66,7 +66,7 @@ class SupabaseAnalysisQueue:
                 return QueuedAnalysis(
                     analysis_id=UUID(row["id"]),
                     document_id=UUID(row["documento_id"]),
-                    storage_path=row["documentos"]["ruta_storage"],
+                    storage_path=row["t_documentos"]["ruta_storage"],
                 )
         return None
 

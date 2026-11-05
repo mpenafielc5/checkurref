@@ -1,7 +1,7 @@
 /*
  * Progreso de un análisis (HU-05). El estado llega primero de GET
  * /analisis/{id} (AnalysisItem del backend) y luego en vivo con Supabase
- * Realtime, como fila de la tabla analisis. Aquí se traduce a las etapas de la
+ * Realtime, como fila de la tabla t_analisis. Aquí se traduce a las etapas de la
  * pantalla.
  */
 import type { ProgressStep } from "./types";
