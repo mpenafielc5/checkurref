@@ -1,4 +1,5 @@
-export type AnalysisStatus = "listo" | "en_proceso";
+/** listo: terminó con informe; en_proceso: en cola o analizándose; error: terminó sin informe. */
+export type AnalysisStatus = "listo" | "en_proceso" | "error";
 
 /**
  * Un trabajo subido y el estado de su análisis. Cada archivo es un trabajo
@@ -12,8 +13,8 @@ export type Work = {
   /** Índice de veracidad de 0 a 100; null mientras se analiza. */
   index: number | null;
   status: AnalysisStatus;
-  /** Referencias verificadas hasta ahora, si el análisis sigue en curso. */
-  verified?: number;
+  /** Avance del análisis de 0 a 100. */
+  progress: number;
 };
 
 export type ProgressStepState = "done" | "current" | "pending";

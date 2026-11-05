@@ -1,6 +1,6 @@
 import { FileText } from "lucide-react";
 import Link from "next/link";
-import { workHref } from "../sample-data";
+import { workHref } from "../history";
 import type { Work } from "../types";
 import { WorkStatusChip } from "./work-status-chip";
 

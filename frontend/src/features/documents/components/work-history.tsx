@@ -2,7 +2,7 @@
 
 import { Search } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   cardClass,
   cardListClass,
@@ -14,30 +14,53 @@ import {
   thClass,
 } from "@/shared/components/ui/data-table";
 import { SkeletonText } from "@/shared/components/ui/skeleton";
-import { workHref } from "../sample-data";
+import { workHref } from "../history";
 import type { Work } from "../types";
 import { WorkStatusChip } from "./work-status-chip";
 
 const SEARCH_CLASSES =
   "flex h-input w-full items-center gap-2 rounded-control border border-hairline-strong bg-canvas px-4 md:max-w-xs";
 
-const EMPTY_MESSAGE = "Ningún trabajo coincide con la búsqueda.";
+const STATUS_LABELS: Record<Work["status"], { label: string; className: string }> = {
+  listo: { label: "Listo", className: "text-verdict-verified-text" },
+  en_proceso: { label: "En proceso", className: "text-verdict-discrepancy-text" },
+  error: { label: "Error", className: "text-verdict-contradiction-text" },
+};
+
+/** Pausa tras la última tecla antes de buscar: no se consulta la API en cada letra. */
+export const SEARCH_DELAY_MS = 300;
+
+type WorkSearchProps = {
+  /** Búsqueda aplicada (viaja en la dirección); "" sin búsqueda. */
+  search: string;
+  onSearch: (search: string) => void;
+};
 
 /**
- * Historial de trabajos con búsqueda por nombre (maqueta 13). Cada archivo es
- * un trabajo independiente, del más reciente al más antiguo.
+ * Buscador por nombre (maqueta 13): busca mientras se escribe, tras una pausa
+ * breve; Enter aplica la búsqueda al instante. Queda fuera de la lista para no
+ * perder el foco mientras llegan los resultados.
  */
-export function WorkHistory({ works }: { works: Work[] }) {
-  const [query, setQuery] = useState("");
-  const visible = works.filter((work) =>
-    work.fileName.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+export function WorkSearch({ search, onSearch }: WorkSearchProps) {
+  const [query, setQuery] = useState(search);
+
+  useEffect(() => {
+    const value = query.trim();
+    if (value === search) return;
+    const timer = setTimeout(() => onSearch(value), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [query, search, onSearch]);
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (query.trim() !== search) onSearch(query.trim());
+  }
 
   return (
-    <div className="flex flex-col gap-4">
+    <form role="search" onSubmit={submit} className="flex">
       <label className={SEARCH_CLASSES}>
         <Search aria-hidden="true" className="size-5 text-muted" />
-        <span className="sr-only">Buscar trabajo</span>
+        <span className="sr-only">Buscar trabajo por nombre</span>
         <input
           type="search"
           value={query}
@@ -46,9 +69,30 @@ export function WorkHistory({ works }: { works: Work[] }) {
           className="w-full bg-transparent text-small text-ink outline-none placeholder:text-muted"
         />
       </label>
+    </form>
+  );
+}
 
+type WorkHistoryProps = {
+  works: Work[];
+  /** Hay una búsqueda aplicada: cambia el mensaje de la lista vacía. */
+  searching: boolean;
+};
+
+/**
+ * Historial de trabajos (maqueta 13). Cada archivo es un trabajo independiente,
+ * del más reciente al más antiguo. La búsqueda la hace la API, sobre todos los
+ * trabajos y no solo la página visible.
+ */
+export function WorkHistory({ works, searching }: WorkHistoryProps) {
+  const emptyMessage = searching
+    ? "Ningún trabajo coincide con la búsqueda."
+    : "Todavía no has subido trabajos. Sube uno desde el inicio para verificar sus referencias.";
+
+  return (
+    <div className="flex flex-col gap-4">
       <ul className={cardListClass}>
-        {visible.map((work) => (
+        {works.map((work) => (
           <li key={work.analysisId} className="flex">
             <Link href={workHref(work)} className={`${cardClass} hover:border-hairline-strong`}>
               <span className="font-semibold break-words text-ink">{work.fileName}</span>
@@ -59,7 +103,7 @@ export function WorkHistory({ works }: { works: Work[] }) {
             </Link>
           </li>
         ))}
-        {visible.length === 0 ? <li className="text-small">{EMPTY_MESSAGE}</li> : null}
+        {works.length === 0 ? <li className="text-small">{emptyMessage}</li> : null}
       </ul>
 
       <DataTable caption="Historial de trabajos" cardsOnMobile>
@@ -80,7 +124,7 @@ export function WorkHistory({ works }: { works: Work[] }) {
           </tr>
         </thead>
         <tbody>
-          {visible.map((work) => (
+          {works.map((work) => (
             <tr key={work.analysisId} className="hover:bg-canvas-soft">
               <td className={tdClass}>
                 <Link href={workHref(work)} className="font-medium hover:text-accent-text">
@@ -89,21 +133,15 @@ export function WorkHistory({ works }: { works: Work[] }) {
               </td>
               <td className={tdClass}>{work.date}</td>
               <td className={`${tdClass} ${numericClass}`}>{work.index ?? "—"}</td>
-              <td
-                className={`${tdClass} ${
-                  work.status === "listo"
-                    ? "text-verdict-verified-text"
-                    : "text-verdict-discrepancy-text"
-                }`}
-              >
-                {work.status === "listo" ? "Listo" : "En proceso"}
+              <td className={`${tdClass} ${STATUS_LABELS[work.status].className}`}>
+                {STATUS_LABELS[work.status].label}
               </td>
             </tr>
           ))}
-          {visible.length === 0 ? (
+          {works.length === 0 ? (
             <tr>
               <td colSpan={4} className={`${tdClass} text-body`}>
-                {EMPTY_MESSAGE}
+                {emptyMessage}
               </td>
             </tr>
           ) : null}
@@ -113,14 +151,19 @@ export function WorkHistory({ works }: { works: Work[] }) {
   );
 }
 
-/** Esqueleto de WorkHistory: buscador y lista (tarjetas en el celular, tabla desde md). */
+/** Esqueleto de la lista: tarjetas en el celular, tabla desde md. */
+export function WorkListSkeleton() {
+  return <DataTableSkeleton columns={4} rows={4} cardsOnMobile />;
+}
+
+/** Esqueleto de la pantalla: buscador y lista. */
 export function WorkHistorySkeleton() {
   return (
     <div className="flex flex-col gap-4">
       <span className={SEARCH_CLASSES}>
         <SkeletonText textClass="text-small" widthClass="w-32" />
       </span>
-      <DataTableSkeleton columns={4} rows={4} cardsOnMobile />
+      <WorkListSkeleton />
     </div>
   );
 }

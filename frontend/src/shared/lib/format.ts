@@ -9,6 +9,16 @@ export function formatDecimal(value: number, fractionDigits = 2): string {
   }).format(value);
 }
 
+/** Fecha corta como en las maquetas: 03/11/2026, en la hora de Ecuador. */
+export function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat(LOCALE, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "America/Guayaquil",
+  }).format(new Date(iso));
+}
+
 export function formatPercent(value: number): string {
   return `${Math.round(value)} %`;
 }
