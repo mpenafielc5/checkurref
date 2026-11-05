@@ -1,0 +1,11 @@
+# Nada de secretos, entornos locales, PDF de prueba ni modelos generados en la imagen.
+.env
+.env.*
+.venv
+.venv-*
+models
+pdf-locales
+tests
+**/__pycache__
+.pytest_cache
+.ruff_cache

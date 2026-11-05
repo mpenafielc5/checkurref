@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import analyses, health, session
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.verification.nli import NliModelError
 from app.workers.analysis_worker import create_worker
 
@@ -47,9 +47,18 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await asyncio.wait_for(worker_task, timeout=SHUTDOWN_WAIT_SECONDS)
 
 
-def create_app() -> FastAPI:
-    settings = get_settings()
-    app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
+    # En producción la documentación interactiva (/docs, /redoc, /openapi.json) no se publica.
+    public_docs = settings.environment != "production"
+    app = FastAPI(
+        title=settings.app_name,
+        version=settings.app_version,
+        lifespan=lifespan,
+        docs_url="/docs" if public_docs else None,
+        redoc_url="/redoc" if public_docs else None,
+        openapi_url="/openapi.json" if public_docs else None,
+    )
 
     app.add_middleware(
         CORSMiddleware,
