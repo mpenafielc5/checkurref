@@ -24,10 +24,13 @@ class Settings(BaseSettings):
     # servidor: con ella el backend guarda los PDF y crea los análisis.
     supabase_service_role_key: str = ""
 
-    # Bucket privado de los PDF (migración 2) y modelo con el que se registran
-    # los análisis nuevos hasta que el worker use el modelo NLI (T12).
+    # Bucket privado de los PDF (migración 2) y versión del modelo NLI con la que
+    # se registran los análisis nuevos.
     storage_bucket: str = "documentos"
     analysis_model_version: str = "bert-xnli-es-onnx-int8"
+
+    # Carpeta del modelo NLI en ONNX int8 (T12), generada con scripts/export_nli.py.
+    nli_model_dir: str = "models/nli"
 
     # Extractor de campos de las referencias (T07): anystyle o spacy. AnyStyle
     # necesita Ruby y anystyle-cli; el comando se puede cambiar si no está en el PATH.

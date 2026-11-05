@@ -4,9 +4,13 @@ pydantic-settings>=2.6
 # Validación de los tokens de Supabase (firmados con ES256).
 pyjwt[crypto]>=2.10
 # Lectura del texto de los PDF (licencia AGPL-3.0). La 2.0 exige Python 3.11 y
-# trae dependencias que no se usan (onnxruntime, pymupdf4llm): todos usan la 1.x.
+# trae dependencias que no se usan (pymupdf4llm): todos usan la 1.x.
 pymupdf>=1.24,<2
 # Extractor de campos basado en reglas sobre el tokenizador en español (licencia MIT).
 spacy>=3.8,<4
 # Reintentos con espera exponencial al consultar Crossref y OpenAlex.
 tenacity>=9
+# Modelo NLI en ONNX int8 (T12): se ejecuta en CPU sin PyTorch ni transformers.
+onnxruntime>=1.20
+tokenizers>=0.20
+numpy>=1.26

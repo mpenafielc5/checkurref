@@ -1,0 +1,7 @@
+# Dependencias para exportar el modelo NLI a ONNX int8 (scripts/export_nli.py).
+# Solo en desarrollo y en un entorno aparte: la API no usa PyTorch.
+# optimum[onnxruntime] ya trae onnxruntime y tokenizers, que usa la comparación final.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+transformers
+optimum[onnxruntime]
