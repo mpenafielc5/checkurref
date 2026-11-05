@@ -17,8 +17,10 @@ from app.repositories.analysis_queue import QueuedAnalysis, SupabaseAnalysisQueu
 from app.repositories.extractions import SupabaseExtractionRepository
 from app.repositories.pdf_storage import SupabasePdfStorage
 from app.repositories.supabase_http import SupabaseUnavailableError
+from app.services import analysis_service
 from app.services.analysis_service import AnalysisService, Verifier
 from app.sources.lookup import Strategy
+from app.verification.corrected import CorrectedReference, Segment
 from app.verification.decision import Verdict, Verification
 from app.workers.analysis_worker import INTERNAL_ERROR, AnalysisWorker
 from tests.pdf_factory import PageSpec, make_pdf
@@ -91,15 +93,17 @@ class FakeExtractions:
 class FakeVerifications:
     def __init__(self) -> None:
         self.saved: dict[str, Verification | None] = {}
+        self.corrected: dict[str, CorrectedReference] = {}
         self.index: float | None = None
 
     def save(
         self,
         analysis_id: UUID,
         verifications: dict[str, Verification | None],
+        corrected: dict[str, CorrectedReference],
         index: float | None,
     ) -> None:
-        self.saved, self.index = verifications, index
+        self.saved, self.corrected, self.index = verifications, corrected, index
 
 
 class FakeVerifier:
@@ -196,6 +200,36 @@ def test_un_error_en_una_referencia_no_detiene_las_demas() -> None:
     second = verifications.saved["ref-2"]
     assert second is not None and second.verdict is Verdict.VERIFIED
     assert verifications.index == 100.0  # la referencia que falló no cuenta
+    assert queue.events[-1] == ("completado", JOB.analysis_id, Engine.SPACY)
+
+
+def test_guarda_la_referencia_corregida_de_cada_referencia(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixed = CorrectedReference((Segment("Pérez, M. (2021). Redes."),))
+    monkeypatch.setattr(analysis_service, "corrected_reference", lambda *_: fixed)
+    verifications = FakeVerifications()
+    analysis, _, _ = service(FakeQueue(), verifications=verifications)
+
+    analysis.run(JOB)
+
+    assert verifications.corrected == {"ref-1": fixed, "ref-2": fixed}
+
+
+def test_si_falla_la_referencia_corregida_el_analisis_termina(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def broken(*_: Any) -> CorrectedReference:
+        raise RuntimeError("fallo inesperado")
+
+    monkeypatch.setattr(analysis_service, "corrected_reference", broken)
+    queue, verifications = FakeQueue(), FakeVerifications()
+    analysis, _, _ = service(queue, verifications=verifications)
+
+    analysis.run(JOB)
+
+    assert verifications.corrected == {}
+    assert len(verifications.saved) == 2
     assert queue.events[-1] == ("completado", JOB.analysis_id, Engine.SPACY)
 
 

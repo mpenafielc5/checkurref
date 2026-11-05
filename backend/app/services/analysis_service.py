@@ -6,7 +6,8 @@ Etapas, cada una informa su avance para la pantalla de progreso:
 2. segmentando: separa las referencias, detecta la norma (T06) y extrae los
    campos de cada una (T07).
 3. verificando: busca cada referencia en Crossref y OpenAlex, decide su
-   veredicto (T13) y calcula el índice de veracidad.
+   veredicto (T13), arma la referencia corregida (T26) y calcula el índice de
+   veracidad.
 
 Un PDF que no se puede leer termina el análisis con un mensaje para el usuario.
 Un error al verificar una referencia solo afecta a esa referencia (RNF09).
@@ -23,13 +24,14 @@ from uuid import UUID
 from app.extraction.base import ExtractedFields, ReferenceExtractor, elapsed_ms
 from app.pipeline.errors import PdfProcessingError
 from app.pipeline.references_section import extract_reference_section
-from app.pipeline.segmentation import segment_references
+from app.pipeline.segmentation import SegmentedReference, segment_references
 from app.repositories.analysis_queue import AnalysisQueue, QueuedAnalysis
 from app.repositories.extractions import ExtractionRepository
 from app.repositories.pdf_storage import PdfStorage
 from app.repositories.references import ReferenceRepository
 from app.repositories.supabase_http import SupabaseUnavailableError
 from app.repositories.verifications import VerificationRepository
+from app.verification.corrected import CorrectedReference, corrected_reference
 from app.verification.decision import Verification, truthfulness_index
 
 logger = logging.getLogger(__name__)
@@ -93,9 +95,18 @@ class AnalysisService:
 
         fields = [result.fields for result in results]
         verifications = asyncio.run(self._verify_all(job.analysis_id, texts, fields))
+        corrected: dict[str, CorrectedReference] = {}
+        for reference_id, reference, extracted, verification in zip(
+            reference_ids, segmentation.references, fields, verifications, strict=True
+        ):
+            if item := _corrected(reference, extracted, verification):
+                corrected[reference_id] = item
         index = truthfulness_index(item.verdict if item else None for item in verifications)
         self._verifications.save(
-            job.analysis_id, dict(zip(reference_ids, verifications, strict=True)), index
+            job.analysis_id,
+            dict(zip(reference_ids, verifications, strict=True)),
+            corrected,
+            index,
         )
 
         self._queue.complete(job.analysis_id, self._extractor.engine, elapsed_ms(start))
@@ -140,6 +151,21 @@ class AnalysisService:
                 logger.warning("No se pudo informar el avance de %s: %s", analysis_id, error)
 
         return report
+
+
+def _corrected(
+    reference: SegmentedReference,
+    fields: ExtractedFields | None,
+    verification: Verification | None,
+) -> CorrectedReference | None:
+    """Referencia corregida (T26). Si falla, la referencia solo se queda sin ella."""
+    if fields is None or verification is None:
+        return None
+    try:
+        return corrected_reference(reference.text, reference.norm, fields, verification)
+    except Exception:  # una referencia nunca detiene el análisis (RNF09)
+        logger.exception("Falló la referencia corregida de la referencia %d", reference.order)
+        return None
 
 
 async def _verify_one(
