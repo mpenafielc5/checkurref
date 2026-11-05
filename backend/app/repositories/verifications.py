@@ -1,9 +1,9 @@
 """Resultado de la verificación de un análisis (PostgREST de Supabase).
 
-Guarda una fila de verificaciones por referencia con veredicto, lo que respondió
-el NLI por campo (inferencias_nli), los hallazgos de veracidad y el índice de
-veracidad del análisis. Una referencia con error de consulta no tiene fila en
-verificaciones: solo su hallazgo informativo.
+Guarda una fila de verificaciones por referencia con veredicto (con su referencia
+corregida, si la hay), lo que respondió el NLI por campo (inferencias_nli), los
+hallazgos de veracidad y el índice de veracidad del análisis. Una referencia con
+error de consulta no tiene fila en verificaciones: solo su hallazgo informativo.
 """
 
 from typing import Any, Protocol
@@ -12,6 +12,7 @@ from uuid import UUID
 import httpx
 
 from app.repositories.supabase_http import send
+from app.verification.corrected import CorrectedReference
 from app.verification.decision import CheckedField, NliCheck, Verification
 from app.verification.findings import findings_for
 
@@ -24,10 +25,11 @@ class VerificationRepository(Protocol):
         self,
         analysis_id: UUID,
         verifications: dict[str, Verification | None],
+        corrected: dict[str, CorrectedReference],
         index: float | None,
     ) -> None:
         """Guarda la verificación de cada referencia (por su id; None si falló por un
-        error interno) y el índice de veracidad del análisis."""
+        error interno), su referencia corregida y el índice de veracidad del análisis."""
         ...
 
 
@@ -40,6 +42,7 @@ class SupabaseVerificationRepository:
         self,
         analysis_id: UUID,
         verifications: dict[str, Verification | None],
+        corrected: dict[str, CorrectedReference],
         index: float | None,
     ) -> None:
         with_verdict = {
@@ -47,7 +50,10 @@ class SupabaseVerificationRepository:
             for reference_id, verification in verifications.items()
             if verification and not verification.query_failed
         }
-        rows = [_verification_row(ref_id, item) for ref_id, item in with_verdict.items()]
+        rows = [
+            _verification_row(ref_id, item, corrected.get(ref_id))
+            for ref_id, item in with_verdict.items()
+        ]
         saved = (
             self._send(
                 "POST",
@@ -97,7 +103,9 @@ class SupabaseVerificationRepository:
         return send(self._client, method, f"{self._rest_url}/{table}", **options)
 
 
-def _verification_row(reference_id: str, verification: Verification) -> dict[str, Any]:
+def _verification_row(
+    reference_id: str, verification: Verification, corrected: CorrectedReference | None
+) -> dict[str, Any]:
     record = verification.record
     title = verification.check(CheckedField.TITLE)
     authors = verification.check(CheckedField.AUTHORS)
@@ -113,7 +121,21 @@ def _verification_row(reference_id: str, verification: Verification) -> dict[str
         "sim_autores": round(authors.similarity, 3) if authors else None,
         "coincide_anio": year.matches if year else None,
         "veredicto": verification.verdict.value if verification.verdict else None,
+        "referencia_corregida": _segments(corrected) if corrected else None,
     }
+
+
+def _segments(corrected: CorrectedReference) -> list[dict[str, Any]]:
+    """Formato de verificaciones.referencia_corregida (migración 4)."""
+    return [
+        {
+            "texto": segment.text,
+            "campo": segment.field.value if segment.field else None,
+            "cursiva": segment.italic,
+            "cambiado": segment.changed,
+        }
+        for segment in corrected.segments
+    ]
 
 
 def _inference_row(verification_id: str, check: NliCheck) -> dict[str, Any]:

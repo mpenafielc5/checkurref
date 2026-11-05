@@ -57,7 +57,11 @@ class Verdict(str, Enum):
 
 
 class CheckedField(str, Enum):
-    """Campo comparado; los cuatro primeros son los valores del tipo campo_nli."""
+    """Campo de una referencia; los cuatro primeros son los valores del tipo campo_nli.
+
+    El número y la editorial no se verifican: solo los completa la referencia
+    corregida (T26).
+    """
 
     TITLE = "titulo"
     AUTHORS = "autores"
@@ -66,6 +70,8 @@ class CheckedField(str, Enum):
     DOI = "doi"
     VOLUME = "volumen"
     PAGES = "paginas"
+    ISSUE = "numero"
+    PUBLISHER = "editorial"
 
 
 @dataclass(frozen=True)
@@ -220,7 +226,7 @@ def _assess(
     by_field = {check.field: check for check in checks}
     title_nli = next((c.scores for c in nli_checks if c.field is CheckedField.TITLE), None)
     evidence = _Evidence(
-        title=_title_identity(fields.title, record.title),
+        title=title_identity(fields.title, record.title),
         authors=by_field.get(CheckedField.AUTHORS),
         author_overlap=_author_overlap(fields.authors, record.authors, thresholds),
         year=by_field.get(CheckedField.YEAR),
@@ -283,7 +289,7 @@ def _search_found_the_work(evidence: _Evidence, thresholds: Thresholds) -> bool:
     return authors.matches or evidence.nli_confirms_title
 
 
-def _title_identity(given: str | None, official: str | None) -> float | None:
+def title_identity(given: str | None, official: str | None) -> float | None:
     """Similitud de los títulos para reconocer la obra.
 
     Si solo uno de los dos trae subtítulo, también se compara sin él: un título
@@ -385,7 +391,7 @@ def _author_overlap(
     if not given or not official:
         return 0.0
     found = _authors_found(given, official, thresholds)
-    if found == 1 and not _same_person(given[0], official[0], thresholds):
+    if found == 1 and not same_person(given[0], official[0], thresholds):
         return 0.0
     return found / min(len(given), len(official))
 
@@ -394,7 +400,7 @@ def _authors_found(
     given: Sequence[Author], official: Sequence[Author], thresholds: Thresholds
 ) -> int:
     return sum(
-        any(_same_person(person, author, thresholds) for author in official) for person in given
+        any(same_person(person, author, thresholds) for author in official) for person in given
     )
 
 
@@ -417,7 +423,7 @@ PARTICLES = {
 }
 
 
-def _same_person(given: Author, official: Author, thresholds: Thresholds) -> bool:
+def same_person(given: Author, official: Author, thresholds: Thresholds) -> bool:
     """El primer apellido citado aparece en el nombre completo del autor del registro.
 
     Se busca en el nombre completo porque las fuentes separan mal los dos

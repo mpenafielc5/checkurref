@@ -9,6 +9,7 @@ import httpx
 
 from app.repositories.verifications import SupabaseVerificationRepository
 from app.sources.lookup import Strategy
+from app.verification.corrected import CorrectedReference, Segment
 from app.verification.decision import CheckedField, Verdict, Verification, decide
 from app.verification.findings import (
     INTERNAL_ERROR_CODE,
@@ -103,10 +104,16 @@ class Recorder:
         return next(b for m, t, b in self.requests if (m, t) == (method, table))
 
 
-def save(verifications: dict[str, Any], index: float | None) -> Recorder:
+def save(
+    verifications: dict[str, Any],
+    index: float | None,
+    corrected: dict[str, CorrectedReference] | None = None,
+) -> Recorder:
     recorder = Recorder()
     client = httpx.Client(transport=httpx.MockTransport(recorder))
-    SupabaseVerificationRepository(REST_URL, client).save(ANALYSIS_ID, verifications, index)
+    SupabaseVerificationRepository(REST_URL, client).save(
+        ANALYSIS_ID, verifications, corrected or {}, index
+    )
     return recorder
 
 
@@ -125,6 +132,7 @@ def test_guarda_verificacion_inferencias_hallazgos_e_indice() -> None:
         "sim_autores": 1.0,
         "coincide_anio": True,
         "veredicto": "verificada",
+        "referencia_corregida": None,
     }
     assert second["veredicto"] == "discrepancia" and second["coincide_anio"] is False
 
@@ -175,3 +183,26 @@ def test_una_relevancia_que_no_cabe_en_la_columna_no_se_guarda() -> None:
     )
 
     assert row["score_crossref"] is None
+
+
+def test_guarda_la_referencia_corregida_en_segmentos() -> None:
+    corrected = CorrectedReference(
+        (
+            Segment("Pérez, M.", CheckedField.AUTHORS),
+            Segment(" ("),
+            Segment("2021", CheckedField.YEAR, changed=True),
+            Segment("). Redes. "),
+            Segment("Revista Andina", CheckedField.CONTAINER, italic=True),
+        )
+    )
+
+    [row] = save({"ref-1": verified()}, 100.0, {"ref-1": corrected}).body("POST", "verificaciones")
+
+    assert row["referencia_corregida"][2] == {
+        "texto": "2021",
+        "campo": "anio",
+        "cursiva": False,
+        "cambiado": True,
+    }
+    assert row["referencia_corregida"][4]["cursiva"] is True
+    assert "".join(s["texto"] for s in row["referencia_corregida"]) == corrected.text
