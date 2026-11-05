@@ -8,7 +8,7 @@ function choose(file: File) {
   fireEvent.change(input, { target: { files: [file] } });
 }
 
-const PDF = new File(["%PDF-1.7"], "S4TAREA1.pdf", { type: "application/pdf" });
+const PDF = new File(["%PDF-1.7"], "Trabajo_final.pdf", { type: "application/pdf" });
 
 describe("PdfDropzone de un solo archivo", () => {
   it("al elegir un PDF lo muestra en una ficha con la acción siguiente", () => {
@@ -21,7 +21,7 @@ describe("PdfDropzone de un solo archivo", () => {
 
     choose(PDF);
 
-    expect(screen.getByText("S4TAREA1.pdf")).toBeTruthy();
+    expect(screen.getByText("Trabajo_final.pdf")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Analizar referencias" })).toBeTruthy();
     expect(onChange).toHaveBeenLastCalledWith([PDF]);
   });
@@ -31,9 +31,9 @@ describe("PdfDropzone de un solo archivo", () => {
     render(<PdfDropzone title="Arrastra aquí" hint="máx. 10 MB" onChange={onChange} />);
 
     choose(PDF);
-    fireEvent.click(screen.getByRole("button", { name: "Quitar S4TAREA1.pdf" }));
+    fireEvent.click(screen.getByRole("button", { name: "Quitar Trabajo_final.pdf" }));
 
-    expect(screen.queryByText("S4TAREA1.pdf")).toBeNull();
+    expect(screen.queryByText("Trabajo_final.pdf")).toBeNull();
     expect(screen.getByText("Arrastra aquí")).toBeTruthy();
     expect(onChange).toHaveBeenLastCalledWith([]);
   });
@@ -64,7 +64,7 @@ describe("PdfDropzone de varios archivos (lote)", () => {
 
     chooseMany([PDF, new File(["hola"], "notas.txt", { type: "text/plain" })]);
 
-    expect(screen.getByText("S4TAREA1.pdf")).toBeTruthy();
+    expect(screen.getByText("Trabajo_final.pdf")).toBeTruthy();
     expect(screen.getByText("Solo se aceptan archivos PDF.")).toBeTruthy();
     expect(onChange).toHaveBeenLastCalledWith([PDF]);
   });
@@ -84,9 +84,9 @@ describe("PdfDropzone de varios archivos (lote)", () => {
     render(<PdfDropzone multiple title="Arrastra aquí" hint="hasta 40" onChange={onChange} />);
 
     chooseMany([PDF, OTRO]);
-    fireEvent.click(screen.getByRole("button", { name: "Quitar S4TAREA1.pdf" }));
+    fireEvent.click(screen.getByRole("button", { name: "Quitar Trabajo_final.pdf" }));
 
-    expect(screen.queryByText("S4TAREA1.pdf")).toBeNull();
+    expect(screen.queryByText("Trabajo_final.pdf")).toBeNull();
     expect(screen.getByText("Ensayo_B.pdf")).toBeTruthy();
     expect(onChange).toHaveBeenLastCalledWith([OTRO]);
   });
