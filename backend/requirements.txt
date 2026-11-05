@@ -14,3 +14,5 @@ tenacity>=9
 onnxruntime>=1.20
 tokenizers>=0.20
 numpy>=1.26
+# Similitud difusa de títulos, autores y revistas en el motor de decisión (T13).
+rapidfuzz>=3.9

@@ -103,6 +103,18 @@ def test_crossref_busca_por_doi_y_traduce_al_formato_comun() -> None:
     assert seen[0].url.params["mailto"] == "equipo@ejemplo.com"  # polite pool
 
 
+def test_crossref_une_el_titulo_con_su_subtitulo() -> None:
+    work = {**CROSSREF_WORK, "subtitle": ["Un estudio en Ecuador"]}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"message": work})
+
+    record = asyncio.run(CrossrefClient(client(handler)).by_doi(DOI))
+
+    assert record is not None
+    assert record.title == "Redes neuronales en la educación superior: Un estudio en Ecuador"
+
+
 def test_crossref_busca_por_titulo_y_autor() -> None:
     seen: list[httpx.Request] = []
 
@@ -303,6 +315,20 @@ def test_si_una_fuente_no_responde_es_error_de_consulta_y_no_no_verificable() ->
 
     assert result.candidates == ()
     assert result.query_failed is True
+
+
+def test_candidatos_de_otra_fuente_tras_un_fallo_avisan_el_error_de_consulta() -> None:
+    crossref = FakeSource(Source.CROSSREF, fails=True)
+    openalex = FakeSource(Source.OPENALEX, found=[work(Source.OPENALEX)])
+    sources = lookup(crossref, openalex)
+    without_doi = ExtractedFields(authors=REFERENCE.authors, title=REFERENCE.title)
+
+    first = asyncio.run(sources.lookup(without_doi))
+    asyncio.run(sources.lookup(without_doi))
+
+    assert first.candidates == (work(Source.OPENALEX),)
+    assert first.query_failed is True  # quizá Crossref tenía la obra
+    assert len(openalex.calls) == 2  # una búsqueda con fallo no se recuerda
 
 
 def test_doi_que_nadie_tiene_se_intenta_por_titulo_y_autor() -> None:
