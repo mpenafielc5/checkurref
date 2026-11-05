@@ -1,0 +1,78 @@
+name: Despliegue del backend
+
+# Sube el backend al Space de Hugging Face (T15) solo después de que la
+# integración continua (CI) termina en verde en main, y sube exactamente el
+# commit verificado. Hugging Face construye la imagen con backend/Dockerfile; si
+# backend/ no cambió, no se sube nada y el Space no se reconstruye. Necesita la
+# variable HF_SPACE (usuario/nombre-del-space) y el secreto HF_TOKEN (token de
+# escritura de Hugging Face); mientras no estén configurados, el flujo no se ejecuta.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: true
+
+jobs:
+  space:
+    name: Hugging Face Spaces
+    if: >-
+      vars.HF_SPACE != '' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # El Space recibe solo lo que usa la imagen, más la ficha que pide Hugging Face.
+      - name: Preparar los archivos del Space
+        run: |
+          mkdir space
+          cp -r backend/app backend/scripts space/
+          cp backend/Dockerfile backend/.dockerignore backend/requirements.txt \
+            backend/requirements-export.txt space/
+          find space -name "__pycache__" -type d -prune -exec rm -rf {} +
+          cat > space/README.md <<'EOF'
+          ---
+          title: CheckUrRef API
+          sdk: docker
+          app_port: 7860
+          pinned: false
+          ---
+
+          API de CheckUrRef: auditoría de referencias bibliográficas (APA e IEEE)
+          contra Crossref y OpenAlex con inferencia de lenguaje natural.
+          EOF
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      # delete_patterns borra del Space lo que ya no existe en backend/.
+      - name: Subir al Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          pip install --quiet "huggingface_hub>=0.30"
+          python - <<'EOF'
+          import os
+
+          from huggingface_hub import HfApi
+
+          HfApi(token=os.environ["HF_TOKEN"]).upload_folder(
+              repo_id=os.environ["HF_SPACE"],
+              repo_type="space",
+              folder_path="space",
+              delete_patterns=["*"],
+              commit_message=f"Despliegue de {os.environ['GITHUB_SHA'][:7]}",
+          )
+          EOF

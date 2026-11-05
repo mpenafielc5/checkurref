@@ -15,6 +15,8 @@ def get_health_service(settings: Annotated[Settings, Depends(get_settings)]) -> 
     return HealthService(settings)
 
 
+# La raíz responde lo mismo: es lo que muestra la página del Space en Hugging Face.
+@router.get("/", response_model=HealthResponse, include_in_schema=False)
 @router.get("/health", response_model=HealthResponse)
 def health(service: Annotated[HealthService, Depends(get_health_service)]) -> HealthResponse:
     return service.check()

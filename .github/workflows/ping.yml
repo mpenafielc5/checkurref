@@ -1,0 +1,34 @@
+name: Ping diario
+
+# Mantiene activos los servicios gratuitos (T21): el Space de Hugging Face se
+# duerme tras 48 horas sin uso y Supabase pausa el proyecto tras 7 días sin
+# actividad. Necesita las variables API_URL, SUPABASE_URL y
+# SUPABASE_PUBLISHABLE_KEY (la clave pública, la misma del frontend); mientras
+# no estén configuradas, el flujo no se ejecuta.
+
+on:
+  schedule:
+    - cron: "0 11 * * *" # 06:00 en Ecuador
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: API y Supabase
+    if: vars.API_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      # Un Space dormido tarda en despertar: se reintenta durante unos minutos.
+      - name: API
+        run: |
+          curl --fail --silent --show-error --max-time 60 \
+            --retry 6 --retry-delay 30 --retry-all-errors \
+            "${{ vars.API_URL }}/health"
+
+      # Con el Space despierto, su worker ya consulta la base cada pocos segundos;
+      # este paso confirma además que el proyecto de Supabase responde.
+      - name: Supabase
+        run: |
+          curl --fail --silent --show-error --max-time 30 \
+            --retry 3 --retry-delay 10 --retry-all-errors \
+            -H "apikey: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}" \
+            "${{ vars.SUPABASE_URL }}/auth/v1/health"
