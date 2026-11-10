@@ -5,7 +5,7 @@ corrige uno (por ejemplo, para aceptar otro tipo de inicial), el cambio llega a
 la detección de la norma, a la separación y a la extracción de campos.
 """
 
-# Mayúsculas y minúsculas con tilde, ñ y diéresis (Peñafiel, Quirós, Müller).
+# Mayúsculas y minúsculas con tilde, ñ y diéresis (Núñez, Quirós, Müller).
 UPPER = "A-ZÀ-ÖØ-Þ"
 LOWER = "a-zß-öø-ÿ"
 

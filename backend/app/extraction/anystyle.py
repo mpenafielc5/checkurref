@@ -50,6 +50,25 @@ class AnyStyleExtractor(ReferenceExtractor):
         self._timeout_seconds = timeout_seconds
         self._run = run
 
+    def available(self) -> bool:
+        return shutil.which(self._command) is not None
+
+    def version(self) -> str | None:
+        executable = shutil.which(self._command)
+        if executable is None:
+            return None
+        try:
+            completed = self._run(
+                [executable, "--version"],
+                capture_output=True,
+                timeout=self._timeout_seconds,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        output = completed.stdout.decode("utf-8", errors="replace").strip()
+        return output if completed.returncode == 0 and output else None
+
     def extract(self, reference: str) -> ExtractedFields:
         return self._parse([reference])[0]
 

@@ -67,6 +67,9 @@ class SpacyExtractor(ReferenceExtractor):
     def __init__(self) -> None:
         self._nlp, self._matcher = _pipeline()
 
+    def version(self) -> str:
+        return f"spacy {spacy.__version__} con reglas"
+
     def extract(self, reference: str) -> ExtractedFields:
         text = IEEE_PREFIX.sub("", " ".join(reference.split()))
         doc = self._nlp(text)
