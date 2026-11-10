@@ -1,4 +1,7 @@
+import { capitalize } from "@/shared/lib/names";
 import type { NavItem, UserRole } from "./types";
+
+export { displayFullName } from "@/shared/lib/names";
 
 /** Dominio institucional permitido. La base de datos aplica la misma regla. */
 export const INSTITUTIONAL_DOMAIN = "unemi.edu.ec";
@@ -61,11 +64,6 @@ export function isNavItemActive(pathname: string, href: string, homeHref: string
   return href !== homeHref && pathname.startsWith(`${href}/`);
 }
 
-function capitalize(word: string): string {
-  const lower = word.toLocaleLowerCase("es");
-  return lower.charAt(0).toLocaleUpperCase("es") + lower.slice(1);
-}
-
 /**
  * Separa el nombre completo en nombre y primer apellido.
  * Con cuatro palabras (dos nombres y dos apellidos) el apellido es la tercera;
@@ -77,14 +75,6 @@ function splitName(fullName: string): { first: string; surname: string | null } 
   if (words.length >= 4) return { first, surname: words[2] };
   if (words.length >= 2) return { first, surname: words[1] };
   return { first, surname: null };
-}
-
-/**
- * Nombre completo con mayúscula inicial en cada palabra. Google suele
- * entregarlo todo en mayúsculas ("ANA TORRES VERA" pasa a "Ana Torres Vera").
- */
-export function displayFullName(fullName: string): string {
-  return fullName.trim().split(/\s+/).filter(Boolean).map(capitalize).join(" ");
 }
 
 /** Nombre corto para la barra lateral, por ejemplo "Ana T.". */
