@@ -9,7 +9,7 @@ from app.pipeline.errors import (
     ScannedPdfError,
     UnreadablePdfError,
 )
-from app.pipeline.pdf_text import TextLine, extract_pages
+from app.pipeline.pdf_text import TEXT_ONLY, TextLine, extract_pages
 from app.pipeline.references_section import extract_reference_section, find_reference_section
 from tests.pdf_factory import PageSpec, make_encrypted_pdf, make_pdf, make_scanned_pdf
 
@@ -213,3 +213,9 @@ def test_pdf_ilegible_da_un_error_claro(pdf: bytes, error: type[Exception]) -> N
         extract_pages(pdf)
 
     assert str(raised.value)  # siempre lleva un mensaje para el usuario
+
+
+def test_la_lectura_no_copia_las_imagenes_del_pdf() -> None:
+    # Copiarlas no cambia el texto y multiplicaba el tiempo: la subida revisa el PDF
+    # antes de responder y debe hacerlo en menos de 3 s (RNF06).
+    assert not TEXT_ONLY & pymupdf.TEXT_PRESERVE_IMAGES

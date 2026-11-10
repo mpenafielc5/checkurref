@@ -14,6 +14,9 @@ import pymupdf
 from app.pipeline.errors import EncryptedPdfError, ScannedPdfError, UnreadablePdfError
 
 TEXT_BLOCK = 0
+# Sin los bytes de las imágenes: el análisis las descarta, y copiarlas hacía que leer una
+# tesis de 126 páginas tardara 5 s en lugar de 0,1 s.
+TEXT_ONLY = pymupdf.TEXTFLAGS_DICT & ~pymupdf.TEXT_PRESERVE_IMAGES
 # Por debajo de este promedio de caracteres por página se considera escaneado.
 MIN_CHARS_PER_PAGE = 25
 
@@ -55,7 +58,7 @@ def first_page_lines(pdf_bytes: bytes) -> list[str]:
 
 def _page_lines(page: pymupdf.Page, number: int) -> list[TextLine]:
     lines: list[TextLine] = []
-    for block in page.get_text("dict")["blocks"]:
+    for block in page.get_text("dict", flags=TEXT_ONLY)["blocks"]:
         if block["type"] != TEXT_BLOCK:
             continue
         for row in _rows(block["lines"]):

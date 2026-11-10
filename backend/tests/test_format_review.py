@@ -181,6 +181,11 @@ def test_apa_et_al_de_una_obra_editada_es_valido() -> None:
     assert codes("Pérez, M., et al. (Eds.). (2021). Redes neuronales.", Norm.APA) == []
 
 
+def test_apa_el_ultimo_editor_conserva_el_punto_de_su_inicial() -> None:
+    text = "Vera, A. B., Rojas, L., & Mora, E. (Eds.). (2012). Manual de HMI. Editorial Andina."
+    assert codes(text, Norm.APA) == []
+
+
 def test_apa_et_al_en_el_titulo_no_cuenta() -> None:
     assert codes("Pérez, M. (2021). Una réplica de Smith et al. Revista.", Norm.APA) == []
 
@@ -376,8 +381,34 @@ def test_lista_mixta_avisa_en_la_primera_de_la_norma_con_menos_referencias() -> 
     found = review_list(Segmentation(references, Norm.MIXED))
     [finding] = found[3]
     assert finding.code == "NORMA_MIXTA"
-    assert finding.given == "2 en APA y 1 en IEEE"
-    assert finding.official == "Todas las referencias en una sola norma"
+    assert finding.given == "IEEE"
+    assert finding.official == "APA, como las otras 2 referencias de la lista"
+    assert finding.message.endswith("Es la única referencia en IEEE de la lista.")
+
+
+def test_lista_mixta_con_varias_de_la_norma_minoritaria_dice_cuantas_son() -> None:
+    references = [
+        SegmentedReference(1, 1, APA_OK, Norm.APA, None),
+        SegmentedReference(2, 1, IEEE_OK, Norm.IEEE, None),
+        SegmentedReference(3, 1, APA_OK, Norm.APA, None),
+        SegmentedReference(4, 1, IEEE_OK, Norm.IEEE, None),
+        SegmentedReference(5, 1, APA_OK, Norm.APA, None),
+    ]
+    [finding] = review_list(Segmentation(references, Norm.MIXED))[2]
+    assert finding.given == "IEEE"
+    assert finding.official == "APA, como las otras 3 referencias de la lista"
+    assert finding.message.endswith("Es la primera de las 2 referencias en IEEE.")
+
+
+def test_lista_mixta_empatada_pide_una_sola_norma() -> None:
+    references = [
+        SegmentedReference(1, 1, APA_OK, Norm.APA, None),
+        SegmentedReference(2, 1, IEEE_OK, Norm.IEEE, None),
+    ]
+    [finding] = review_list(Segmentation(references, Norm.MIXED))[2]
+    assert finding.given == "IEEE"
+    assert finding.official == "Una sola norma en toda la lista"
+    assert finding.message.endswith("La lista tiene 1 en APA y 1 en IEEE.")
 
 
 # --- Norma con la que se revisa -------------------------------------------------------------
