@@ -1,9 +1,17 @@
 /*
- * Lotes del docente (HU-08): traduce las respuestas de /lotes (BatchSummary,
+ * Lotes del docente (HU-08 y HU-09): traduce las respuestas de /lotes (BatchSummary,
  * BatchesPage y BatchDetail del backend) a los tipos de la pantalla.
  */
 import type { PageSlice } from "@/shared/lib/pagination";
-import type { BatchStatus, BatchSummary, WorkProgress } from "./types";
+import { VERDICT_ORDER, type Verdict } from "@/shared/lib/verdicts";
+import type {
+  BatchDetail,
+  BatchStatus,
+  BatchSummary,
+  BatchWork,
+  RiskLevel,
+  WorkProgress,
+} from "./types";
 
 export type BatchSummaryDto = {
   id: string;
@@ -94,4 +102,79 @@ export function toWorksProgress(body: unknown): WorkProgress[] | null {
     totalReferences: work.total_references ?? null,
     errorMessage: work.error_message ?? null,
   }));
+}
+
+type BatchWorkDto = WorkProgressDto & {
+  file_name: string;
+  authors?: string[];
+  index?: number | null;
+  alerts?: number;
+  risk?: string | null;
+};
+
+type BatchDetailDto = BatchSummaryDto & {
+  references: number;
+  counts: Partial<Record<Verdict | "error_consulta", number>>;
+  most_different_fields: { field: string; references: number }[];
+  works: unknown[];
+};
+
+const RISK_LEVELS: RiskLevel[] = ["alto", "medio", "bajo"];
+
+function isBatchDetailDto(body: unknown): body is BatchDetailDto {
+  return (
+    isBatchSummaryDto(body) &&
+    "works" in body &&
+    Array.isArray(body.works) &&
+    "counts" in body &&
+    isRecord(body.counts) &&
+    "most_different_fields" in body &&
+    Array.isArray(body.most_different_fields)
+  );
+}
+
+function isBatchWorkDto(value: unknown): value is BatchWorkDto {
+  return isWorkProgressDto(value) && "file_name" in value && typeof value.file_name === "string";
+}
+
+function toBatchWork(dto: BatchWorkDto): BatchWork {
+  return {
+    analysisId: dto.analysis_id,
+    fileName: dto.file_name,
+    authors: dto.authors ?? [],
+    status: dto.status,
+    progress: dto.progress,
+    references: dto.total_references ?? null,
+    index: dto.index ?? null,
+    alerts: dto.alerts ?? 0,
+    risk: RISK_LEVELS.find((level) => level === dto.risk) ?? null,
+    errorMessage: dto.error_message ?? null,
+  };
+}
+
+/** El tablero del lote; null si la respuesta no es la esperada. */
+export function toBatchDetail(body: unknown): BatchDetail | null {
+  if (!isBatchDetailDto(body)) return null;
+  const counts: Record<Verdict, number> = {
+    verificada: 0,
+    discrepancia: 0,
+    contradiccion: 0,
+    sin_respaldo: 0,
+    no_verificable: 0,
+  };
+  for (const verdict of VERDICT_ORDER) counts[verdict] = body.counts[verdict] ?? 0;
+  return {
+    id: body.id,
+    name: body.name,
+    period: body.period,
+    totalWorks: body.total_works,
+    finished: body.finished,
+    inProgress: body.in_progress,
+    failed: body.failed,
+    references: body.references,
+    counts,
+    queryErrors: body.counts.error_consulta ?? 0,
+    mostDifferentFields: body.most_different_fields,
+    works: body.works.filter(isBatchWorkDto).map(toBatchWork),
+  };
 }

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { toBatchPage, toBatchSummary, toWorksProgress, type BatchSummaryDto } from "./batch-mapper";
+import {
+  toBatchDetail,
+  toBatchPage,
+  toBatchSummary,
+  toWorksProgress,
+  type BatchSummaryDto,
+} from "./batch-mapper";
 
 const DTO: BatchSummaryDto = {
   id: "l1",
@@ -78,5 +84,69 @@ describe("toWorksProgress", () => {
   it("una respuesta inesperada no se toma como un lote vacío", () => {
     expect(toWorksProgress({ detail: "No se encontró el lote." })).toBeNull();
     expect(toWorksProgress(null)).toBeNull();
+  });
+});
+
+describe("toBatchDetail", () => {
+  const WORK = {
+    analysis_id: "a1",
+    document_id: "d1",
+    file_name: "Avance 2.pdf",
+    authors: ["Ana Torres"],
+    created_at: "2026-11-06T10:00:00Z",
+    status: "completado",
+    progress: 100,
+    total_references: 20,
+    norm: "APA",
+    index: 58.5,
+    contradictions: 1,
+    alerts: 3,
+    risk: "alto",
+    error_message: null,
+  };
+  const DETAIL = {
+    ...DTO,
+    references: 20,
+    counts: {
+      verificada: 14,
+      discrepancia: 2,
+      contradiccion: 1,
+      sin_respaldo: 2,
+      no_verificable: 0,
+      error_consulta: 1,
+    },
+    most_different_fields: [{ field: "anio", references: 2 }],
+    works: [WORK],
+  };
+
+  it("traduce los indicadores y separa las referencias sin veredicto", () => {
+    const batch = toBatchDetail(DETAIL);
+
+    expect(batch?.counts.verificada).toBe(14);
+    expect(batch?.queryErrors).toBe(1);
+    expect(batch?.mostDifferentFields).toEqual([{ field: "anio", references: 2 }]);
+    expect(batch?.works[0]).toEqual({
+      analysisId: "a1",
+      fileName: "Avance 2.pdf",
+      authors: ["Ana Torres"],
+      status: "completado",
+      progress: 100,
+      references: 20,
+      index: 58.5,
+      alerts: 3,
+      risk: "alto",
+      errorMessage: null,
+    });
+  });
+
+  it("un riesgo desconocido no se muestra como si fuera un nivel", () => {
+    const batch = toBatchDetail({ ...DETAIL, works: [{ ...WORK, risk: "extremo" }] });
+
+    expect(batch?.works[0].risk).toBeNull();
+  });
+
+  it("una respuesta que no es un tablero devuelve null", () => {
+    expect(toBatchDetail({ ...DTO })).toBeNull();
+    expect(toBatchDetail(null)).toBeNull();
   });
 });

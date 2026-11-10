@@ -1,8 +1,14 @@
 import { apiGet, apiPost, wakeApi } from "@/shared/lib/api-client";
 import type { PageSlice } from "@/shared/lib/pagination";
 import { detailOf, uploadPdf, type UploadOutcome } from "@/shared/lib/pdf-upload";
-import { isBatchesPageDto, isBatchSummaryDto, toBatchPage, toWorksProgress } from "./batch-mapper";
-import type { BatchSummary, CreatedBatch, WorkProgress } from "./types";
+import {
+  isBatchesPageDto,
+  isBatchSummaryDto,
+  toBatchDetail,
+  toBatchPage,
+  toWorksProgress,
+} from "./batch-mapper";
+import type { BatchDetail, BatchSummary, CreatedBatch, WorkProgress } from "./types";
 
 export { wakeApi };
 
@@ -62,6 +68,31 @@ export async function fetchBatches(page: number, onSlow: () => void): Promise<Ba
         ? SESSION_ERROR
         : "No se pudo cargar la lista de lotes. Intenta de nuevo en unos minutos.",
   };
+}
+
+export type BatchDetailOutcome =
+  { kind: "ready"; batch: BatchDetail } | { kind: "error"; message: string };
+
+const BATCH_LOAD_ERROR = "No se pudo cargar el lote. Intenta de nuevo en unos minutos.";
+
+/** El tablero del lote. Uno ajeno responde igual que uno inexistente. */
+export async function fetchBatchDetail(
+  batchId: string,
+  onSlow?: () => void,
+): Promise<BatchDetailOutcome> {
+  const response = await apiGet(`/lotes/${encodeURIComponent(batchId)}`, onSlow);
+  if (response.kind === "failed") {
+    return {
+      kind: "error",
+      message: response.reason === "session" ? SESSION_ERROR : BATCH_LOAD_ERROR,
+    };
+  }
+  // 422: la dirección no contiene un identificador válido.
+  if (response.status === 404 || response.status === 422) {
+    return { kind: "error", message: "No se encontró este lote." };
+  }
+  const batch = response.status === 200 ? toBatchDetail(response.body) : null;
+  return batch ? { kind: "ready", batch } : { kind: "error", message: BATCH_LOAD_ERROR };
 }
 
 /** Avance de los trabajos del lote; null si no se pudo consultar: se reintenta luego. */

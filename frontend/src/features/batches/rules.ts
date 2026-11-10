@@ -1,6 +1,13 @@
+import { formatPercent } from "@/shared/lib/format";
 import type { BatchWork, RiskLevel } from "./types";
 
+const COMPLETED = "completado";
 const RISK_WEIGHT: Record<RiskLevel, number> = { alto: 3, medio: 2, bajo: 1 };
+
+/** Solo un trabajo terminado tiene informe e indicadores que mostrar. */
+export function isWorkCompleted(work: BatchWork): boolean {
+  return work.status === COMPLETED;
+}
 
 /** Autores leídos de la portada, separados por comas; null si no se reconoció. */
 export function authorsLabel(work: BatchWork): string | null {
@@ -23,9 +30,19 @@ function compareByName(a: BatchWork, b: BatchWork): number {
 export type SortKey = "risk" | "references" | "index" | "alerts" | "name";
 export type SortDirection = "asc" | "desc";
 
+type NumericKey = Exclude<SortKey, "name">;
+
+/** Valor con el que se ordena; null si el trabajo aún no lo tiene. */
+function sortValue(work: BatchWork, key: NumericKey): number | null {
+  if (!isWorkCompleted(work)) return null;
+  if (key === "risk") return work.risk ? RISK_WEIGHT[work.risk] : null;
+  return work[key];
+}
+
 /**
  * Ordena los trabajos del lote. Por defecto, los de mayor riesgo primero y,
- * a igual riesgo, los de menor índice de veracidad.
+ * a igual riesgo, los de menor índice de veracidad. Los que no tienen el dato
+ * (en análisis o con error) quedan al final en ambos sentidos, en su orden.
  */
 export function sortBatchWorks(
   works: BatchWork[],
@@ -34,14 +51,26 @@ export function sortBatchWorks(
 ): BatchWork[] {
   const factor = direction === "desc" ? -1 : 1;
   return [...works].sort((a, b) => {
-    let diff: number;
-    if (key === "risk") {
-      diff = RISK_WEIGHT[a.risk] - RISK_WEIGHT[b.risk] || b.index - a.index;
-    } else if (key === "name") {
-      diff = compareByName(a, b);
-    } else {
-      diff = a[key] - b[key];
+    if (key === "name") return compareByName(a, b) * factor;
+    const valueA = sortValue(a, key);
+    const valueB = sortValue(b, key);
+    if (valueA === null || valueB === null) {
+      return Number(valueA === null) - Number(valueB === null);
     }
-    return diff * factor;
+    const diff = valueA - valueB;
+    if (diff !== 0 || key !== "risk") return diff * factor;
+    return ((b.index ?? 0) - (a.index ?? 0)) * factor;
   });
+}
+
+/**
+ * Parte de las referencias del lote con un veredicto. Lo que apenas existe no se
+ * redondea a 0 % ni a 100 %: daría a entender que no hay ninguna o que son todas.
+ */
+export function shareLabel(count: number, total: number): string {
+  if (total === 0) return "—";
+  const percent = (count / total) * 100;
+  if (count > 0 && percent < 1) return "< 1 %";
+  if (count < total && percent > 99) return "> 99 %";
+  return formatPercent(percent);
 }

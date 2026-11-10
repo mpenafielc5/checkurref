@@ -6,7 +6,7 @@ import type { RejectedPdf } from "@/shared/components/pdf-dropzone";
 import type { UploadOutcome } from "@/shared/lib/pdf-upload";
 import type { BatchUpload, UploadState, WorkProgress } from "./types";
 
-const ANALYSIS_FAILED = "El análisis no pudo completarse.";
+export const ANALYSIS_FAILED = "El análisis no pudo completarse.";
 
 function keyOf(file: File, position: number): string {
   return `${position}·${file.name}·${file.size}`;

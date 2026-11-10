@@ -1,3 +1,5 @@
+import type { Verdict } from "@/shared/lib/verdicts";
+
 export type BatchStatus =
   | { kind: "empty" }
   | { kind: "analyzing"; done: number }
@@ -25,10 +27,38 @@ export type BatchWork = {
   analysisId: string;
   fileName: string;
   authors: string[];
-  references: number;
-  index: number;
+  /** en_cola, extrayendo, segmentando, verificando, completado o error. */
+  status: string;
+  progress: number;
+  references: number | null;
+  index: number | null;
   alerts: number;
-  risk: RiskLevel;
+  /** null mientras se analiza o si no hay con qué calcularlo. */
+  risk: RiskLevel | null;
+  errorMessage: string | null;
+};
+
+/** Un campo y en cuántas referencias difiere del registro. */
+export type FieldDifference = {
+  field: string;
+  references: number;
+};
+
+/** El tablero del lote (HU-09); los indicadores cuentan solo los trabajos terminados. */
+export type BatchDetail = {
+  id: string;
+  name: string;
+  period: string | null;
+  totalWorks: number;
+  finished: number;
+  inProgress: number;
+  failed: number;
+  references: number;
+  counts: Record<Verdict, number>;
+  /** Referencias sin veredicto porque una fuente no respondió. */
+  queryErrors: number;
+  mostDifferentFields: FieldDifference[];
+  works: BatchWork[];
 };
 
 /** Estado de un archivo del lote, desde que se elige hasta que termina su análisis. */

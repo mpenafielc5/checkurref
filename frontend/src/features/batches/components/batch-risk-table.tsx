@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   cardClass,
@@ -12,9 +13,25 @@ import {
   tdClass,
   thClass,
 } from "@/shared/components/ui/data-table";
+import { Pagination } from "@/shared/components/ui/pagination";
 import { StatusChip, type ChipTone } from "@/shared/components/ui/status-chip";
-import { authorsLabel, sortBatchWorks, type SortDirection, type SortKey } from "../rules";
+import { PAGE_PARAM, paginate, parsePage } from "@/shared/lib/pagination";
+import {
+  authorsLabel,
+  isWorkCompleted,
+  sortBatchWorks,
+  type SortDirection,
+  type SortKey,
+} from "../rules";
 import type { BatchWork, RiskLevel } from "../types";
+import { ANALYSIS_FAILED } from "../upload-progress";
+import { AnalysisStatusChip } from "./analysis-status-chip";
+
+/** RF20-CA03: la tabla se pagina de 20 en 20. */
+const WORKS_PAGE_SIZE = 20;
+const TABLE_ID = "trabajos-del-lote";
+/** Lo que aún no existe en la fila: el trabajo no terminó o no hay con qué calcularlo. */
+const NO_VALUE = "—";
 
 const RISK_CLASSES: Record<RiskLevel, string> = {
   alto: "text-verdict-contradiction-text",
@@ -47,7 +64,7 @@ const MOBILE_SORTS: { id: string; label: string; key: SortKey; direction: SortDi
   { id: "nombre", label: "Nombre (A–Z)", key: "name", direction: "asc" },
 ];
 
-/** Siempre en el mismo orden: quién (autores o el aviso) y debajo el archivo. */
+/** Siempre en el mismo orden: quién (autores o el aviso), el archivo y, si falló, el motivo. */
 function WorkIdentity({ work }: { work: BatchWork }) {
   const authors = authorsLabel(work);
   return (
@@ -62,38 +79,82 @@ function WorkIdentity({ work }: { work: BatchWork }) {
         </span>
       )}
       <span className="text-caption break-words text-body">{work.fileName}</span>
+      {work.status === "error" ? (
+        <span className="text-caption text-verdict-contradiction-text">
+          {work.errorMessage ?? ANALYSIS_FAILED}
+        </span>
+      ) : null}
     </span>
   );
 }
 
+/** Estado de un trabajo que no tiene un riesgo que mostrar. */
+function PendingState({ work }: { work: BatchWork }) {
+  if (work.status === "error") return <StatusChip tone="danger">Error</StatusChip>;
+  if (isWorkCompleted(work)) return <StatusChip tone="neutral">Sin calcular</StatusChip>;
+  return (
+    <AnalysisStatusChip
+      status={work.status}
+      progress={work.progress}
+      totalReferences={work.references}
+    />
+  );
+}
+
+function metricOf(work: BatchWork, value: number | null): string {
+  return isWorkCompleted(work) && value !== null ? String(value) : NO_VALUE;
+}
+
+function mobileSummary(work: BatchWork): string {
+  const references = `${work.references ?? 0} referencias`;
+  const alerts = `${work.alerts} ${work.alerts === 1 ? "alerta" : "alertas"}`;
+  return `${references} · Índice ${work.index ?? NO_VALUE} · ${alerts}`;
+}
+
 /** Trabajos del lote ordenados por riesgo; cada encabezado ordena (maqueta 16). */
 export function BatchRiskTable({ batchId, works }: { batchId: string; works: BatchWork[] }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [sortKey, setSortKey] = useState<SortKey>("risk");
   const [direction, setDirection] = useState<SortDirection>("desc");
 
+  const slice = paginate(
+    sortBatchWorks(works, sortKey, direction),
+    parsePage(searchParams.get(PAGE_PARAM)),
+    WORKS_PAGE_SIZE,
+  );
+
+  /** Un orden nuevo empieza desde sus primeros trabajos, no desde la página en que se estaba. */
+  function applySort(key: SortKey, nextDirection: SortDirection) {
+    setSortKey(key);
+    setDirection(nextDirection);
+    if (slice.page === 1) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete(PAGE_PARAM);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
   function toggle(key: SortKey) {
     if (key === sortKey) {
-      setDirection(direction === "desc" ? "asc" : "desc");
+      applySort(key, direction === "desc" ? "asc" : "desc");
     } else {
-      setSortKey(key);
-      setDirection("desc");
+      applySort(key, key === "name" ? "asc" : "desc");
     }
   }
 
   function chooseMobileSort(id: string) {
     const option = MOBILE_SORTS.find((item) => item.id === id);
-    if (!option) return;
-    setSortKey(option.key);
-    setDirection(option.direction);
+    if (option) applySort(option.key, option.direction);
   }
 
-  const sorted = sortBatchWorks(works, sortKey, direction);
   const mobileSort =
     MOBILE_SORTS.find((item) => item.key === sortKey && item.direction === direction)?.id ?? "";
   const reportHref = (work: BatchWork) => `/docente/lotes/${batchId}/${work.analysisId}`;
 
   return (
-    <>
+    <div id={TABLE_ID} className="flex scroll-mt-6 flex-col gap-3">
       <div className="flex flex-col gap-3 md:hidden">
         <label className="flex items-center gap-2 text-small">
           Ordenar por
@@ -111,22 +172,38 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
           </select>
         </label>
         <ul className={cardListClass}>
-          {sorted.map((work) => (
-            <li key={work.analysisId} className="flex">
-              <Link href={reportHref(work)} className={`${cardClass} hover:border-hairline-strong`}>
+          {slice.items.map((work) => {
+            const completed = isWorkCompleted(work);
+            const content = (
+              <>
                 <span className="flex items-start justify-between gap-3">
                   <WorkIdentity work={work} />
-                  <StatusChip tone={RISK_TONES[work.risk]}>
-                    Riesgo {RISK_LABELS[work.risk].toLowerCase()}
-                  </StatusChip>
+                  {work.risk ? (
+                    <StatusChip tone={RISK_TONES[work.risk]}>
+                      Riesgo {RISK_LABELS[work.risk].toLowerCase()}
+                    </StatusChip>
+                  ) : (
+                    <PendingState work={work} />
+                  )}
                 </span>
-                <span className="text-small">
-                  {work.references} referencias · Índice {work.index} · {work.alerts}{" "}
-                  {work.alerts === 1 ? "alerta" : "alertas"}
-                </span>
-              </Link>
-            </li>
-          ))}
+                {completed ? <span className="text-small">{mobileSummary(work)}</span> : null}
+              </>
+            );
+            return (
+              <li key={work.analysisId} className="flex">
+                {completed ? (
+                  <Link
+                    href={reportHref(work)}
+                    className={`${cardClass} hover:border-hairline-strong`}
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div className={cardClass}>{content}</div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
 
@@ -162,23 +239,37 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
           </tr>
         </thead>
         <tbody>
-          {sorted.map((work) => (
+          {slice.items.map((work) => (
             <tr key={work.analysisId} className="hover:bg-canvas-soft">
               <td className={tdClass}>
-                <Link href={reportHref(work)} className="group flex">
+                {isWorkCompleted(work) ? (
+                  <Link href={reportHref(work)} className="group flex">
+                    <WorkIdentity work={work} />
+                  </Link>
+                ) : (
                   <WorkIdentity work={work} />
-                </Link>
+                )}
               </td>
-              <td className={`${tdClass} ${numericClass}`}>{work.references}</td>
-              <td className={`${tdClass} ${numericClass}`}>{work.index}</td>
-              <td className={`${tdClass} ${numericClass}`}>{work.alerts}</td>
-              <td className={`${tdClass} font-semibold ${RISK_CLASSES[work.risk]}`}>
-                {RISK_LABELS[work.risk]}
+              <td className={`${tdClass} ${numericClass}`}>{metricOf(work, work.references)}</td>
+              <td className={`${tdClass} ${numericClass}`}>{metricOf(work, work.index)}</td>
+              <td className={`${tdClass} ${numericClass}`}>{metricOf(work, work.alerts)}</td>
+              <td
+                className={`${tdClass} ${work.risk ? `font-semibold ${RISK_CLASSES[work.risk]}` : ""}`}
+              >
+                {work.risk ? RISK_LABELS[work.risk] : <PendingState work={work} />}
               </td>
             </tr>
           ))}
         </tbody>
       </DataTable>
-    </>
+
+      <Pagination
+        slice={slice}
+        pathname={pathname}
+        query={searchParams.toString()}
+        noun="trabajos"
+        anchorId={TABLE_ID}
+      />
+    </div>
   );
 }

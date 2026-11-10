@@ -2,10 +2,10 @@ import { FileText } from "lucide-react";
 import Link from "next/link";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { StatusChip } from "@/shared/components/ui/status-chip";
-import { verifiedCount } from "@/shared/lib/analysis-progress";
 import { formatFileSize } from "@/shared/lib/format";
 import type { BatchUpload, CreatedBatch, UploadState } from "../types";
 import { analyzedCount, failedUploads, isAnalyzing, sendProgress } from "../upload-progress";
+import { AnalysisStatusChip } from "./analysis-status-chip";
 
 function UploadStateChip({ state }: { state: UploadState }) {
   switch (state.kind) {
@@ -23,14 +23,12 @@ function UploadStateChip({ state }: { state: UploadState }) {
     case "error_analisis":
       return <StatusChip tone="danger">Error</StatusChip>;
     case "en_analisis":
-      if (state.status === "en_cola") return <StatusChip tone="neutral">En cola</StatusChip>;
-      if (state.status !== "verificando" || !state.totalReferences) {
-        return <StatusChip tone="warning">Analizando</StatusChip>;
-      }
       return (
-        <StatusChip tone="warning">
-          Verificando {verifiedCount(state.progress, state.totalReferences)}/{state.totalReferences}
-        </StatusChip>
+        <AnalysisStatusChip
+          status={state.status}
+          progress={state.progress}
+          totalReferences={state.totalReferences}
+        />
       );
   }
 }
