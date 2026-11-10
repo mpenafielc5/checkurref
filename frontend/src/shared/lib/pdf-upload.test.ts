@@ -18,10 +18,15 @@ describe("interpretUploadResponse", () => {
     });
   });
 
-  it("muestra el motivo que da la API", () => {
+  it("muestra el motivo que da la API y marca el rechazo, que no se reintenta", () => {
     expect(interpretUploadResponse(422, { detail: "Solo se aceptan archivos PDF." })).toEqual({
       kind: "error",
       message: "Solo se aceptan archivos PDF.",
+      rejected: true,
+    });
+    expect(interpretUploadResponse(503, { detail: "Servicio no disponible." })).toEqual({
+      kind: "error",
+      message: "Servicio no disponible.",
     });
   });
 

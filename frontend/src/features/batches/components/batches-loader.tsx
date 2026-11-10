@@ -8,7 +8,7 @@ import { PAGE_PARAM, parsePage } from "@/shared/lib/pagination";
 import type { BatchSummary } from "../types";
 import { useBatches, type BatchesState } from "../use-batches";
 import { BatchList, BatchListSkeleton } from "./batch-list";
-import { WakingNotice } from "@/shared/components/ui/notice";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 const LIST_ID = "lotes";
 
@@ -35,11 +35,7 @@ function BatchesBody({ state, skeletonRows, children }: BatchesBodyProps) {
     );
   }
   if (state.kind === "error") {
-    return (
-      <p role="alert" className="text-small text-verdict-contradiction-text">
-        {state.message}
-      </p>
-    );
+    return <Notice tone="error">{state.message}</Notice>;
   }
   if (state.page.total === 0) {
     return (
@@ -71,6 +67,7 @@ export function BatchesLoader() {
                 pathname={pathname}
                 query={searchParams.toString()}
                 noun="lotes"
+                nounOne="lote"
                 anchorId={LIST_ID}
               />
             ) : null}

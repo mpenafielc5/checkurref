@@ -1,5 +1,6 @@
 import { FileText } from "lucide-react";
 import Link from "next/link";
+import { Skeleton, SkeletonText } from "@/shared/components/ui/skeleton";
 import { workHref } from "../history";
 import type { Work } from "../types";
 import { WorkStatusChip } from "./work-status-chip";
@@ -26,7 +27,9 @@ export function RecentWorks({ works }: { works: Work[] }) {
                   {work.fileName}
                 </span>
                 <span className="flex shrink-0 items-center gap-3">
-                  <span className="text-small">{work.references} referencias</span>
+                  <span className="text-small">
+                    {work.references} {work.references === 1 ? "referencia" : "referencias"}
+                  </span>
                   <WorkStatusChip work={work} />
                 </span>
               </span>
@@ -35,5 +38,19 @@ export function RecentWorks({ works }: { works: Work[] }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Esqueleto de los análisis recientes, con la forma de su título y sus filas. */
+export function RecentWorksSkeleton({ rows }: { rows: number }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <SkeletonText textClass="text-small" widthClass="w-36" />
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: rows }, (_, index) => (
+          <Skeleton key={index} className="h-14 w-full rounded-card" />
+        ))}
+      </div>
+    </div>
   );
 }

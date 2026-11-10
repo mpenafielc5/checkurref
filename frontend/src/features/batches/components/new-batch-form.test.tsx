@@ -183,6 +183,25 @@ describe("NewBatchForm", () => {
     expect(rowOf("Ensayo_B.pdf").textContent).toContain("En cola");
   });
 
+  it("un archivo que la API rechaza queda Rechazado, con su motivo y sin reintento", async () => {
+    submitMock
+      .mockResolvedValueOnce({
+        kind: "error",
+        message: "No se encontró la sección de referencias.",
+        rejected: true,
+      })
+      .mockResolvedValueOnce({ kind: "created", analysisId: "a2" });
+    render(<NewBatchForm />);
+
+    fillForm([pdf("Ensayo_A.pdf"), pdf("Ensayo_B.pdf")]);
+    submit();
+
+    await waitFor(() => expect(rowOf("Ensayo_B.pdf").textContent).toContain("En cola"));
+    expect(rowOf("Ensayo_A.pdf").textContent).toContain("Rechazado");
+    expect(rowOf("Ensayo_A.pdf").textContent).toContain("No se encontró la sección");
+    expect(screen.queryByRole("button", { name: /Reintentar/ })).toBeNull();
+  });
+
   it("reintentar envía solo los que fallaron y al mismo lote", async () => {
     submitMock
       .mockResolvedValueOnce({ kind: "error", message: "Sin conexión." })

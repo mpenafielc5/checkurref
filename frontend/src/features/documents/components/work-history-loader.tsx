@@ -6,7 +6,7 @@ import { Pagination } from "@/shared/components/ui/pagination";
 import { PAGE_PARAM, parsePage } from "@/shared/lib/pagination";
 import { useHistory } from "../use-history";
 import { WorkHistory, WorkListSkeleton, WorkSearch } from "./work-history";
-import { WakingNotice } from "@/shared/components/ui/notice";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 /** La búsqueda viaja en la dirección, como la página (?buscar=avance&pagina=2). */
 export const SEARCH_PARAM = "buscar";
@@ -49,11 +49,7 @@ export function WorkHistoryLoader() {
           </>
         ) : null}
 
-        {state.kind === "error" ? (
-          <p role="alert" className="text-small text-verdict-contradiction-text">
-            {state.message}
-          </p>
-        ) : null}
+        {state.kind === "error" ? <Notice tone="error">{state.message}</Notice> : null}
 
         {state.kind === "ready" ? (
           <>
@@ -68,6 +64,7 @@ export function WorkHistoryLoader() {
                 pathname={pathname}
                 query={searchParams.toString()}
                 noun="trabajos"
+                nounOne="trabajo"
                 anchorId={LIST_ID}
               />
             ) : null}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { buttonStyles } from "./button-styles";
+import { Notice } from "./notice";
 
 /** El botón de confirmar anticipa el efecto: quitar acceso en rojo, devolverlo en verde. */
 export type ConfirmTone = "default" | "danger" | "restore";
@@ -70,11 +71,7 @@ export function ConfirmDialog({
         {title}
       </h2>
       <div className="text-small">{children}</div>
-      {error ? (
-        <p role="alert" className="text-small text-verdict-contradiction-text">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
       <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end">
         <button
           type="button"

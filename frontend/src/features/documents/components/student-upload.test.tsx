@@ -47,4 +47,41 @@ describe("StudentUpload", () => {
     expect(screen.queryByText("Trabajo_final.pdf")).toBeNull();
     expect(screen.getByText("Arrastra aquí el PDF de tu trabajo")).toBeTruthy();
   });
+
+  it("un PDF que la API rechaza deja la zona vacía y explica cuál y por qué", async () => {
+    vi.mocked(submitDocument).mockResolvedValue({
+      kind: "error",
+      message: "No se encontró la sección de referencias.",
+      rejected: true,
+    });
+    render(page("visible"));
+
+    choose(PDF);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Analizar referencias" }));
+    });
+
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Trabajo_final.pdf: No se encontró la sección de referencias.",
+    );
+    expect(screen.getByText("Arrastra aquí el PDF de tu trabajo")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Analizar referencias" })).toBeNull();
+  });
+
+  it("una falla de conexión conserva el archivo para reintentar", async () => {
+    vi.mocked(submitDocument).mockResolvedValue({ kind: "error", message: "Sin conexión." });
+    render(page("visible"));
+
+    choose(PDF);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Analizar referencias" }));
+    });
+
+    expect(screen.getByRole("alert").textContent).toBe("Sin conexión.");
+    expect(screen.getByText("Trabajo_final.pdf")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Analizar referencias" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+  });
 });

@@ -6,12 +6,13 @@ import { Notice } from "@/shared/components/ui/notice";
 const RING_RADIUS = 40;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-const LEGEND_LABELS: Record<Verdict, string> = {
-  verificada: "verificadas",
-  discrepancia: "con discrepancias",
-  contradiccion: "contradicción",
-  sin_respaldo: "sin respaldo",
-  no_verificable: "no verificables",
+/** Cada filtro con su cantidad, que concuerda en número: [una, varias o ninguna]. */
+const LEGEND_LABELS: Record<Verdict, [string, string]> = {
+  verificada: ["verificada", "verificadas"],
+  discrepancia: ["con discrepancias", "con discrepancias"],
+  contradiccion: ["contradicción", "contradicciones"],
+  sin_respaldo: ["sin respaldo", "sin respaldo"],
+  no_verificable: ["no verificable", "no verificables"],
 };
 
 /** Anillo con el índice de veracidad de 0 a 100; sin índice, vacío y con una raya. */
@@ -152,7 +153,7 @@ export function ReportSummary({
             {VERDICT_ORDER.map((verdict) => (
               <li key={verdict} className="flex">
                 <FilterChip
-                  label={`${counts[verdict]} ${LEGEND_LABELS[verdict]}`}
+                  label={`${counts[verdict]} ${LEGEND_LABELS[verdict][counts[verdict] === 1 ? 0 : 1]}`}
                   href={filterHref(verdict)}
                   selected={active === verdict}
                   empty={counts[verdict] === 0}

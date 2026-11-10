@@ -77,7 +77,9 @@ function BatchNotices({ batch }: { batch: BatchDetail }) {
     <div aria-live="polite" className="flex flex-col gap-2 empty:hidden">
       {inProgress > 0 ? (
         <Notice>
-          {finished} de {totalWorks} trabajos terminados. Las cifras se actualizan automáticamente.
+          {finished} de {totalWorks}{" "}
+          {totalWorks === 1 ? "trabajo terminado" : "trabajos terminados"}. Las cifras se actualizan
+          automáticamente.
         </Notice>
       ) : null}
       {failed > 0 ? (
@@ -187,9 +189,7 @@ export function BatchDashboard() {
   if (state.kind === "error") {
     return (
       <PageSection eyebrow={EYEBROW} title="Lote no disponible" back={BACK_LINK}>
-        <p role="alert" className="text-small text-verdict-contradiction-text">
-          {state.message}
-        </p>
+        <Notice tone="error">{state.message}</Notice>
       </PageSection>
     );
   }

@@ -14,14 +14,15 @@ import { ReportSummary } from "./report-summary";
 export const REFERENCES_PER_PAGE = 10;
 const LIST_ID = "referencias";
 
-/** Cómo se nombran las referencias mostradas, con o sin filtro. */
-const FILTERED_NOUNS: Record<Verdict, string> = {
-  verificada: "referencias verificadas",
-  discrepancia: "referencias con discrepancias",
-  contradiccion: "referencias con contradicción",
-  sin_respaldo: "referencias sin respaldo",
-  no_verificable: "referencias no verificables",
+/** Cómo se nombran las referencias mostradas, con o sin filtro: [una, varias]. */
+const FILTERED_NOUNS: Record<Verdict, [string, string]> = {
+  verificada: ["referencia verificada", "referencias verificadas"],
+  discrepancia: ["referencia con discrepancias", "referencias con discrepancias"],
+  contradiccion: ["referencia con contradicción", "referencias con contradicción"],
+  sin_respaldo: ["referencia sin respaldo", "referencias sin respaldo"],
+  no_verificable: ["referencia no verificable", "referencias no verificables"],
 };
+const ALL_NOUNS: [string, string] = ["referencia", "referencias"];
 
 /**
  * Resumen y referencias del informe. El filtro por veredicto se aplica antes
@@ -66,7 +67,8 @@ export function ReportResults({ report }: { report: Report }) {
             slice={slice}
             pathname={pathname}
             query={searchParams.toString()}
-            noun={verdict ? FILTERED_NOUNS[verdict] : "referencias"}
+            nounOne={(verdict ? FILTERED_NOUNS[verdict] : ALL_NOUNS)[0]}
+            noun={(verdict ? FILTERED_NOUNS[verdict] : ALL_NOUNS)[1]}
             anchorId={LIST_ID}
           />
         ) : (

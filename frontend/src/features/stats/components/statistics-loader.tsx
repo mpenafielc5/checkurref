@@ -123,8 +123,9 @@ type StatisticsLayout = {
 
 type StatisticsLoaderProps = StatisticsLayout & {
   /**
-   * Es un complemento del inicio: mientras carga, si falla o si aún no hay análisis,
-   * no ocupa lugar. Así el estudiante nuevo solo ve la subida de su trabajo.
+   * Es un complemento del inicio: mientras carga muestra su esqueleto, pero si falla
+   * o si aún no hay análisis no ocupa lugar. Así el estudiante nuevo solo ve la
+   * subida de su trabajo.
    */
   quiet?: boolean;
 };
@@ -147,7 +148,6 @@ export function StatisticsLoader({ quiet = false, cards, thirds }: StatisticsLoa
   }, []);
 
   if (!outcome) {
-    if (quiet) return null;
     return (
       <div className="flex flex-col gap-4">
         <p role="status" className="sr-only">
@@ -160,11 +160,7 @@ export function StatisticsLoader({ quiet = false, cards, thirds }: StatisticsLoa
   }
   if (outcome.kind === "error") {
     if (quiet) return null;
-    return (
-      <p role="alert" className="text-small text-verdict-contradiction-text">
-        {outcome.message}
-      </p>
-    );
+    return <Notice tone="error">{outcome.message}</Notice>;
   }
   if (quiet && outcome.statistics.references === 0) return null;
   return <StatisticsView statistics={outcome.statistics} />;

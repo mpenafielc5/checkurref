@@ -33,7 +33,7 @@ import {
 } from "../rules";
 import type { RoleCounts, RoleFilter, UserChange, UserRow } from "../types";
 import { useUsers } from "../use-users";
-import { WakingNotice } from "@/shared/components/ui/notice";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 const FILTERS: { id: RoleFilter; label: string }[] = [
   { id: "todos", label: "Todos" },
@@ -307,11 +307,7 @@ export function UserTable() {
         </div>
       ) : null}
 
-      {state.kind === "error" ? (
-        <p role="alert" className="text-small text-verdict-contradiction-text">
-          {state.message}
-        </p>
-      ) : null}
+      {state.kind === "error" ? <Notice tone="error">{state.message}</Notice> : null}
 
       {state.kind === "ready" ? (
         <>
@@ -321,6 +317,7 @@ export function UserTable() {
             pathname={pathname}
             query={searchParams.toString()}
             noun="usuarios"
+            nounOne="usuario"
             anchorId={LIST_ID}
           />
         </>

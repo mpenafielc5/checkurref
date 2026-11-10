@@ -6,7 +6,7 @@ import { fieldLabel } from "@/shared/lib/reference-fields";
 import { compareEngines } from "../api";
 import { comparedFieldsOf } from "../comparison-mapper";
 import { ENGINE_LABELS, type EngineOutput, type LabComparison } from "../types";
-import { WakingNotice } from "@/shared/components/ui/notice";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 /** Los mismos límites del backend: fuera de ellos ya no es una referencia. */
 const MIN_REFERENCE_LENGTH = 10;
@@ -35,9 +35,7 @@ function EngineCard({ output, fields, different }: EngineCardProps) {
       </header>
 
       {output.fields ? null : (
-        <p role="alert" className="text-small text-verdict-contradiction-text">
-          Este motor no pudo procesar la referencia: {output.error}
-        </p>
+        <Notice tone="error">Este motor no pudo procesar la referencia: {output.error}</Notice>
       )}
 
       {output.fields ? (
@@ -158,11 +156,7 @@ export function EngineComparison() {
 
       <div aria-live="polite" className="flex flex-col gap-1 text-small empty:hidden">
         {slow ? <WakingNotice /> : null}
-        {error ? (
-          <p role="alert" className="text-verdict-contradiction-text">
-            {error}
-          </p>
-        ) : null}
+        {error ? <Notice tone="error">{error}</Notice> : null}
       </div>
 
       {comparison ? <ComparisonResults comparison={comparison} /> : null}

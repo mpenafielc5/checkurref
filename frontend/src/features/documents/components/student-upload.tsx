@@ -50,7 +50,14 @@ export function StudentUpload() {
       router.push(analysisHref(outcome.analysisId, false));
     } else if (outcome.kind === "duplicate") {
       setPhase({ kind: "duplicate", analysisId: outcome.analysisId, finished: outcome.finished });
+    } else if (outcome.rejected) {
+      // La API revisó el PDF y no lo acepta: igual que un archivo inválido del navegador,
+      // la zona queda vacía y el aviso dice cuál fue y por qué. Reenviarlo no serviría.
+      setFile(null);
+      setDropzoneKey((key) => key + 1);
+      setPhase({ kind: "error", message: `${file.name}: ${outcome.message}` });
     } else {
+      // Una falla de conexión o del servidor: el archivo sigue elegido para reintentar.
       setPhase({ kind: "error", message: outcome.message });
     }
   }
@@ -80,11 +87,7 @@ export function StudentUpload() {
 
       <div aria-live="polite" className="flex flex-col text-center">
         {phase.kind === "uploading" && phase.slow ? <WakingNotice /> : null}
-        {phase.kind === "error" ? (
-          <p role="alert" className="text-small text-verdict-contradiction-text">
-            {phase.message}
-          </p>
-        ) : null}
+        {phase.kind === "error" ? <Notice tone="error">{phase.message}</Notice> : null}
         {phase.kind === "duplicate" ? (
           <Notice>
             Este PDF ya se analizó antes; no se procesa de nuevo.{" "}

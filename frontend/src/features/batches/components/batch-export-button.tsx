@@ -6,6 +6,7 @@ import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { downloadTextFile } from "@/shared/lib/download";
 import { fetchBatchExport } from "../api";
 import { batchCsvFileName, buildBatchCsv } from "../batch-csv";
+import { Notice } from "@/shared/components/ui/notice";
 
 const CSV_TYPE = "text/csv;charset=utf-8";
 
@@ -46,11 +47,7 @@ export function BatchExportButton({ batchId, disabled, className = "" }: BatchEx
         <Download aria-hidden="true" className="size-4" />
         {exporting ? "Preparando el archivo…" : "Exportar CSV"}
       </button>
-      {error ? (
-        <p role="alert" className="text-small text-verdict-contradiction-text">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
     </div>
   );
 }

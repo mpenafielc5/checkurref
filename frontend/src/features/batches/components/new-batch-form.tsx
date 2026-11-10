@@ -6,7 +6,7 @@ import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { MAX_NAME_LENGTH, MAX_PERIOD_LENGTH } from "../rules";
 import { useBatchUpload } from "../use-batch-upload";
 import { BatchUploadProgress } from "./batch-upload-progress";
-import { WakingNotice } from "@/shared/components/ui/notice";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 const INPUT_CLASSES =
   "h-input w-full rounded-control border border-hairline-strong bg-surface px-4 text-small text-ink outline-none placeholder:text-muted focus:border-ink";
@@ -129,15 +129,9 @@ export function NewBatchForm() {
       <div aria-live="polite" className="flex flex-col gap-1 text-small">
         {slow ? <WakingNotice /> : null}
         {missingData ? (
-          <p role="alert" className="text-verdict-contradiction-text">
-            Escribe el nombre y el periodo del lote.
-          </p>
+          <Notice tone="error">Escribe el nombre y el periodo del lote.</Notice>
         ) : null}
-        {createError ? (
-          <p role="alert" className="text-verdict-contradiction-text">
-            {createError}
-          </p>
-        ) : null}
+        {createError ? <Notice tone="error">{createError}</Notice> : null}
       </div>
     </form>
   );

@@ -247,9 +247,9 @@ export function PdfDropzone({
 
       {/* Un archivo inválido en la subida individual: el recuadro sigue vacío y se explica por qué. */}
       {!multiple && items.length === 1 && items[0].error ? (
-        <p role="alert" className="text-small text-verdict-contradiction-text">
+        <Notice tone="error">
           {items[0].file.name}: {items[0].error}
-        </p>
+        </Notice>
       ) : null}
     </div>
   );

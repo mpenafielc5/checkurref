@@ -4,6 +4,7 @@ import { Check, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import type { CorrectedReference } from "../types";
+import { Notice } from "@/shared/components/ui/notice";
 
 /** Tiempo que se muestra la confirmación "Copiada" (HU-19 CA03). */
 export const COPIED_MS = 2_000;
@@ -72,9 +73,9 @@ export function CorrectedReferencePanel({ corrected }: { corrected: CorrectedRef
           {status === "copied" ? "Referencia corregida copiada al portapapeles" : ""}
         </span>
         {status === "failed" ? (
-          <p role="alert" className="text-small text-verdict-contradiction-text">
+          <Notice tone="error">
             No se pudo copiar. Selecciona el texto de la referencia y cópialo manualmente.
-          </p>
+          </Notice>
         ) : null}
       </div>
     </section>

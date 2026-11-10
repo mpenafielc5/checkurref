@@ -114,9 +114,7 @@ export function AddWorksLoader() {
   if (state.kind === "error") {
     return (
       <PageSection eyebrow={EYEBROW} title="Lote no disponible" back={back}>
-        <p role="alert" className="text-small text-verdict-contradiction-text">
-          {state.message}
-        </p>
+        <Notice tone="error">{state.message}</Notice>
       </PageSection>
     );
   }

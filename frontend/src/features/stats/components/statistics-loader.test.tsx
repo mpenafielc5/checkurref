@@ -133,7 +133,12 @@ describe("StatisticsLoader", () => {
       statistics: { ...STUDENT, works: 0, references: 0 },
     });
     const { container } = render(<StatisticsLoader quiet />);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(container.textContent).toBe("");
+    await waitFor(() => expect(container.textContent).toBe(""));
+  });
+
+  it("en modo discreto muestra su esqueleto mientras carga", () => {
+    fetchMock.mockReturnValueOnce(new Promise(() => {}));
+    render(<StatisticsLoader quiet />);
+    expect(screen.getByRole("status").textContent).toBe("Cargando las estadísticas…");
   });
 });

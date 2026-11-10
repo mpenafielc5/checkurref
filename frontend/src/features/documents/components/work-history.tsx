@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Search, SearchX, Upload } from "lucide-react";
+import { FileText, Search, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import {
@@ -14,7 +14,6 @@ import {
   thClass,
 } from "@/shared/components/ui/data-table";
 import { DeleteWorkButton } from "@/shared/components/delete-work-button";
-import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { SkeletonText } from "@/shared/components/ui/skeleton";
 import { workHref } from "../history";
@@ -105,13 +104,8 @@ export function WorkHistory({ works, searching, onDeleted }: WorkHistoryProps) {
       <EmptyState
         icon={FileText}
         title="Aún no has subido trabajos"
-        description="Sube el PDF de tu trabajo para revisar sus referencias."
-      >
-        <Link href="/estudiante" className={buttonStyles()}>
-          <Upload aria-hidden="true" className="size-4" />
-          Subir un trabajo
-        </Link>
-      </EmptyState>
+        description="Sube el PDF de tu trabajo con Subir trabajo para revisar sus referencias."
+      />
     );
   }
 

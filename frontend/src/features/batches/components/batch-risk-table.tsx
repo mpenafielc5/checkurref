@@ -108,7 +108,8 @@ function metricOf(work: BatchWork, value: number | null): string {
 }
 
 function mobileSummary(work: BatchWork): string {
-  const references = `${work.references ?? 0} referencias`;
+  const count = work.references ?? 0;
+  const references = `${count} ${count === 1 ? "referencia" : "referencias"}`;
   const alerts = `${work.alerts} ${work.alerts === 1 ? "alerta" : "alertas"}`;
   return `${references} · Índice ${work.index === null ? NO_VALUE : formatIndex(work.index)} · ${alerts}`;
 }
@@ -308,6 +309,7 @@ export function BatchRiskTable({ batchId, works, onDeleted }: BatchRiskTableProp
         pathname={pathname}
         query={searchParams.toString()}
         noun="trabajos"
+        nounOne="trabajo"
         anchorId={TABLE_ID}
       />
     </div>

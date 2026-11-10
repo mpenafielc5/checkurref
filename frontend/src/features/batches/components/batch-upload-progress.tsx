@@ -15,6 +15,8 @@ function UploadStateChip({ state }: { state: UploadState }) {
     case "subiendo":
       return <StatusChip tone="info">Subiendo…</StatusChip>;
     case "rechazado":
+      // El navegador no lo envió; la API sí lo recibió, lo revisó y no lo aceptó.
+      return <StatusChip tone="danger">{state.byApi ? "Rechazado" : "No enviado"}</StatusChip>;
     case "fallo_subida":
       return <StatusChip tone="danger">No enviado</StatusChip>;
     case "repetido":

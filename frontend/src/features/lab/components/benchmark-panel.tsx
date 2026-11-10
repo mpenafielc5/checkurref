@@ -282,11 +282,7 @@ export function BenchmarkView({ overview, running, slow, runError, onRun }: Benc
 
       <div aria-live="polite" className="flex flex-col gap-1 text-small empty:hidden">
         {slow ? <WakingNotice /> : null}
-        {runError ? (
-          <p role="alert" className="text-verdict-contradiction-text">
-            {runError}
-          </p>
-        ) : null}
+        {runError ? <Notice tone="error">{runError}</Notice> : null}
       </div>
 
       {latest ? (
@@ -349,11 +345,7 @@ export function BenchmarkPanel() {
     );
   }
   if (state.kind === "error") {
-    return (
-      <p role="alert" className="text-small text-verdict-contradiction-text">
-        {state.message}
-      </p>
-    );
+    return <Notice tone="error">{state.message}</Notice>;
   }
   return (
     <BenchmarkView

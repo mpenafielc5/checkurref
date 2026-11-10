@@ -19,7 +19,11 @@ export type AnalysisSubmitted = {
 export type UploadOutcome =
   | { kind: "created"; analysisId: string }
   | { kind: "duplicate"; analysisId: string; finished: boolean }
-  | { kind: "error"; message: string };
+  /**
+   * `rejected`: la API revisó el archivo y no lo acepta (422), por ejemplo un PDF sin
+   * sección de referencias. Volver a enviarlo daría el mismo resultado.
+   */
+  | { kind: "error"; message: string; rejected?: boolean };
 
 const GENERIC_ERROR = "No se pudo subir el archivo. Intenta de nuevo en unos minutos.";
 
@@ -55,7 +59,8 @@ export function interpretUploadResponse(status: number, body: unknown): UploadOu
   if (status === 401) {
     return { kind: "error", message: "Tu sesión venció. Vuelve a ingresar para subir el trabajo." };
   }
-  return { kind: "error", message: detailOf(body) ?? GENERIC_ERROR };
+  const message = detailOf(body) ?? GENERIC_ERROR;
+  return status === 422 ? { kind: "error", message, rejected: true } : { kind: "error", message };
 }
 
 /**
