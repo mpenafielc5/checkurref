@@ -92,14 +92,14 @@ class BatchService:
         # Un análisis en curso aún no tiene veredictos: contarlo parecería un error de consulta.
         finished = [item for item in stored if item.status == COMPLETED]
         analyses = tuple(
-            StoredBatchAnalysis(item.status, item.index, _count(item, CONTRADICTION))
+            StoredBatchAnalysis(item.status, item.index, count_verdict(item, CONTRADICTION))
             for item in stored
         )
         return BatchDetail(
             **_summary(BatchOverview(batch, analyses)).model_dump(),
             references=sum(len(item.verdicts) for item in finished),
-            counts=_counts(finished),
-            most_different_fields=_most_different(finished),
+            counts=verdict_counts(finished),
+            most_different_fields=most_different_fields(finished),
             works=works,
         )
 
@@ -148,7 +148,7 @@ def _summary(overview: BatchOverview) -> BatchSummary:
 
 def _work(work: StoredWork) -> BatchWork:
     finished = work.status == COMPLETED
-    contradictions = _count(work, CONTRADICTION)
+    contradictions = count_verdict(work, CONTRADICTION)
     return BatchWork(
         analysis_id=work.analysis_id,
         document_id=work.document_id,
@@ -161,7 +161,7 @@ def _work(work: StoredWork) -> BatchWork:
         norm=work.norm,
         index=work.index,
         contradictions=contradictions if finished else 0,
-        alerts=contradictions + _count(work, DISCREPANCY) if finished else 0,
+        alerts=contradictions + count_verdict(work, DISCREPANCY) if finished else 0,
         risk=risk_of(work.index, contradictions) if finished else None,
         error_message=work.error_message,
     )
@@ -187,16 +187,16 @@ def _export_work(work: StoredExportWork) -> ExportWork:
     )
 
 
-def _count(work: StoredWork, verdict: str) -> int:
+def count_verdict(work: StoredWork, verdict: str) -> int:
     return sum(item == verdict for item in work.verdicts)
 
 
-def _counts(works: list[StoredWork]) -> VerdictCounts:
+def verdict_counts(works: list[StoredWork]) -> VerdictCounts:
     tally = Counter(verdict or "error_consulta" for work in works for verdict in work.verdicts)
     return VerdictCounts(**tally)
 
 
-def _most_different(works: list[StoredWork]) -> list[FieldDifference]:
+def most_different_fields(works: list[StoredWork]) -> list[FieldDifference]:
     tally = Counter(field for work in works for field in work.different_fields)
     return [
         FieldDifference(field=field, references=count)

@@ -13,6 +13,12 @@ from app.verification.findings import MISMATCH_CODES
 
 BATCH_COLUMNS = "id,docente_id,nombre,periodo_academico,creado_en"
 DATETIME = TypeAdapter(datetime)
+# Un trabajo con su análisis más reciente, sus veredictos y sus hallazgos.
+WORK_SELECT = (
+    "id,nombre_archivo,autores,creado_en,t_analisis(id,estado,progreso,total_referencias,"
+    "norma_detectada,indice_veracidad,mensaje_error,creado_en,"
+    "t_referencias(t_verificaciones(veredicto),t_hallazgos(tipo,codigo,campo)))"
+)
 
 
 @dataclass(frozen=True)
@@ -157,22 +163,18 @@ class SupabaseBatchRepository:
         )[1]
 
     def works(self, batch_id: UUID) -> list[StoredWork]:
-        references = "t_referencias(t_verificaciones(veredicto),t_hallazgos(tipo,codigo,campo))"
         rows = send(
             self._client,
             "GET",
             f"{self._rest_url}/t_documentos",
             params={
-                "select": (
-                    "id,nombre_archivo,autores,creado_en,t_analisis(id,estado,progreso,total_referencias,"
-                    f"norma_detectada,indice_veracidad,mensaje_error,creado_en,{references})"
-                ),
+                "select": WORK_SELECT,
                 "lote_id": f"eq.{batch_id}",
                 "t_analisis.order": "creado_en.desc",
                 "order": "creado_en.asc",
             },
         )
-        return [work for work in map(_work, rows) if work]
+        return [work for work in map(work_from_row, rows) if work]
 
     def export_works(self, batch_id: UUID) -> list[StoredExportWork]:
         references = (
@@ -224,7 +226,7 @@ def _overview(row: dict[str, Any]) -> BatchOverview:
     )
 
 
-def _work(row: dict[str, Any]) -> StoredWork | None:
+def work_from_row(row: dict[str, Any]) -> StoredWork | None:
     analyses = row.get("t_analisis") or []
     if not analyses:
         return None
