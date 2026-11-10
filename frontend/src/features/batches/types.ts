@@ -61,6 +61,29 @@ export type BatchDetail = {
   works: BatchWork[];
 };
 
+/** Una referencia en el archivo exportado; los campos llegan como códigos de la base. */
+export type ExportReference = {
+  order: number;
+  text: string;
+  /** null: sin veredicto, porque una fuente no respondió. */
+  verdict: string | null;
+  differentFields: string[];
+};
+
+export type ExportWork = {
+  fileName: string;
+  authors: string[];
+  status: string;
+  errorMessage: string | null;
+  references: ExportReference[];
+};
+
+/** Lo que necesita el CSV del lote (HU-10). */
+export type BatchExport = {
+  name: string;
+  works: ExportWork[];
+};
+
 /** Estado de un archivo del lote, desde que se elige hasta que termina su análisis. */
 export type UploadState =
   | { kind: "en_espera" }

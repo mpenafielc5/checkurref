@@ -6,6 +6,7 @@ import type { PageSlice } from "@/shared/lib/pagination";
 import { VERDICT_ORDER, type Verdict } from "@/shared/lib/verdicts";
 import type {
   BatchDetail,
+  BatchExport,
   BatchStatus,
   BatchSummary,
   BatchWork,
@@ -176,5 +177,51 @@ export function toBatchDetail(body: unknown): BatchDetail | null {
     queryErrors: body.counts.error_consulta ?? 0,
     mostDifferentFields: body.most_different_fields,
     works: body.works.filter(isBatchWorkDto).map(toBatchWork),
+  };
+}
+
+type ExportReferenceDto = {
+  order: number;
+  text: string;
+  verdict: string | null;
+  different_fields: string[];
+};
+
+type ExportWorkDto = {
+  file_name: string;
+  authors: string[];
+  status: string;
+  error_message: string | null;
+  references: ExportReferenceDto[];
+};
+
+function isExportWorkDto(value: unknown): value is ExportWorkDto {
+  return (
+    isRecord(value) &&
+    typeof value.file_name === "string" &&
+    typeof value.status === "string" &&
+    Array.isArray(value.authors) &&
+    Array.isArray(value.references)
+  );
+}
+
+/** Los datos del CSV; null si la respuesta no es la esperada: un archivo incompleto no sirve. */
+export function toBatchExport(body: unknown): BatchExport | null {
+  if (!isRecord(body) || typeof body.name !== "string" || !Array.isArray(body.works)) return null;
+  if (!body.works.every(isExportWorkDto)) return null;
+  return {
+    name: body.name,
+    works: body.works.map((work) => ({
+      fileName: work.file_name,
+      authors: work.authors,
+      status: work.status,
+      errorMessage: work.error_message ?? null,
+      references: work.references.map((reference) => ({
+        order: reference.order,
+        text: reference.text,
+        verdict: reference.verdict ?? null,
+        differentFields: reference.different_fields,
+      })),
+    })),
   };
 }

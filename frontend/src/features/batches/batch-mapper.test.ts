@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   toBatchDetail,
+  toBatchExport,
   toBatchPage,
   toBatchSummary,
   toWorksProgress,
@@ -148,5 +149,40 @@ describe("toBatchDetail", () => {
   it("una respuesta que no es un tablero devuelve null", () => {
     expect(toBatchDetail({ ...DTO })).toBeNull();
     expect(toBatchDetail(null)).toBeNull();
+  });
+});
+
+describe("toBatchExport", () => {
+  const BODY = {
+    name: "Metodología 5B",
+    works: [
+      {
+        file_name: "Ensayo.pdf",
+        authors: ["Ana Vera"],
+        status: "completado",
+        error_message: null,
+        references: [{ order: 1, text: "Torres.", verdict: null, different_fields: ["anio"] }],
+      },
+    ],
+  };
+
+  it("traduce los trabajos y sus referencias", () => {
+    expect(toBatchExport(BODY)).toEqual({
+      name: "Metodología 5B",
+      works: [
+        {
+          fileName: "Ensayo.pdf",
+          authors: ["Ana Vera"],
+          status: "completado",
+          errorMessage: null,
+          references: [{ order: 1, text: "Torres.", verdict: null, differentFields: ["anio"] }],
+        },
+      ],
+    });
+  });
+
+  it("una respuesta incompleta no produce un archivo con filas de menos", () => {
+    expect(toBatchExport({ name: "Lote", works: [{ status: "completado" }] })).toBeNull();
+    expect(toBatchExport({ works: [] })).toBeNull();
   });
 });

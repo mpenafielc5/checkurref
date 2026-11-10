@@ -2,7 +2,6 @@
 
 import { useParams } from "next/navigation";
 import { PageSection, PageSectionSkeleton } from "@/shared/components/page-section";
-import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { DataTableSkeleton } from "@/shared/components/ui/data-table";
 import { StatCard, StatRow, StatRowSkeleton } from "@/shared/components/ui/stat-card";
 import { fieldLabel } from "@/shared/lib/reference-fields";
@@ -10,6 +9,7 @@ import { VERDICT_ORDER, VERDICTS } from "@/shared/lib/verdicts";
 import { shareLabel } from "../rules";
 import type { BatchDetail } from "../types";
 import { useBatchDetail } from "../use-batch-detail";
+import { BatchExportButton } from "./batch-export-button";
 import { BatchRiskTable } from "./batch-risk-table";
 
 const BACK_LINK = { href: "/docente/lotes", label: "Lotes" };
@@ -118,11 +118,7 @@ export function BatchDashboardView({ batch }: { batch: BatchDetail }) {
       title={batch.name}
       description={batch.period ?? undefined}
       back={BACK_LINK}
-      actions={
-        <button type="button" disabled className={buttonStyles({ variant: "secondary" })}>
-          Exportar CSV
-        </button>
-      }
+      actions={<BatchExportButton batchId={batch.id} disabled={batch.totalWorks === 0} />}
     >
       {batch.totalWorks === 0 ? (
         <p className="text-small">Este lote aún no tiene trabajos.</p>

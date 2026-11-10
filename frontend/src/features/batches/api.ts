@@ -5,10 +5,11 @@ import {
   isBatchesPageDto,
   isBatchSummaryDto,
   toBatchDetail,
+  toBatchExport,
   toBatchPage,
   toWorksProgress,
 } from "./batch-mapper";
-import type { BatchDetail, BatchSummary, CreatedBatch, WorkProgress } from "./types";
+import type { BatchDetail, BatchExport, BatchSummary, CreatedBatch, WorkProgress } from "./types";
 
 export { wakeApi };
 
@@ -93,6 +94,24 @@ export async function fetchBatchDetail(
   }
   const batch = response.status === 200 ? toBatchDetail(response.body) : null;
   return batch ? { kind: "ready", batch } : { kind: "error", message: BATCH_LOAD_ERROR };
+}
+
+export type BatchExportOutcome =
+  { kind: "ready"; batch: BatchExport } | { kind: "error"; message: string };
+
+const EXPORT_ERROR = "No se pudo preparar el archivo. Intenta de nuevo en unos minutos.";
+
+/** Los resultados de cada referencia del lote, para el archivo CSV (HU-10). */
+export async function fetchBatchExport(batchId: string): Promise<BatchExportOutcome> {
+  const response = await apiGet(`/lotes/${encodeURIComponent(batchId)}/exportacion`);
+  if (response.kind === "failed") {
+    return {
+      kind: "error",
+      message: response.reason === "session" ? SESSION_ERROR : EXPORT_ERROR,
+    };
+  }
+  const batch = response.status === 200 ? toBatchExport(response.body) : null;
+  return batch ? { kind: "ready", batch } : { kind: "error", message: EXPORT_ERROR };
 }
 
 /** Avance de los trabajos del lote; null si no se pudo consultar: se reintenta luego. */
