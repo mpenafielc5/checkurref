@@ -31,7 +31,7 @@ export default function AdminHomePage() {
       allow={["admin"]}
       skeleton={
         <PageSectionSkeleton>
-          <SampleDataNotice story="la HU-11 y la HU-12" />
+          <SampleDataNotice story="la HU-18" />
           <StatRowSkeleton count={4} />
           <div className="flex flex-col gap-4 md:flex-row">
             {SHORTCUTS.map(({ href }) => (
@@ -51,7 +51,7 @@ export default function AdminHomePage() {
       }
     >
       <PageSection eyebrow="Administración" title="Inicio">
-        <SampleDataNotice story="la HU-11 y la HU-12" />
+        <SampleDataNotice story="la HU-18" />
         <StatRow>
           <StatCard value={stats.users} label="Usuarios" />
           <StatCard value={stats.analysesToday} label="Análisis hoy" />

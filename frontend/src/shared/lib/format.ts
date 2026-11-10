@@ -19,6 +19,19 @@ export function formatDate(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** Fecha y hora, para distinguir dos mediciones del mismo día. */
+export function formatDateTime(iso: string): string {
+  return new Intl.DateTimeFormat(LOCALE, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "America/Guayaquil",
+  }).format(new Date(iso));
+}
+
 export function formatPercent(value: number): string {
   return `${Math.round(value)} %`;
 }

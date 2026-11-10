@@ -51,6 +51,10 @@
   --cr-pattern-fade: ellipse 55% 75% at 72% 50%; /* zona visible, cargada a la derecha */
   --cr-glow: var(--cr-accent-soft);
 
+  /* Motores en los gráficos del Laboratorio: validados para daltonismo y contraste */
+  --cr-engine-anystyle: var(--cr-info);
+  --cr-engine-spacy: var(--cr-accent-text);
+
   /* Estados del sistema */
   --cr-success: #1f8a65;
   --cr-error: #cf2d56;
