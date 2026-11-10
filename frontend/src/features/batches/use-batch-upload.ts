@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { RejectedPdf } from "@/shared/components/pdf-dropzone";
 import { createBatch, fetchBatchProgress, submitBatchWork, wakeApi } from "./api";
 import type { BatchUpload, CreatedBatch, UploadState } from "./types";
@@ -101,5 +101,13 @@ export function useBatchUpload() {
     await send(batchId, failedUploads(uploads));
   }
 
-  return { batch, uploads, creating, sending, slow, createError, start, retry };
+  /** Olvida el lote mostrado para empezar otro; el anterior sigue en su tablero. */
+  const reset = useCallback(() => {
+    setBatch(null);
+    setUploads([]);
+    setSlow(false);
+    setCreateError(null);
+  }, []);
+
+  return { batch, uploads, creating, sending, slow, createError, start, retry, reset };
 }

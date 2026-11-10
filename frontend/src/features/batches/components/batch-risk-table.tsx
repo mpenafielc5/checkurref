@@ -15,6 +15,7 @@ import {
 } from "@/shared/components/ui/data-table";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { StatusChip, type ChipTone } from "@/shared/components/ui/status-chip";
+import { formatIndex } from "@/shared/lib/format";
 import { PAGE_PARAM, paginate, parsePage } from "@/shared/lib/pagination";
 import {
   authorsLabel,
@@ -78,7 +79,7 @@ function WorkIdentity({ work }: { work: BatchWork }) {
           Portada no reconocida
         </span>
       )}
-      <span className="text-caption break-words text-body">{work.fileName}</span>
+      <span className="text-caption wrap-anywhere text-body">{work.fileName}</span>
       {work.status === "error" ? (
         <span className="text-caption text-verdict-contradiction-text">
           {work.errorMessage ?? ANALYSIS_FAILED}
@@ -108,7 +109,7 @@ function metricOf(work: BatchWork, value: number | null): string {
 function mobileSummary(work: BatchWork): string {
   const references = `${work.references ?? 0} referencias`;
   const alerts = `${work.alerts} ${work.alerts === 1 ? "alerta" : "alertas"}`;
-  return `${references} · Índice ${work.index ?? NO_VALUE} · ${alerts}`;
+  return `${references} · Índice ${work.index === null ? NO_VALUE : formatIndex(work.index)} · ${alerts}`;
 }
 
 /** Trabajos del lote ordenados por riesgo; cada encabezado ordena (maqueta 16). */
@@ -251,7 +252,9 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
                 )}
               </td>
               <td className={`${tdClass} ${numericClass}`}>{metricOf(work, work.references)}</td>
-              <td className={`${tdClass} ${numericClass}`}>{metricOf(work, work.index)}</td>
+              <td className={`${tdClass} ${numericClass}`}>
+                {isWorkCompleted(work) && work.index !== null ? formatIndex(work.index) : NO_VALUE}
+              </td>
               <td className={`${tdClass} ${numericClass}`}>{metricOf(work, work.alerts)}</td>
               <td
                 className={`${tdClass} ${work.risk ? `font-semibold ${RISK_CLASSES[work.risk]}` : ""}`}

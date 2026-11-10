@@ -19,6 +19,13 @@
 
   --color-info: var(--cr-info);
   --color-info-soft: var(--cr-info-soft);
+  --color-danger: var(--cr-danger);
+  --color-danger-hover: var(--cr-danger-hover);
+  --color-danger-soft: var(--cr-danger-soft);
+  --color-on-danger: var(--cr-on-danger);
+  --color-restore: var(--cr-restore);
+  --color-restore-hover: var(--cr-restore-hover);
+  --color-on-restore: var(--cr-on-restore);
   --color-engine-anystyle: var(--cr-engine-anystyle);
   --color-engine-spacy: var(--cr-engine-spacy);
 
@@ -93,6 +100,7 @@
   --spacing-sidebar-rail: var(--cr-sidebar-rail-width);
   --spacing-avatar: var(--cr-avatar-size);
   --spacing-stat-half: var(--cr-stat-half);
+  --spacing-stat-third: var(--cr-stat-third);
 }
 
 /*

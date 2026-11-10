@@ -2,6 +2,7 @@
  * Lotes del docente (HU-08 y HU-09): traduce las respuestas de /lotes (BatchSummary,
  * BatchesPage y BatchDetail del backend) a los tipos de la pantalla.
  */
+import { displayFullName } from "@/shared/lib/names";
 import type { PageSlice } from "@/shared/lib/pagination";
 import { VERDICT_ORDER, type Verdict } from "@/shared/lib/verdicts";
 import type {
@@ -142,7 +143,8 @@ function toBatchWork(dto: BatchWorkDto): BatchWork {
   return {
     analysisId: dto.analysis_id,
     fileName: dto.file_name,
-    authors: dto.authors ?? [],
+    // La portada puede traer los nombres en mayúsculas: se muestran todos con el mismo formato.
+    authors: (dto.authors ?? []).map(displayFullName),
     status: dto.status,
     progress: dto.progress,
     references: dto.total_references ?? null,
@@ -213,7 +215,7 @@ export function toBatchExport(body: unknown): BatchExport | null {
     name: body.name,
     works: body.works.map((work) => ({
       fileName: work.file_name,
-      authors: work.authors,
+      authors: work.authors.map(displayFullName),
       status: work.status,
       errorMessage: work.error_message ?? null,
       references: work.references.map((reference) => ({

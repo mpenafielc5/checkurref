@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { PdfDropzone, type RejectedPdf } from "@/shared/components/pdf-dropzone";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { useBatchUpload } from "../use-batch-upload";
@@ -23,12 +23,35 @@ function filesLabel(count: number): string {
  * archivo muestra su estado. Si el lote no se puede crear, la selección se conserva.
  */
 export function NewBatchForm() {
-  const { batch, uploads, creating, sending, slow, createError, start, retry } = useBatchUpload();
+  const { batch, uploads, creating, sending, slow, createError, start, retry, reset } =
+    useBatchUpload();
   const [name, setName] = useState("");
   const [period, setPeriod] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [rejected, setRejected] = useState<RejectedPdf[]>([]);
   const [missingData, setMissingData] = useState(false);
+  /** Cambiarla vuelve a montar la zona de subida, que guarda los archivos elegidos. */
+  const [dropzoneKey, setDropzoneKey] = useState(0);
+
+  const busyRef = useRef(false);
+  useEffect(() => {
+    busyRef.current = creating || sending;
+  }, [creating, sending]);
+
+  // Next.js oculta la página al navegar y conserva su estado. Al volver, Nueva auditoría
+  // empieza de cero; solo se conserva el avance si todavía se están enviando archivos.
+  useLayoutEffect(() => {
+    return () => {
+      if (busyRef.current) return;
+      reset();
+      setName("");
+      setPeriod("");
+      setFiles([]);
+      setRejected([]);
+      setMissingData(false);
+      setDropzoneKey((key) => key + 1);
+    };
+  }, [reset]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,6 +83,7 @@ export function NewBatchForm() {
           Nombre del lote
           <input
             name="nombre"
+            autoComplete="off"
             required
             maxLength={MAX_NAME_LENGTH}
             value={name}
@@ -73,6 +97,7 @@ export function NewBatchForm() {
           Periodo
           <input
             name="periodo"
+            autoComplete="off"
             required
             maxLength={MAX_PERIOD_LENGTH}
             value={period}
@@ -85,6 +110,7 @@ export function NewBatchForm() {
       </div>
 
       <PdfDropzone
+        key={dropzoneKey}
         multiple
         title="Arrastra aquí los PDF del curso"
         hint="Hasta 40 archivos de 10 MB cada uno · APA o IEEE (detección automática)"

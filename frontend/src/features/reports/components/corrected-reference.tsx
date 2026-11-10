@@ -39,7 +39,7 @@ export function CorrectedReferencePanel({ corrected }: { corrected: CorrectedRef
       className="flex flex-col gap-3 rounded-card bg-canvas px-4 py-3 text-small"
     >
       <p className="font-mono text-caption text-accent-text uppercase">Referencia corregida</p>
-      <p className="break-words text-ink">
+      <p className="wrap-anywhere text-ink">
         {corrected.segments.map((segment, index) => {
           const text = segment.italic ? <i>{segment.text}</i> : segment.text;
           return segment.changed ? (

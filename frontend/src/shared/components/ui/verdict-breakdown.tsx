@@ -21,7 +21,7 @@ export function VerdictBreakdown({ counts, total }: VerdictBreakdownProps) {
         {present.map((verdict) => (
           <span
             key={verdict}
-            className={VERDICTS[verdict].swatchClass}
+            className={`min-w-1 ${VERDICTS[verdict].swatchClass}`}
             style={{ flexGrow: counts[verdict] }}
           />
         ))}

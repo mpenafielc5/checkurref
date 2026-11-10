@@ -38,7 +38,7 @@ export function BatchList({ batches }: { batches: BatchSummary[] }) {
             className={`${ROW_CLASSES} hover:border-hairline-strong`}
           >
             <span className="flex flex-1 flex-col">
-              <span className="font-semibold break-words text-ink">{batch.name}</span>
+              <span className="font-semibold wrap-anywhere text-ink">{batch.name}</span>
               <span className="text-small">{detailLine(batch).join(" · ")}</span>
             </span>
             <BatchStatusChip status={batch.status} works={batch.works} />

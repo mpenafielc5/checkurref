@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { PdfDropzone } from "@/shared/components/pdf-dropzone";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { submitDocument, wakeApi } from "../api";
@@ -23,10 +23,22 @@ export function StudentUpload() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  /** Cambiarla vuelve a montar la zona de subida, que guarda el archivo elegido. */
+  const [dropzoneKey, setDropzoneKey] = useState(0);
   const uploading = phase.kind === "uploading";
 
   useEffect(() => {
     wakeApi();
+  }, []);
+
+  // Next.js oculta la página al navegar en lugar de desmontarla y conserva su estado.
+  // Al volver al inicio, la subida debe empezar de cero y no quedarse en "Subiendo…".
+  useLayoutEffect(() => {
+    return () => {
+      setFile(null);
+      setPhase({ kind: "idle" });
+      setDropzoneKey((key) => key + 1);
+    };
   }, []);
 
   async function handleSubmit() {
@@ -45,6 +57,7 @@ export function StudentUpload() {
   return (
     <div className="flex flex-col gap-4">
       <PdfDropzone
+        key={dropzoneKey}
         title="Arrastra aquí el PDF de tu trabajo"
         hint="o haz clic para elegirlo · máx. 10 MB · APA o IEEE (detección automática)"
         disabled={uploading}

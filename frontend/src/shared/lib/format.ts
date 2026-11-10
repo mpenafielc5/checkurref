@@ -9,6 +9,11 @@ export function formatDecimal(value: number, fractionDigits = 2): string {
   }).format(value);
 }
 
+/** Índice de veracidad: entero si lo es, con un decimal si no (71 o 58,5). */
+export function formatIndex(value: number): string {
+  return new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 }).format(value);
+}
+
 /** Fecha corta como en las maquetas: 03/11/2026, en la hora de Ecuador. */
 export function formatDate(iso: string): string {
   return new Intl.DateTimeFormat(LOCALE, {

@@ -110,7 +110,11 @@ export function BatchDashboardView({ batch }: { batch: BatchDetail }) {
               label="Verificadas"
               tone="success"
             />
-            <StatCard value={String(alerts)} label="Alertas" tone="danger" />
+            <StatCard
+              value={String(alerts)}
+              label="Alertas"
+              tone={alerts > 0 ? "danger" : "default"}
+            />
           </StatRow>
           <BatchNotices batch={batch} />
           {hasReferences ? <BatchBreakdown batch={batch} /> : null}

@@ -1,16 +1,16 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import {
   cardClass,
-  cardListClass,
   DataTable,
   DataTableSkeleton,
   tableHeadClass,
+  tabletCardListClass,
   tdClass,
   thClass,
 } from "@/shared/components/ui/data-table";
@@ -37,10 +37,10 @@ const FILTERS: { id: RoleFilter; label: string }[] = [
   { id: "todos", label: "Todos" },
   { id: "estudiante", label: "Estudiantes" },
   { id: "docente", label: "Docentes" },
-  { id: "admin", label: "Admin" },
+  { id: "admin", label: "Administradores" },
 ];
 
-/** Espera a que termine de escribir: cada búsqueda es una consulta a la API. */
+/** Espera a que termine de escribir: solo consulta tras 400 ms sin teclear. */
 const SEARCH_DELAY_MS = 400;
 const LIST_ID = "usuarios";
 
@@ -48,31 +48,41 @@ const LIST_ID = "usuarios";
 const TOOLBAR_CLASSES = "flex w-full flex-wrap items-center justify-between gap-4";
 const FILTER_CLASSES = "rounded-pill border px-4 py-1.5 text-small font-semibold";
 const SEARCH_CLASSES =
-  "flex h-input w-full items-center gap-2 rounded-control border border-hairline-strong bg-canvas px-4 md:w-auto md:max-w-xs md:flex-1";
+  "flex h-input w-full items-center gap-2 rounded-control border border-hairline-strong bg-canvas px-4 focus-within:border-ink md:w-auto md:max-w-xs md:flex-1";
 const EMPTY_MESSAGE = "Ninguna cuenta coincide con el filtro.";
+
+/** Mismo ancho en todas las filas, para que estados y botones queden en columna. */
+const STATUS_WIDTH = "w-20";
+const ACTION_WIDTH = "flex-1 md:w-32 md:flex-none";
 
 type PendingChange = { user: UserRow; change: UserChange };
 
 function AccountStatus({ user }: { user: UserRow }) {
-  return user.active ? (
-    <StatusChip tone="success">Activa</StatusChip>
-  ) : (
-    <StatusChip tone="danger">Desactivada</StatusChip>
+  return (
+    <StatusChip tone={user.active ? "success" : "neutral"} widthClass={STATUS_WIDTH}>
+      {user.active ? "Activo" : "Inactivo"}
+    </StatusChip>
   );
 }
 
 type UserActionsProps = {
   user: UserRow;
-  fullWidth?: boolean;
   onChoose: (pending: PendingChange) => void;
 };
 
 /** Cambiar el rol y desactivar; en las cuentas de administrador no aparecen. */
-function UserActions({ user, fullWidth = false, onChoose }: UserActionsProps) {
-  if (!canManage(user)) return <span className="text-muted">—</span>;
-  const style = buttonStyles({ variant: "secondary", fullWidth });
+function UserActions({ user, onChoose }: UserActionsProps) {
+  if (!canManage(user)) {
+    // Misma altura que los botones, para que todas las filas midan lo mismo.
+    return (
+      <span className="flex min-h-control items-center text-small text-muted">Sin acciones</span>
+    );
+  }
+  const style = `${buttonStyles({ variant: "secondary" })} ${ACTION_WIDTH}`;
+  const activeVariant = user.active ? "dangerQuiet" : "restoreQuiet";
+  const activeStyle = `${buttonStyles({ variant: activeVariant })} ${ACTION_WIDTH}`;
   return (
-    <span className="flex flex-col gap-2 md:flex-row">
+    <span className="flex gap-2">
       <button
         type="button"
         aria-label={`Cambiar el rol de ${user.email}`}
@@ -85,7 +95,7 @@ function UserActions({ user, fullWidth = false, onChoose }: UserActionsProps) {
         type="button"
         aria-label={`${user.active ? "Desactivar" : "Reactivar"} la cuenta de ${user.email}`}
         onClick={() => onChoose({ user, change: activeChangeOf(user) })}
-        className={style}
+        className={activeStyle}
       >
         {user.active ? "Desactivar" : "Reactivar"}
       </button>
@@ -102,33 +112,29 @@ type UserRowsProps = {
 function UserRows({ users, onChoose }: UserRowsProps) {
   return (
     <>
-      <ul className={cardListClass}>
+      {/* Con dos botones por fila, la tabla no cabe en una tableta: tarjetas hasta lg. */}
+      <ul className={tabletCardListClass}>
         {users.map((user) => (
           <li key={user.id} className={cardClass}>
-            <span className="flex items-start justify-between gap-3">
-              <span className="flex min-w-0 flex-col">
-                <span className="font-semibold text-ink">{displayFullName(user.name)}</span>
-                <span className="text-small break-all">{user.email}</span>
-              </span>
-              <StatusChip tone="neutral">{ROLE_LABELS[user.role]}</StatusChip>
+            <span className="flex min-w-0 flex-col">
+              <span className="font-semibold text-ink">{displayFullName(user.name)}</span>
+              <span className="text-small break-all">{user.email}</span>
             </span>
-            <span className="flex">
+            <span className="flex items-center gap-2 text-small text-ink">
               <AccountStatus user={user} />
+              {ROLE_LABELS[user.role]}
             </span>
-            {canManage(user) ? <UserActions user={user} fullWidth onChoose={onChoose} /> : null}
+            {canManage(user) ? <UserActions user={user} onChoose={onChoose} /> : null}
           </li>
         ))}
         {users.length === 0 ? <li className="text-small">{EMPTY_MESSAGE}</li> : null}
       </ul>
 
-      <DataTable caption="Usuarios del sistema" cardsOnMobile>
+      <DataTable caption="Usuarios del sistema" cardsOnTablet>
         <thead className={tableHeadClass}>
           <tr>
             <th scope="col" className={thClass}>
               Usuario
-            </th>
-            <th scope="col" className={thClass}>
-              Correo
             </th>
             <th scope="col" className={thClass}>
               Rol
@@ -137,15 +143,19 @@ function UserRows({ users, onChoose }: UserRowsProps) {
               Estado
             </th>
             <th scope="col" className={thClass}>
-              Acción
+              Acciones
             </th>
           </tr>
         </thead>
         <tbody>
           {users.map((user) => (
             <tr key={user.id}>
-              <td className={tdClass}>{displayFullName(user.name)}</td>
-              <td className={`${tdClass} text-body`}>{user.email}</td>
+              <td className={tdClass}>
+                <span className="flex flex-col">
+                  {displayFullName(user.name)}
+                  <span className="text-caption wrap-anywhere text-body">{user.email}</span>
+                </span>
+              </td>
               <td className={tdClass}>{ROLE_LABELS[user.role]}</td>
               <td className={tdClass}>
                 <AccountStatus user={user} />
@@ -157,7 +167,7 @@ function UserRows({ users, onChoose }: UserRowsProps) {
           ))}
           {users.length === 0 ? (
             <tr>
-              <td colSpan={5} className={`${tdClass} text-body`}>
+              <td colSpan={4} className={`${tdClass} text-body`}>
                 {EMPTY_MESSAGE}
               </td>
             </tr>
@@ -178,7 +188,7 @@ type ConfirmChangeProps = {
 function ConfirmChange({ pending, onCancel, onDone }: ConfirmChangeProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { title, message, confirmLabel } = confirmationOf(pending.user, pending.change);
+  const { title, message, confirmLabel, tone } = confirmationOf(pending.user, pending.change);
 
   async function handleConfirm() {
     setBusy(true);
@@ -196,20 +206,20 @@ function ConfirmChange({ pending, onCancel, onDone }: ConfirmChangeProps) {
     <ConfirmDialog
       title={title}
       confirmLabel={busy ? "Aplicando…" : confirmLabel}
+      tone={tone}
       busy={busy}
       error={error}
       onConfirm={() => void handleConfirm()}
       onCancel={onCancel}
     >
       <p>{message}</p>
-      <p className="break-all">{pending.user.email}</p>
+      <p className="mt-1 text-caption break-all text-muted">{pending.user.email}</p>
     </ConfirmDialog>
   );
 }
 
 /** Usuarios con búsqueda por correo, filtro por rol y paginación (maqueta 19, HU-11). */
 export function UserTable() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -221,7 +231,11 @@ export function UserTable() {
   const [query, setQuery] = useState(search);
   const [pending, setPending] = useState<PendingChange | null>(null);
 
-  /** Otra búsqueda u otro filtro empieza desde la primera página. */
+  /**
+   * Otra búsqueda u otro filtro empieza desde la primera página. La dirección se cambia
+   * con el historial del navegador y no con el router: así solo se consulta la API, sin
+   * volver a pedir la página al servidor.
+   */
   function applyParams(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
     params.delete(PAGE_PARAM);
@@ -230,7 +244,7 @@ export function UserTable() {
       else params.delete(name);
     }
     const nextQuery = params.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    window.history.replaceState(null, "", nextQuery ? `${pathname}?${nextQuery}` : pathname);
   }
 
   useEffect(() => {
@@ -269,6 +283,9 @@ export function UserTable() {
           <span className="sr-only">Buscar por correo</span>
           <input
             type="search"
+            name="buscar"
+            autoComplete="off"
+            spellCheck={false}
             value={query}
             maxLength={100}
             onChange={(event) => setQuery(event.target.value)}
@@ -288,7 +305,7 @@ export function UserTable() {
               Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.
             </p>
           ) : null}
-          <DataTableSkeleton columns={5} rows={5} withAction cardsOnMobile />
+          <DataTableSkeleton columns={4} rows={5} withAction cardsOnTablet />
         </div>
       ) : null}
 
@@ -347,7 +364,7 @@ export function UserTableSkeleton() {
           <SkeletonText textClass="text-small" widthClass="w-32" />
         </span>
       </div>
-      <DataTableSkeleton columns={5} rows={5} withAction cardsOnMobile />
+      <DataTableSkeleton columns={4} rows={5} withAction cardsOnTablet />
     </div>
   );
 }

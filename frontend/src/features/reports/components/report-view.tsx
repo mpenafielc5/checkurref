@@ -8,14 +8,14 @@ export function ReportView({ report }: { report: Report }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-title font-semibold tracking-normal text-ink">{report.fileName}</h2>
+        <h2 className="min-w-0 text-title font-semibold tracking-normal wrap-anywhere text-ink">
+          {report.fileName}
+        </h2>
         <StatusChip tone="neutral">{report.standard}</StatusChip>
         <span className="flex-1" />
+        {/* Se activa con la vista de impresión del informe (HU-15). */}
         <button type="button" disabled className={buttonStyles({ variant: "secondary" })}>
           Exportar PDF
-        </button>
-        <button type="button" disabled className={buttonStyles({ variant: "secondary" })}>
-          Exportar CSV
         </button>
       </div>
 

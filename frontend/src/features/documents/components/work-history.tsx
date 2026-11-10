@@ -17,6 +17,7 @@ import { SkeletonText } from "@/shared/components/ui/skeleton";
 import { workHref } from "../history";
 import type { Work } from "../types";
 import { WorkStatusChip } from "./work-status-chip";
+import { formatIndex } from "@/shared/lib/format";
 
 const SEARCH_CLASSES =
   "flex h-input w-full items-center gap-2 rounded-control border border-hairline-strong bg-canvas px-4 md:max-w-xs";
@@ -95,7 +96,7 @@ export function WorkHistory({ works, searching }: WorkHistoryProps) {
         {works.map((work) => (
           <li key={work.analysisId} className="flex">
             <Link href={workHref(work)} className={`${cardClass} hover:border-hairline-strong`}>
-              <span className="font-semibold break-words text-ink">{work.fileName}</span>
+              <span className="font-semibold wrap-anywhere text-ink">{work.fileName}</span>
               <span className="flex items-center justify-between gap-3">
                 <span className="text-small">{work.date}</span>
                 <WorkStatusChip work={work} />
@@ -127,12 +128,17 @@ export function WorkHistory({ works, searching }: WorkHistoryProps) {
           {works.map((work) => (
             <tr key={work.analysisId} className="hover:bg-canvas-soft">
               <td className={tdClass}>
-                <Link href={workHref(work)} className="font-medium hover:text-accent-text">
+                <Link
+                  href={workHref(work)}
+                  className="font-medium wrap-anywhere hover:text-accent-text"
+                >
                   {work.fileName}
                 </Link>
               </td>
               <td className={tdClass}>{work.date}</td>
-              <td className={`${tdClass} ${numericClass}`}>{work.index ?? "—"}</td>
+              <td className={`${tdClass} ${numericClass}`}>
+                {work.index === null ? "—" : formatIndex(work.index)}
+              </td>
               <td className={`${tdClass} ${STATUS_LABELS[work.status].className}`}>
                 {STATUS_LABELS[work.status].label}
               </td>

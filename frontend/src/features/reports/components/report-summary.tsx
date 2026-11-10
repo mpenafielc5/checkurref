@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatIndex } from "@/shared/lib/format";
 import { VERDICT_ORDER, VERDICTS, type Verdict } from "@/shared/lib/verdicts";
 
 const RING_RADIUS = 40;
@@ -21,7 +22,9 @@ function IndexRing({ index }: { index: number | null }) {
         viewBox="0 0 96 96"
         role="img"
         aria-label={
-          index === null ? "Sin índice de veracidad" : `Índice de veracidad: ${index} de 100`
+          index === null
+            ? "Sin índice de veracidad"
+            : `Índice de veracidad: ${formatIndex(index)} de 100`
         }
         className="absolute inset-0 size-24"
       >
@@ -46,7 +49,7 @@ function IndexRing({ index }: { index: number | null }) {
         />
       </svg>
       <span aria-hidden="true" className="text-display-sm font-bold tracking-normal text-ink">
-        {index ?? "—"}
+        {index === null ? "—" : formatIndex(index)}
       </span>
     </div>
   );
