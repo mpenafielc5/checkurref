@@ -19,6 +19,8 @@ export function ReportView({ report }: { report: Report }) {
         </button>
       </div>
 
+      {report.standardNotice ? <p className="text-small">{report.standardNotice}</p> : null}
+
       <ReportResults report={report} />
     </div>
   );

@@ -184,6 +184,7 @@ export const SAMPLE_REPORT: Report = {
   analysisId: "a7f3",
   fileName: "Avance_cap2.pdf",
   standard: "APA",
+  standardNotice: null,
   index: 82,
   counts: countVerdicts(REFERENCES),
   queryErrors: 0,
