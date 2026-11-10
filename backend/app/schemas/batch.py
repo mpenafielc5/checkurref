@@ -20,6 +20,13 @@ class BatchCreate(BaseModel):
     period: BatchPeriod
 
 
+class BatchUpdate(BaseModel):
+    """Corrige el nombre o el periodo del lote, con los mismos límites que al crearlo."""
+
+    name: BatchName
+    period: BatchPeriod
+
+
 class BatchSummary(BaseModel):
     id: UUID
     name: str

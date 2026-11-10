@@ -72,6 +72,11 @@ class BatchService:
     def create(self, teacher_id: UUID, name: str, period: str) -> BatchSummary:
         return _summary(BatchOverview(self._batches.create(teacher_id, name, period), ()))
 
+    def update(self, teacher_id: UUID, batch_id: UUID, name: str, period: str) -> None:
+        """Corrige el nombre o el periodo; los trabajos y sus resultados no cambian."""
+        self._owned(teacher_id, batch_id)
+        self._batches.update(batch_id, name, period)
+
     def list_batches(self, teacher_id: UUID, page: int) -> BatchesPage:
         page = max(page, 1)
         result = self._batches.list_batches(

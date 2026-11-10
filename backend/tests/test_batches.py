@@ -77,6 +77,7 @@ class FakeBatches:
         self.exported = exported or []
         self.total_works = count
         self.created: list[tuple[UUID, str, str]] = []
+        self.updated: list[tuple[UUID, str, str]] = []
 
     def create(self, teacher_id: UUID, name: str, period: str) -> StoredBatch:
         self.created.append((teacher_id, name, period))
@@ -84,6 +85,9 @@ class FakeBatches:
 
     def get(self, batch_id: UUID) -> StoredBatch | None:
         return self.batch if self.batch and self.batch.id == batch_id else None
+
+    def update(self, batch_id: UUID, name: str, period: str) -> None:
+        self.updated.append((batch_id, name, period))
 
     def list_batches(self, teacher_id: UUID, offset: int, limit: int) -> BatchPage:
         if teacher_id != BATCH.teacher_id:
@@ -381,6 +385,51 @@ def test_ruta_del_tablero_y_lote_ajeno() -> None:
     assert missing.status_code == 404
 
 
+def test_corrige_el_nombre_y_el_periodo_del_lote_propio() -> None:
+    service, batches, _ = batch_service()
+
+    service.update(TEACHER, BATCH_ID, "Software 7B", "2026-2S")
+
+    assert batches.updated == [(BATCH_ID, "Software 7B", "2026-2S")]
+    with pytest.raises(BatchNotFoundError):
+        service.update(uuid4(), BATCH_ID, "Otro", "2026-2S")
+    assert len(batches.updated) == 1
+
+
+def test_ruta_edita_el_lote_y_quita_los_espacios() -> None:
+    service, batches, _ = batch_service()
+    client = client_as("docente", service)
+
+    body = {"name": " Software 7B ", "period": " Semana 1 "}
+    edited = client.patch(f"/lotes/{BATCH_ID}", json=body, headers=auth())
+    missing = client.patch(f"/lotes/{uuid4()}", json=body, headers=auth())
+
+    assert edited.status_code == 204
+    assert batches.updated == [(BATCH_ID, "Software 7B", "Semana 1")]
+    assert missing.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "body",
+    [{"name": "Lote"}, {"name": "  ", "period": "2026-2S"}, {"name": "Lote", "period": "x" * 21}],
+)
+def test_editar_el_lote_exige_nombre_y_periodo_validos(body: dict[str, str]) -> None:
+    response = client_as("docente").patch(f"/lotes/{BATCH_ID}", json=body, headers=auth())
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("role", ["estudiante", "admin"])
+def test_solo_el_docente_edita_el_lote(role: str) -> None:
+    service, batches, _ = batch_service()
+    body = {"name": "Lote", "period": "2026-2S"}
+
+    response = client_as(role, service).patch(f"/lotes/{BATCH_ID}", json=body, headers=auth())
+
+    assert response.status_code == 403
+    assert batches.updated == []
+
+
 def test_ruta_sube_el_trabajo_y_avisa_lo_que_no_se_acepta() -> None:
     service, batches, _ = batch_service()
     client = client_as("docente", service)
@@ -421,6 +470,21 @@ def test_el_repositorio_crea_el_lote() -> None:
     created = SupabaseBatchRepository(REST_URL, client).create(TEACHER, "Software 7A", "2026-2S")
 
     assert created.id == BATCH_ID
+
+
+def test_el_repositorio_edita_el_lote() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(204)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    SupabaseBatchRepository(REST_URL, client).update(BATCH_ID, "Software 7B", "Semana 1")
+
+    assert seen[0].method == "PATCH"
+    assert seen[0].url.params["id"] == f"eq.{BATCH_ID}"
+    assert json.loads(seen[0].content) == {"nombre": "Software 7B", "periodo_academico": "Semana 1"}
 
 
 def test_el_repositorio_lee_el_tablero_con_el_analisis_mas_reciente() -> None:

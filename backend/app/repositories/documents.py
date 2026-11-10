@@ -32,6 +32,15 @@ class AnalysisRef:
     status: str
 
 
+@dataclass(frozen=True)
+class OwnedWork:
+    """Un trabajo de su dueño: el documento, su PDF y el estado de cada análisis."""
+
+    document_id: UUID
+    storage_path: str
+    statuses: tuple[str, ...]
+
+
 class DocumentRepository(Protocol):
     def find_by_hash(
         self, owner_id: UUID, sha256: str, batch_id: UUID | None = None
@@ -42,6 +51,22 @@ class DocumentRepository(Protocol):
 
     def create(self, document: NewDocument, model_version: str) -> AnalysisRef:
         """Crea el documento y su análisis en cola. La norma la detecta el pipeline."""
+        ...
+
+    def find_owned_work(self, owner_id: UUID, analysis_id: UUID) -> OwnedWork | None:
+        """El trabajo al que pertenece el análisis, solo si es de ese usuario."""
+        ...
+
+    def delete_document(self, document_id: UUID) -> None:
+        """Borra el documento; la base borra en cascada sus análisis y resultados."""
+        ...
+
+    def batch_works(self, batch_id: UUID) -> list[OwnedWork]:
+        """Los trabajos del lote, con su PDF y el estado de cada análisis."""
+        ...
+
+    def delete_batch_documents(self, batch_id: UUID) -> None:
+        """Borra los documentos del lote; la base borra en cascada sus resultados."""
         ...
 
 
@@ -103,6 +128,46 @@ class SupabaseDocumentRepository:
             document_id=document.id,
             status=analysis["estado"],
         )
+
+    def find_owned_work(self, owner_id: UUID, analysis_id: UUID) -> OwnedWork | None:
+        rows = self._get(
+            "t_analisis",
+            {
+                "select": "t_documentos!inner(id,ruta_storage,t_analisis(estado))",
+                "id": f"eq.{analysis_id}",
+                "t_documentos.propietario_id": f"eq.{owner_id}",
+            },
+        )
+        if not rows:
+            return None
+        document = rows[0]["t_documentos"]
+        return OwnedWork(
+            document_id=UUID(document["id"]),
+            storage_path=document["ruta_storage"],
+            statuses=tuple(analysis["estado"] for analysis in document["t_analisis"]),
+        )
+
+    def delete_document(self, document_id: UUID) -> None:
+        url = f"{self._rest_url}/t_documentos"
+        send(self._client, "DELETE", url, params={"id": f"eq.{document_id}"})
+
+    def batch_works(self, batch_id: UUID) -> list[OwnedWork]:
+        rows = self._get(
+            "t_documentos",
+            {"select": "id,ruta_storage,t_analisis(estado)", "lote_id": f"eq.{batch_id}"},
+        )
+        return [
+            OwnedWork(
+                document_id=UUID(row["id"]),
+                storage_path=row["ruta_storage"],
+                statuses=tuple(analysis["estado"] for analysis in row["t_analisis"]),
+            )
+            for row in rows
+        ]
+
+    def delete_batch_documents(self, batch_id: UUID) -> None:
+        url = f"{self._rest_url}/t_documentos"
+        send(self._client, "DELETE", url, params={"lote_id": f"eq.{batch_id}"})
 
     def _get(self, table: str, params: dict[str, str]) -> list[dict[str, Any]]:
         return send(self._client, "GET", f"{self._rest_url}/{table}", params=params)

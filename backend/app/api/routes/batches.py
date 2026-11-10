@@ -6,18 +6,28 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 
 from app.api.dependencies import UNAVAILABLE, TeacherUser, require_supabase
-from app.api.routes.analyses import get_upload_service
+from app.api.routes.analyses import get_upload_service, get_work_service
 from app.core.config import Settings, get_settings
 from app.repositories.batches import SupabaseBatchRepository
 from app.repositories.supabase_http import SupabaseUnavailableError, shared_client
 from app.schemas.analysis import AnalysisSubmittedResponse
-from app.schemas.batch import BatchCreate, BatchDetail, BatchesPage, BatchExport, BatchSummary
+from app.schemas.batch import (
+    BatchCreate,
+    BatchDetail,
+    BatchesPage,
+    BatchExport,
+    BatchSummary,
+    BatchUpdate,
+)
 from app.services.batch_service import BatchNotFoundError, BatchService
 from app.services.upload_service import MAX_PDF_BYTES, UploadRejectedError, UploadService
+from app.services.work_service import BatchNotFoundError as BatchToDeleteNotFoundError
+from app.services.work_service import WorkInProgressError, WorkService
 
 router = APIRouter(prefix="/lotes", tags=["lotes"])
 
 NOT_FOUND = "No se encontró el lote."
+DELETE_IN_PROGRESS = "Hay trabajos del lote que aún se analizan. Podrás eliminarlo cuando terminen."
 
 
 def get_batch_service(
@@ -64,6 +74,50 @@ def get_batch(
         return service.detail(teacher.id, batch_id)
     except BatchNotFoundError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NOT_FOUND) from None
+    except SupabaseUnavailableError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=UNAVAILABLE) from None
+
+
+@router.patch(
+    "/{batch_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={404: {"description": NOT_FOUND}},
+)
+def update_batch(
+    batch_id: UUID,
+    body: BatchUpdate,
+    teacher: TeacherUser,
+    service: Annotated[BatchService, Depends(get_batch_service)],
+) -> None:
+    """Corrige el nombre o el periodo del lote."""
+    try:
+        service.update(teacher.id, batch_id, body.name, body.period)
+    except BatchNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NOT_FOUND) from None
+    except SupabaseUnavailableError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=UNAVAILABLE) from None
+
+
+@router.delete(
+    "/{batch_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {"description": NOT_FOUND},
+        409: {"description": "Hay trabajos del lote en análisis."},
+    },
+)
+def delete_batch(
+    batch_id: UUID,
+    teacher: TeacherUser,
+    service: Annotated[WorkService, Depends(get_work_service)],
+) -> None:
+    """Elimina el lote con todos sus trabajos, sus PDF y sus resultados."""
+    try:
+        service.delete_batch(teacher.id, batch_id)
+    except BatchToDeleteNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NOT_FOUND) from None
+    except WorkInProgressError:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=DELETE_IN_PROGRESS) from None
     except SupabaseUnavailableError:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=UNAVAILABLE) from None
 
