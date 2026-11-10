@@ -3,24 +3,22 @@ import Link from "next/link";
 import { RolePage } from "@/features/auth/components/role-page";
 import { BatchListSkeleton } from "@/features/batches/components/batch-list";
 import { RecentBatchesLoader } from "@/features/batches/components/batches-loader";
-import { SAMPLE_TEACHER_STATS } from "@/features/batches/sample-data";
+import {
+  StatisticsLoader,
+  StatisticsSkeleton,
+} from "@/features/stats/components/statistics-loader";
 import { PageSection, PageSectionSkeleton } from "@/shared/components/page-section";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
-import { SampleDataNotice } from "@/shared/components/ui/sample-data-notice";
 import { SkeletonText } from "@/shared/components/ui/skeleton";
-import { StatCard, StatRow, StatRowSkeleton } from "@/shared/components/ui/stat-card";
 
-/** Inicio del docente (maqueta 14). */
+/** Inicio del docente (maqueta 14, HU-18). */
 export default function TeacherHomePage() {
-  const stats = SAMPLE_TEACHER_STATS;
-
   return (
     <RolePage
       allow={["docente"]}
       skeleton={
         <PageSectionSkeleton action>
-          <SampleDataNotice story="la HU-18" />
-          <StatRowSkeleton count={4} />
+          <StatisticsSkeleton />
           <div className="flex flex-col gap-3">
             <SkeletonText textClass="text-small" widthClass="w-28" />
             <BatchListSkeleton rows={3} />
@@ -38,13 +36,7 @@ export default function TeacherHomePage() {
           </Link>
         }
       >
-        <SampleDataNotice story="la HU-18" />
-        <StatRow>
-          <StatCard value={stats.activeBatches} label="Lotes activos" />
-          <StatCard value={stats.works} label="Trabajos" />
-          <StatCard value={stats.verified} label="Verificadas" tone="success" />
-          <StatCard value={stats.alerts} label="Alertas" tone="danger" />
-        </StatRow>
+        <StatisticsLoader />
         <section aria-labelledby="titulo-lotes-recientes" className="flex flex-col gap-3">
           <h2
             id="titulo-lotes-recientes"
