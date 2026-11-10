@@ -79,6 +79,18 @@ def corrected_reference(
     título solo parecido, la búsqueda pudo hallar otra obra de los mismos autores:
     copiar sus datos cambiaría la obra citada en vez de corregirla.
     """
+    record = trusted_record(fields, verification)
+    if record is None:
+        return None
+    if norm is Norm.APA:
+        return CorrectedReference(tuple(_apa(_merge(fields, record, verification, text), text)))
+    if norm is Norm.IEEE:
+        return CorrectedReference(tuple(_ieee(_merge(fields, record, verification, text), text)))
+    return None
+
+
+def trusted_record(fields: ExtractedFields, verification: Verification) -> SourceRecord | None:
+    """El registro, si es seguro que es la obra citada; si no, None."""
     record = verification.record
     if record is None or verification.verdict not in (Verdict.VERIFIED, Verdict.DISCREPANCY):
         return None
@@ -86,11 +98,7 @@ def corrected_reference(
         title = title_identity(fields.title, record.title)
         if title is None or title < THRESHOLDS.title_match:
             return None
-    if norm is Norm.APA:
-        return CorrectedReference(tuple(_apa(_merge(fields, record, verification, text), text)))
-    if norm is Norm.IEEE:
-        return CorrectedReference(tuple(_ieee(_merge(fields, record, verification, text), text)))
-    return None
+    return record
 
 
 # --- Valor de cada campo --------------------------------------------------------------------

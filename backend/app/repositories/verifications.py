@@ -2,8 +2,9 @@
 
 Guarda una fila de t_verificaciones por referencia con veredicto (con su referencia
 corregida, si la hay), lo que respondió el NLI por campo (t_inferencias_nli), los
-hallazgos de veracidad y el índice de veracidad del análisis. Una referencia con
-error de consulta no tiene fila en t_verificaciones: solo su hallazgo informativo.
+hallazgos de veracidad y de formato, y el índice de veracidad del análisis. Una
+referencia con error de consulta no tiene fila en t_verificaciones: solo su hallazgo
+informativo.
 """
 
 from typing import Any, Protocol
@@ -14,7 +15,7 @@ import httpx
 from app.repositories.supabase_http import send
 from app.verification.corrected import CorrectedReference
 from app.verification.decision import CheckedField, NliCheck, Verification
-from app.verification.findings import findings_for
+from app.verification.findings import Finding, findings_for
 
 # NUMERIC(8,3): la relevancia de OpenAlex puede pasar de lo que cabe.
 MAX_SCORE = 99_999.999
@@ -27,9 +28,11 @@ class VerificationRepository(Protocol):
         verifications: dict[str, Verification | None],
         corrected: dict[str, CorrectedReference],
         index: float | None,
+        format_findings: dict[str, list[Finding]],
     ) -> None:
         """Guarda la verificación de cada referencia (por su id; None si falló por un
-        error interno), su referencia corregida y el índice de veracidad del análisis."""
+        error interno), su referencia corregida, el índice de veracidad del análisis y
+        los hallazgos de formato."""
         ...
 
 
@@ -44,6 +47,7 @@ class SupabaseVerificationRepository:
         verifications: dict[str, Verification | None],
         corrected: dict[str, CorrectedReference],
         index: float | None,
+        format_findings: dict[str, list[Finding]],
     ) -> None:
         with_verdict = {
             reference_id: verification
@@ -76,18 +80,13 @@ class SupabaseVerificationRepository:
             self._send("POST", "t_inferencias_nli", json=inferences)
 
         findings = [
-            {
-                "referencia_id": reference_id,
-                "tipo": "veracidad",
-                "codigo": finding.code,
-                "severidad": finding.severity.value,
-                "campo": finding.field.value if finding.field else None,
-                "valor_dado": finding.given,
-                "valor_oficial": finding.official,
-                "mensaje": finding.message,
-            }
+            _finding_row(reference_id, "veracidad", finding)
             for reference_id, verification in verifications.items()
             for finding in findings_for(verification)
+        ] + [
+            _finding_row(reference_id, "formato", finding)
+            for reference_id, found in format_findings.items()
+            for finding in found
         ]
         if findings:
             self._send("POST", "t_hallazgos", json=findings)
@@ -101,6 +100,19 @@ class SupabaseVerificationRepository:
 
     def _send(self, method: str, table: str, **options: Any) -> list[dict[str, Any]]:
         return send(self._client, method, f"{self._rest_url}/{table}", **options)
+
+
+def _finding_row(reference_id: str, kind: str, finding: Finding) -> dict[str, Any]:
+    return {
+        "referencia_id": reference_id,
+        "tipo": kind,
+        "codigo": finding.code,
+        "severidad": finding.severity.value,
+        "campo": finding.field.value if finding.field else None,
+        "valor_dado": finding.given,
+        "valor_oficial": finding.official,
+        "mensaje": finding.message,
+    }
 
 
 def _verification_row(

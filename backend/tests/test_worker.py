@@ -22,6 +22,7 @@ from app.services.analysis_service import AnalysisService, Verifier
 from app.sources.lookup import Strategy
 from app.verification.corrected import CorrectedReference, Segment
 from app.verification.decision import Verdict, Verification
+from app.verification.findings import Finding, Severity
 from app.workers.analysis_worker import INTERNAL_ERROR, AnalysisWorker
 from tests.pdf_factory import PageSpec, make_pdf
 
@@ -95,6 +96,7 @@ class FakeVerifications:
         self.saved: dict[str, Verification | None] = {}
         self.corrected: dict[str, CorrectedReference] = {}
         self.index: float | None = None
+        self.format_findings: dict[str, list[Finding]] = {}
 
     def save(
         self,
@@ -102,8 +104,10 @@ class FakeVerifications:
         verifications: dict[str, Verification | None],
         corrected: dict[str, CorrectedReference],
         index: float | None,
+        format_findings: dict[str, list[Finding]],
     ) -> None:
         self.saved, self.corrected, self.index = verifications, corrected, index
+        self.format_findings = format_findings
 
 
 class FakeVerifier:
@@ -230,6 +234,42 @@ def test_si_falla_la_referencia_corregida_el_analisis_termina(
 
     assert verifications.corrected == {}
     assert len(verifications.saved) == 2
+    assert queue.events[-1] == ("completado", JOB.analysis_id, Engine.SPACY)
+
+
+def test_guarda_los_hallazgos_de_formato_y_las_reglas_de_la_lista(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    per_reference = Finding("APA_ET_AL_EN_LISTA", Severity.WARNING, "Regla", None, "a", "b")
+    of_the_list = Finding("APA_ORDEN_ALFABETICO", Severity.WARNING, "Lista", None, "c", "d")
+    monkeypatch.setattr(analysis_service, "review_reference", lambda *_: [per_reference])
+    monkeypatch.setattr(analysis_service, "review_list", lambda _: {2: [of_the_list]})
+    verifications = FakeVerifications()
+    analysis, _, _ = service(FakeQueue(), verifications=verifications)
+
+    analysis.run(JOB)
+
+    assert verifications.format_findings == {
+        "ref-1": [per_reference],
+        "ref-2": [per_reference, of_the_list],
+    }
+
+
+def test_si_falla_la_revision_de_formato_el_analisis_termina(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def broken(*_: Any) -> Any:
+        raise RuntimeError("fallo inesperado")
+
+    monkeypatch.setattr(analysis_service, "review_reference", broken)
+    monkeypatch.setattr(analysis_service, "review_list", broken)
+    queue, verifications = FakeQueue(), FakeVerifications()
+    analysis, _, _ = service(queue, verifications=verifications)
+
+    analysis.run(JOB)
+
+    assert verifications.format_findings == {}
+    assert verifications.index == 100.0  # el formato no toca el índice
     assert queue.events[-1] == ("completado", JOB.analysis_id, Engine.SPACY)
 
 
