@@ -1,4 +1,4 @@
-"""Rutas de los lotes de auditoría (HU-08, HU-09). Solo para el docente."""
+"""Rutas de los lotes de auditoría (HU-08, HU-09, HU-10). Solo para el docente."""
 
 from typing import Annotated
 from uuid import UUID
@@ -11,7 +11,7 @@ from app.core.config import Settings, get_settings
 from app.repositories.batches import SupabaseBatchRepository
 from app.repositories.supabase_http import SupabaseUnavailableError, shared_client
 from app.schemas.analysis import AnalysisSubmittedResponse
-from app.schemas.batch import BatchCreate, BatchDetail, BatchesPage, BatchSummary
+from app.schemas.batch import BatchCreate, BatchDetail, BatchesPage, BatchExport, BatchSummary
 from app.services.batch_service import BatchNotFoundError, BatchService
 from app.services.upload_service import MAX_PDF_BYTES, UploadRejectedError, UploadService
 
@@ -62,6 +62,25 @@ def get_batch(
     """Estado del lote y su tablero: indicadores y trabajos con su riesgo."""
     try:
         return service.detail(teacher.id, batch_id)
+    except BatchNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NOT_FOUND) from None
+    except SupabaseUnavailableError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=UNAVAILABLE) from None
+
+
+@router.get(
+    "/{batch_id}/exportacion",
+    response_model=BatchExport,
+    responses={404: {"description": NOT_FOUND}},
+)
+def export_batch(
+    batch_id: UUID,
+    teacher: TeacherUser,
+    service: Annotated[BatchService, Depends(get_batch_service)],
+) -> BatchExport:
+    """Resultado de cada referencia del lote, para el archivo CSV (HU-10)."""
+    try:
+        return service.export(teacher.id, batch_id)
     except BatchNotFoundError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NOT_FOUND) from None
     except SupabaseUnavailableError:

@@ -18,6 +18,8 @@ from app.repositories.batches import (
     BatchPage,
     StoredBatch,
     StoredBatchAnalysis,
+    StoredExportReference,
+    StoredExportWork,
     StoredWork,
     SupabaseBatchRepository,
 )
@@ -64,9 +66,15 @@ def work(
 
 
 class FakeBatches:
-    def __init__(self, stored: list[StoredWork] | None = None, count: int = 0) -> None:
+    def __init__(
+        self,
+        stored: list[StoredWork] | None = None,
+        count: int = 0,
+        exported: list[StoredExportWork] | None = None,
+    ) -> None:
         self.batch: StoredBatch | None = BATCH
         self.stored = stored or []
+        self.exported = exported or []
         self.total_works = count
         self.created: list[tuple[UUID, str, str]] = []
 
@@ -94,6 +102,9 @@ class FakeBatches:
 
     def works(self, batch_id: UUID) -> list[StoredWork]:
         return self.stored
+
+    def export_works(self, batch_id: UUID) -> list[StoredExportWork]:
+        return self.exported
 
 
 class FakeDocuments:
@@ -488,3 +499,111 @@ def test_el_duplicado_se_busca_en_el_mismo_lugar(batch_id: UUID | None, expected
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     assert SupabaseDocumentRepository(REST_URL, client).find_by_hash(TEACHER, "a", batch_id) is None
+
+
+# --- Exportación (HU-10) ---------------------------------------------------------------------
+
+
+def exported(status: str = "completado") -> StoredExportWork:
+    return StoredExportWork(
+        file_name="Avance.pdf",
+        authors=("Ana Vera",),
+        status=status,
+        error_message=None,
+        references=(StoredExportReference(1, "Torres, A. (2020).", "discrepancia", ("anio",)),),
+    )
+
+
+def test_la_exportacion_trae_cada_referencia_con_su_veredicto_y_sus_campos() -> None:
+    service, _, _ = batch_service(FakeBatches(exported=[exported()]))
+
+    result = service.export(TEACHER, BATCH_ID)
+
+    assert result.name == "Software 7A"
+    [reference] = result.works[0].references
+    assert reference.verdict == "discrepancia"
+    assert reference.different_fields == ["anio"]
+
+
+@pytest.mark.parametrize("status", ["verificando", "error"])
+def test_la_exportacion_no_trata_como_resultado_un_analisis_sin_terminar(status: str) -> None:
+    service, _, _ = batch_service(FakeBatches(exported=[exported(status)]))
+
+    [item] = service.export(TEACHER, BATCH_ID).works
+
+    assert item.status == status
+    assert item.references == []
+
+
+def test_no_se_exporta_el_lote_de_otro_docente() -> None:
+    service, _, _ = batch_service(FakeBatches(exported=[exported()]))
+
+    with pytest.raises(BatchNotFoundError):
+        service.export(uuid4(), BATCH_ID)
+
+
+def test_ruta_de_la_exportacion_y_lote_ajeno() -> None:
+    service, _, _ = batch_service(FakeBatches(exported=[exported()]))
+    client = client_as("docente", service)
+
+    found = client.get(f"/lotes/{BATCH_ID}/exportacion", headers=auth())
+    missing = client.get(f"/lotes/{uuid4()}/exportacion", headers=auth())
+
+    assert found.status_code == 200
+    assert found.json()["works"][0]["references"][0]["text"] == "Torres, A. (2020)."
+    assert missing.status_code == 404
+
+
+def test_solo_el_docente_exporta() -> None:
+    service, _, _ = batch_service(FakeBatches(exported=[exported()]))
+
+    response = client_as("estudiante", service).get(
+        f"/lotes/{BATCH_ID}/exportacion", headers=auth()
+    )
+
+    assert response.status_code == 403
+
+
+def test_el_repositorio_ordena_las_referencias_y_no_repite_campos() -> None:
+    finding = {"tipo": "veracidad", "codigo": "ANIO_DISTINTO", "campo": "anio"}
+    row: dict[str, Any] = {
+        "nombre_archivo": "Avance.pdf",
+        "autores": None,
+        "t_analisis": [
+            {
+                "estado": "completado",
+                "mensaje_error": None,
+                "creado_en": "2026-11-09T10:00:00+00:00",
+                "t_referencias": [
+                    {
+                        "orden": 2,
+                        "texto_crudo": "Segunda.",
+                        "t_verificaciones": None,
+                        "t_hallazgos": [],
+                    },
+                    {
+                        "orden": 1,
+                        "texto_crudo": "Primera.",
+                        "t_verificaciones": {"veredicto": "discrepancia"},
+                        "t_hallazgos": [
+                            finding,
+                            finding,
+                            {"tipo": "formato", "codigo": "APA_DOI_FALTANTE", "campo": "doi"},
+                        ],
+                    },
+                ],
+            }
+        ],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params["lote_id"] == f"eq.{BATCH_ID}"
+        return httpx.Response(200, json=[row, {**row, "t_analisis": []}])
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    [stored] = SupabaseBatchRepository(REST_URL, client).export_works(BATCH_ID)
+
+    assert stored.authors == ()
+    assert [item.text for item in stored.references] == ["Primera.", "Segunda."]
+    assert stored.references[0].different_fields == ("anio",)
+    assert stored.references[1].verdict is None

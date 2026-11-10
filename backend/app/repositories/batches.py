@@ -65,6 +65,23 @@ class StoredWork:
     different_fields: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class StoredExportReference:
+    order: int
+    text: str
+    verdict: str | None
+    different_fields: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class StoredExportWork:
+    file_name: str
+    authors: tuple[str, ...]
+    status: str
+    error_message: str | None
+    references: tuple[StoredExportReference, ...]
+
+
 class BatchRepository(Protocol):
     def create(self, teacher_id: UUID, name: str, period: str) -> StoredBatch: ...
 
@@ -78,6 +95,10 @@ class BatchRepository(Protocol):
 
     def works(self, batch_id: UUID) -> list[StoredWork]:
         """Trabajos del lote con el análisis más reciente de cada uno."""
+        ...
+
+    def export_works(self, batch_id: UUID) -> list[StoredExportWork]:
+        """Lo mismo, con el detalle de cada referencia: solo se pide al exportar."""
         ...
 
 
@@ -153,6 +174,26 @@ class SupabaseBatchRepository:
         )
         return [work for work in map(_work, rows) if work]
 
+    def export_works(self, batch_id: UUID) -> list[StoredExportWork]:
+        references = (
+            "t_referencias(orden,texto_crudo,t_verificaciones(veredicto),"
+            "t_hallazgos(tipo,codigo,campo))"
+        )
+        rows = send(
+            self._client,
+            "GET",
+            f"{self._rest_url}/t_documentos",
+            params={
+                "select": (
+                    f"nombre_archivo,autores,t_analisis(estado,mensaje_error,creado_en,{references})"
+                ),
+                "lote_id": f"eq.{batch_id}",
+                "t_analisis.order": "creado_en.desc",
+                "order": "creado_en.asc",
+            },
+        )
+        return [work for work in map(_export_work, rows) if work]
+
 
 def _batch(row: dict[str, Any]) -> StoredBatch:
     return StoredBatch(
@@ -203,14 +244,44 @@ def _work(row: dict[str, Any]) -> StoredWork | None:
         error_message=analysis.get("mensaje_error"),
         verdicts=tuple(_verdict(reference) for reference in references),
         different_fields=tuple(
-            finding["campo"]
-            for reference in references
-            for finding in reference.get("t_hallazgos") or []
-            if finding["tipo"] == "veracidad"
-            and finding.get("campo")
-            and finding["codigo"] in MISMATCH_CODES
+            field for reference in references for field in _different_fields(reference)
         ),
     )
+
+
+def _export_work(row: dict[str, Any]) -> StoredExportWork | None:
+    analyses = row.get("t_analisis") or []
+    if not analyses:
+        return None
+    analysis = analyses[0]
+    references = sorted(analysis.get("t_referencias") or [], key=lambda item: item["orden"])
+    return StoredExportWork(
+        file_name=row["nombre_archivo"],
+        authors=tuple(row.get("autores") or ()),
+        status=analysis["estado"],
+        error_message=analysis.get("mensaje_error"),
+        references=tuple(
+            StoredExportReference(
+                order=reference["orden"],
+                text=reference["texto_crudo"],
+                verdict=_verdict(reference),
+                # Una referencia puede tener varios hallazgos sobre el mismo campo.
+                different_fields=tuple(dict.fromkeys(_different_fields(reference))),
+            )
+            for reference in references
+        ),
+    )
+
+
+def _different_fields(reference: dict[str, Any]) -> list[str]:
+    """Campo de cada hallazgo de veracidad que dice que un dato difiere del registro."""
+    return [
+        finding["campo"]
+        for finding in reference.get("t_hallazgos") or []
+        if finding["tipo"] == "veracidad"
+        and finding.get("campo")
+        and finding["codigo"] in MISMATCH_CODES
+    ]
 
 
 def _verdict(reference: dict[str, Any]) -> str | None:
