@@ -2,8 +2,8 @@
 informe de verificación (CU-04).
 
 Cada usuario ve solo sus análisis. Uno ajeno responde igual que uno inexistente,
-para no revelar que existe. El acceso del docente a los trabajos de sus lotes
-llega con HU-08.
+para no revelar que existe. Los trabajos de un lote son del docente que los subió:
+así abre sus informes con esta misma regla.
 """
 
 import math

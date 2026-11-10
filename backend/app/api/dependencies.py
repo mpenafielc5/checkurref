@@ -1,5 +1,6 @@
-"""Dependencias compartidas por las rutas: la sesión del usuario."""
+"""Dependencias compartidas por las rutas: la sesión, la cuenta activa y el rol."""
 
+from collections.abc import Callable
 from functools import lru_cache
 from typing import Annotated
 
@@ -14,6 +15,13 @@ from app.core.security import (
     TokenVerifier,
     jwks_key_resolver,
 )
+from app.repositories.profiles import Profile, SupabaseProfileRepository
+from app.repositories.supabase_http import SupabaseUnavailableError, shared_client
+from app.services.user_service import AccountDisabledError, UserService
+
+UNAVAILABLE = "No se pudo consultar la base de datos. Intenta de nuevo en unos minutos."
+ACCOUNT_DISABLED = "Tu cuenta está desactivada. Comunícate con el administrador."
+WRONG_ROLE = "Tu rol no tiene acceso a esta función."
 
 bearer_scheme = HTTPBearer(
     auto_error=False,
@@ -63,3 +71,47 @@ def get_current_user(
 
 
 CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]
+
+
+def require_supabase(settings: Settings) -> None:
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="La API no tiene configurada la conexión con Supabase.",
+        )
+
+
+def get_user_service(settings: Annotated[Settings, Depends(get_settings)]) -> UserService:
+    require_supabase(settings)
+    client = shared_client(settings.supabase_service_role_key)
+    return UserService(SupabaseProfileRepository(settings.supabase_rest_url, client))
+
+
+def get_active_profile(
+    user: CurrentUser,
+    users: Annotated[UserService, Depends(get_user_service)],
+) -> Profile:
+    """Perfil de quien llama. Un token sigue vigente hasta una hora después de desactivar
+    la cuenta: por eso el estado se consulta en cada petición y no se lee del token."""
+    try:
+        return users.active_profile(user.id)
+    except AccountDisabledError:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=ACCOUNT_DISABLED) from None
+    except SupabaseUnavailableError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=UNAVAILABLE) from None
+
+
+ActiveUser = Annotated[Profile, Depends(get_active_profile)]
+
+
+def _require_role(role: str) -> Callable[[Profile], Profile]:
+    def check(profile: ActiveUser) -> Profile:
+        if profile.role != role:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail=WRONG_ROLE)
+        return profile
+
+    return check
+
+
+TeacherUser = Annotated[Profile, Depends(_require_role("docente"))]
+AdminUser = Annotated[Profile, Depends(_require_role("admin"))]

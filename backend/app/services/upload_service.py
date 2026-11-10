@@ -37,11 +37,14 @@ class UploadService:
         self._storage = storage
         self._model_version = model_version
 
-    def submit(self, owner_id: UUID, file_name: str, content: bytes) -> UploadResult:
+    def submit(
+        self, owner_id: UUID, file_name: str, content: bytes, batch_id: UUID | None = None
+    ) -> UploadResult:
+        """Sube el PDF de un trabajo; con `batch_id`, al lote del docente (HU-08 CA04)."""
         _validate(content)
         sha256 = hashlib.sha256(content).hexdigest()
 
-        existing = self._documents.find_by_hash(owner_id, sha256)
+        existing = self._documents.find_by_hash(owner_id, sha256, batch_id)
         if existing:
             return UploadResult(analysis=existing, duplicate=True)
 
@@ -56,6 +59,7 @@ class UploadService:
             storage_path=path,
             sha256=sha256,
             size_bytes=len(content),
+            batch_id=batch_id,
         )
         try:
             analysis = self._documents.create(document, self._model_version)

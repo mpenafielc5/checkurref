@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 
-from app.api.dependencies import CurrentUser
+from app.api.dependencies import UNAVAILABLE, ActiveUser, require_supabase
 from app.core.config import Settings, get_settings
 from app.repositories.documents import SupabaseDocumentRepository
 from app.repositories.pdf_storage import SupabasePdfStorage
@@ -25,7 +25,6 @@ router = APIRouter(tags=["análisis"])
 
 
 NOT_FOUND = "No se encontró el análisis."
-UNAVAILABLE = "No se pudo consultar la base de datos. Intenta de nuevo en unos minutos."
 # Por qué todavía no hay informe, según el estado del análisis.
 NOT_FINISHED = {
     "error": "El análisis terminó con un error, así que no tiene informe.",
@@ -33,16 +32,8 @@ NOT_FINISHED = {
 IN_PROGRESS = "El análisis aún no termina. El informe estará listo al completarse."
 
 
-def _require_supabase(settings: Settings) -> None:
-    if not settings.supabase_url or not settings.supabase_service_role_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="La API no tiene configurada la conexión con Supabase.",
-        )
-
-
 def get_upload_service(settings: Annotated[Settings, Depends(get_settings)]) -> UploadService:
-    _require_supabase(settings)
+    require_supabase(settings)
     client = shared_client(settings.supabase_service_role_key)
     return UploadService(
         documents=SupabaseDocumentRepository(settings.supabase_rest_url, client),
@@ -58,7 +49,7 @@ def get_upload_service(settings: Annotated[Settings, Depends(get_settings)]) -> 
     responses={200: {"description": "El PDF ya se había subido: se devuelve su análisis."}},
 )
 def submit_analysis(
-    user: CurrentUser,
+    user: ActiveUser,
     service: Annotated[UploadService, Depends(get_upload_service)],
     response: Response,
     archivo: Annotated[UploadFile, File(description="PDF del trabajo, hasta 10 MB.")],
@@ -86,14 +77,14 @@ def submit_analysis(
 
 
 def get_report_service(settings: Annotated[Settings, Depends(get_settings)]) -> ReportService:
-    _require_supabase(settings)
+    require_supabase(settings)
     client = shared_client(settings.supabase_service_role_key)
     return ReportService(SupabaseReportRepository(settings.supabase_rest_url, client))
 
 
 @router.get("/analisis", response_model=HistoryPage)
 def list_analyses(
-    user: CurrentUser,
+    user: ActiveUser,
     service: Annotated[ReportService, Depends(get_report_service)],
     pagina: Annotated[int, Query(ge=1, description="Página de 20 trabajos.")] = 1,
     buscar: Annotated[str, Query(max_length=100, description="Parte del nombre del archivo.")] = "",
@@ -112,7 +103,7 @@ def list_analyses(
 )
 def get_analysis(
     analysis_id: UUID,
-    user: CurrentUser,
+    user: ActiveUser,
     service: Annotated[ReportService, Depends(get_report_service)],
 ) -> AnalysisItem:
     """Estado y avance de un análisis, para abrir la pantalla de progreso (HU-05)."""
@@ -134,7 +125,7 @@ def get_analysis(
 )
 def get_report(
     analysis_id: UUID,
-    user: CurrentUser,
+    user: ActiveUser,
     service: Annotated[ReportService, Depends(get_report_service)],
 ) -> ReportResponse:
     """Informe de verificación completo (HU-06): el navegador filtra y pagina."""

@@ -19,6 +19,7 @@ class NewDocument:
     storage_path: str
     sha256: str
     size_bytes: int
+    batch_id: UUID | None = None  # el lote del docente; None en un trabajo individual
 
 
 @dataclass(frozen=True)
@@ -31,8 +32,11 @@ class AnalysisRef:
 
 
 class DocumentRepository(Protocol):
-    def find_by_hash(self, owner_id: UUID, sha256: str) -> AnalysisRef | None:
-        """Último análisis de un PDF idéntico subido por el mismo usuario, fuera de lotes."""
+    def find_by_hash(
+        self, owner_id: UUID, sha256: str, batch_id: UUID | None = None
+    ) -> AnalysisRef | None:
+        """Último análisis de un PDF idéntico del mismo usuario: en el mismo lote o, sin
+        lote, entre sus trabajos individuales. El mismo PDF puede estar en dos lotes."""
         ...
 
     def create(self, document: NewDocument, model_version: str) -> AnalysisRef:
@@ -45,14 +49,16 @@ class SupabaseDocumentRepository:
         self._rest_url = rest_url
         self._client = client
 
-    def find_by_hash(self, owner_id: UUID, sha256: str) -> AnalysisRef | None:
+    def find_by_hash(
+        self, owner_id: UUID, sha256: str, batch_id: UUID | None = None
+    ) -> AnalysisRef | None:
         rows = self._get(
             "t_documentos",
             {
                 "select": "id,t_analisis(id,estado,creado_en)",
                 "propietario_id": f"eq.{owner_id}",
                 "sha256": f"eq.{sha256}",
-                "lote_id": "is.null",
+                "lote_id": f"eq.{batch_id}" if batch_id else "is.null",
                 "order": "creado_en.desc",
                 "t_analisis.order": "creado_en.desc",
                 "limit": "1",
@@ -68,18 +74,18 @@ class SupabaseDocumentRepository:
         )
 
     def create(self, document: NewDocument, model_version: str) -> AnalysisRef:
-        self._insert(
-            "t_documentos",
-            {
-                "id": str(document.id),
-                "propietario_id": str(document.owner_id),
-                "titulo": document.title,
-                "nombre_archivo": document.file_name,
-                "ruta_storage": document.storage_path,
-                "sha256": document.sha256,
-                "tamano_bytes": document.size_bytes,
-            },
-        )
+        row = {
+            "id": str(document.id),
+            "propietario_id": str(document.owner_id),
+            "titulo": document.title,
+            "nombre_archivo": document.file_name,
+            "ruta_storage": document.storage_path,
+            "sha256": document.sha256,
+            "tamano_bytes": document.size_bytes,
+        }
+        if document.batch_id:
+            row["lote_id"] = str(document.batch_id)
+        self._insert("t_documentos", row)
         try:
             analysis = self._insert(
                 "t_analisis",

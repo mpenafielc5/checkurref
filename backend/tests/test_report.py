@@ -30,7 +30,7 @@ from app.services.report_service import (
     AnalysisNotFoundError,
     ReportService,
 )
-from tests.session_helpers import USER_ID, bearer, make_token, trust_test_tokens
+from tests.session_helpers import USER_ID, act_as, bearer, make_token, trust_test_tokens
 
 OWNER = UUID(USER_ID)
 ANALYSIS_ID = uuid4()
@@ -456,6 +456,7 @@ def services() -> dict[str, ReportService]:
 def client(services: dict[str, ReportService]) -> Iterator[TestClient]:
     app = create_app()
     trust_test_tokens(app)
+    act_as(app)
     app.dependency_overrides[get_report_service] = lambda: services["actual"]
     yield TestClient(app)
 

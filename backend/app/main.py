@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analyses, health, session
+from app.api.routes import analyses, batches, health, lab, session, users
 from app.core.config import Settings, get_settings
 from app.verification.nli import NliModelError
 from app.workers.analysis_worker import create_worker
@@ -71,6 +71,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(session.router)
     app.include_router(analyses.router)
+    app.include_router(batches.router)
+    app.include_router(users.router)
+    app.include_router(lab.router)
     return app
 
 
