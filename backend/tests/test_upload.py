@@ -16,7 +16,7 @@ from app.repositories.pdf_storage import SupabasePdfStorage
 from app.repositories.supabase_http import SupabaseUnavailableError, service_headers
 from app.services.upload_service import MAX_PDF_BYTES, UploadRejectedError, UploadService
 from tests.pdf_factory import PageSpec, make_pdf
-from tests.session_helpers import USER_ID, bearer, make_token, trust_test_tokens
+from tests.session_helpers import USER_ID, act_as, bearer, make_token, trust_test_tokens
 
 OWNER = UUID(USER_ID)
 PDF = make_pdf(
@@ -29,8 +29,12 @@ class FakeDocuments:
         self.existing = existing
         self.fail = fail
         self.created: list[NewDocument] = []
+        self.searched_batch: UUID | None = None
 
-    def find_by_hash(self, owner_id: UUID, sha256: str) -> AnalysisRef | None:
+    def find_by_hash(
+        self, owner_id: UUID, sha256: str, batch_id: UUID | None = None
+    ) -> AnalysisRef | None:
+        self.searched_batch = batch_id
         return self.existing
 
     def create(self, document: NewDocument, model_version: str) -> AnalysisRef:
@@ -129,6 +133,7 @@ def services() -> dict[str, UploadService]:
 def client(services: dict[str, UploadService]) -> Iterator[TestClient]:
     app = create_app()
     trust_test_tokens(app)
+    act_as(app)
     app.dependency_overrides[get_upload_service] = lambda: services["actual"]
     yield TestClient(app)
 
