@@ -19,6 +19,8 @@
 
   --color-info: var(--cr-info);
   --color-info-soft: var(--cr-info-soft);
+  --color-engine-anystyle: var(--cr-engine-anystyle);
+  --color-engine-spacy: var(--cr-engine-spacy);
 
   --color-canvas: var(--cr-canvas);
   --color-canvas-soft: var(--cr-canvas-soft);
