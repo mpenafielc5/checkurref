@@ -20,6 +20,7 @@ class NewDocument:
     sha256: str
     size_bytes: int
     batch_id: UUID | None = None  # el lote del docente; None en un trabajo individual
+    authors: tuple[str, ...] = ()  # leídos de la portada; solo se buscan en un lote
 
 
 @dataclass(frozen=True)
@@ -74,7 +75,7 @@ class SupabaseDocumentRepository:
         )
 
     def create(self, document: NewDocument, model_version: str) -> AnalysisRef:
-        row = {
+        row: dict[str, Any] = {
             "id": str(document.id),
             "propietario_id": str(document.owner_id),
             "titulo": document.title,
@@ -85,6 +86,8 @@ class SupabaseDocumentRepository:
         }
         if document.batch_id:
             row["lote_id"] = str(document.batch_id)
+        if document.authors:
+            row["autores"] = list(document.authors)
         self._insert("t_documentos", row)
         try:
             analysis = self._insert(

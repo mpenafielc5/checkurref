@@ -50,6 +50,8 @@ class StoredWork:
     analysis_id: UUID
     document_id: UUID
     file_name: str
+    # Leídos de la portada; vacío si no se reconoció.
+    authors: tuple[str, ...]
     created_at: datetime
     status: str
     progress: int
@@ -141,7 +143,7 @@ class SupabaseBatchRepository:
             f"{self._rest_url}/t_documentos",
             params={
                 "select": (
-                    "id,nombre_archivo,creado_en,t_analisis(id,estado,progreso,total_referencias,"
+                    "id,nombre_archivo,autores,creado_en,t_analisis(id,estado,progreso,total_referencias,"
                     f"norma_detectada,indice_veracidad,mensaje_error,creado_en,{references})"
                 ),
                 "lote_id": f"eq.{batch_id}",
@@ -191,6 +193,7 @@ def _work(row: dict[str, Any]) -> StoredWork | None:
         analysis_id=UUID(analysis["id"]),
         document_id=UUID(row["id"]),
         file_name=row["nombre_archivo"],
+        authors=tuple(row.get("autores") or ()),
         created_at=DATETIME.validate_python(analysis["creado_en"]),
         status=analysis["estado"],
         progress=analysis["progreso"],

@@ -44,6 +44,8 @@ class BatchWork(BaseModel):
     analysis_id: UUID
     document_id: UUID
     file_name: str
+    # Leídos de la portada; vacío: se muestra el archivo y "Portada no reconocida" (RF19-CA03).
+    authors: list[str]
     created_at: datetime
     # en_cola, extrayendo, segmentando, verificando, completado o error.
     status: str
