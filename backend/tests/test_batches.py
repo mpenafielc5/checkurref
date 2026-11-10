@@ -50,6 +50,7 @@ def work(
         analysis_id=uuid4(),
         document_id=uuid4(),
         file_name="Avance.pdf",
+        authors=("Ana Vera", "Luis Rojas"),
         created_at=NOW,
         status=status,
         progress=100 if status == "completado" else 40,
@@ -208,6 +209,7 @@ def test_cada_trabajo_trae_su_riesgo_y_sus_alertas() -> None:
     first, second = service.detail(TEACHER, BATCH_ID).works
 
     assert (first.risk, first.contradictions, first.alerts) == ("alto", 1, 2)
+    assert first.authors == ["Ana Vera", "Luis Rojas"]
     assert (second.risk, second.contradictions, second.alerts) == (None, 0, 0)
 
 
@@ -245,6 +247,25 @@ def test_sube_un_trabajo_al_lote_con_la_misma_funcion_que_el_estudiante() -> Non
     assert (document.batch_id, document.owner_id) == (BATCH_ID, TEACHER)
     assert documents.searched == [BATCH_ID]  # el duplicado se busca solo en este lote
     assert result.analysis.status == "en_cola"
+
+
+def test_al_subir_al_lote_se_leen_los_autores_de_la_portada() -> None:
+    service, _, documents = batch_service()
+    cover = make_pdf([PageSpec(lines=["Autores:", "Ana Vera", "Luis Rojas", "Tutor:", "Pablo"])])
+
+    service.submit_work(TEACHER, BATCH_ID, "Avance 2.pdf", cover)
+
+    assert documents.created[0].authors == ("Ana Vera", "Luis Rojas")
+
+
+def test_el_trabajo_individual_no_lee_la_portada() -> None:
+    documents = FakeDocuments()
+    uploads = UploadService(documents, FakeStorage(), model_version="modelo-prueba")
+    cover = make_pdf([PageSpec(lines=["Autores:", "Ana Vera", "Tutor:", "Pablo"])])
+
+    uploads.submit(TEACHER, "Avance 2.pdf", cover)
+
+    assert documents.created[0].authors == ()
 
 
 def test_un_archivo_invalido_se_rechaza_con_su_motivo() -> None:
@@ -395,6 +416,7 @@ def test_el_repositorio_lee_el_tablero_con_el_analisis_mas_reciente() -> None:
     row: dict[str, Any] = {
         "id": str(uuid4()),
         "nombre_archivo": "Avance.pdf",
+        "autores": ["Ana Vera"],
         "creado_en": "2026-11-09T10:00:00+00:00",
         "t_analisis": [
             {
@@ -430,6 +452,7 @@ def test_el_repositorio_lee_el_tablero_con_el_analisis_mas_reciente() -> None:
     [stored] = SupabaseBatchRepository(REST_URL, client).works(BATCH_ID)
 
     assert stored.index == 75.0
+    assert stored.authors == ("Ana Vera",)
     assert stored.verdicts == ("discrepancia", None)
     assert stored.different_fields == ("anio",)  # ni el aviso ni el formato son diferencias
 
@@ -446,10 +469,13 @@ def test_el_documento_guarda_su_lote_y_el_individual_no_lo_envia() -> None:
     document = NewDocument(uuid4(), TEACHER, "T", "t.pdf", "u/d.pdf", "a" * 64, 10)
 
     repository.create(document, "m")
-    repository.create(replace(document, batch_id=BATCH_ID), "m")
+    repository.create(replace(document, batch_id=BATCH_ID, authors=("Ana Vera",)), "m")
 
+    # Sin lote no se envía ninguna de las dos: el trabajo individual no depende de ellas.
     assert "lote_id" not in bodies[0]
+    assert "autores" not in bodies[0]
     assert bodies[2]["lote_id"] == str(BATCH_ID)
+    assert bodies[2]["autores"] == ["Ana Vera"]
 
 
 @pytest.mark.parametrize(

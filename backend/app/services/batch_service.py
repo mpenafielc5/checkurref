@@ -137,6 +137,7 @@ def _work(work: StoredWork) -> BatchWork:
         analysis_id=work.analysis_id,
         document_id=work.document_id,
         file_name=work.file_name,
+        authors=list(work.authors),
         created_at=work.created_at,
         status=work.status,
         progress=work.progress,

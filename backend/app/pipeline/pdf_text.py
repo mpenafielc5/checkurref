@@ -45,6 +45,14 @@ def extract_pages(pdf_bytes: bytes) -> list[list[TextLine]]:
     return pages
 
 
+def first_page_lines(pdf_bytes: bytes) -> list[str]:
+    """Texto de las líneas de la primera página; vacío si el PDF tiene clave o no tiene páginas."""
+    with pymupdf.open(stream=pdf_bytes, filetype="pdf") as document:
+        if document.needs_pass or document.page_count == 0:
+            return []
+        return [line.text for line in _page_lines(document[0], 1)]
+
+
 def _page_lines(page: pymupdf.Page, number: int) -> list[TextLine]:
     lines: list[TextLine] = []
     for block in page.get_text("dict")["blocks"]:

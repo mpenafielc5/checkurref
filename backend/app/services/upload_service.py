@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import PurePath
 from uuid import UUID, uuid4
 
+from app.pipeline.cover_authors import cover_authors
 from app.repositories.documents import AnalysisRef, DocumentRepository, NewDocument
 from app.repositories.pdf_storage import PdfStorage
 from app.repositories.supabase_http import SupabaseUnavailableError
@@ -60,6 +61,8 @@ class UploadService:
             sha256=sha256,
             size_bytes=len(content),
             batch_id=batch_id,
+            # Los autores distinguen los trabajos de un lote; el estudiante ya sabe cuál es el suyo.
+            authors=cover_authors(content) if batch_id else (),
         )
         try:
             analysis = self._documents.create(document, self._model_version)
