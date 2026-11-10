@@ -15,6 +15,7 @@ from app.verification.findings import (
     INTERNAL_ERROR_CODE,
     OTHER_WORK_CODE,
     QUERY_ERROR_CODE,
+    Finding,
     Severity,
     findings_for,
 )
@@ -108,11 +109,12 @@ def save(
     verifications: dict[str, Any],
     index: float | None,
     corrected: dict[str, CorrectedReference] | None = None,
+    format_findings: dict[str, list[Finding]] | None = None,
 ) -> Recorder:
     recorder = Recorder()
     client = httpx.Client(transport=httpx.MockTransport(recorder))
     SupabaseVerificationRepository(REST_URL, client).save(
-        ANALYSIS_ID, verifications, corrected or {}, index
+        ANALYSIS_ID, verifications, corrected or {}, index, format_findings or {}
     )
     return recorder
 
@@ -183,6 +185,32 @@ def test_una_relevancia_que_no_cabe_en_la_columna_no_se_guarda() -> None:
     )
 
     assert row["score_crossref"] is None
+
+
+def test_guarda_los_hallazgos_de_formato_y_no_cambian_el_indice() -> None:
+    finding = Finding(
+        "APA_ANIO_PARENTESIS",
+        Severity.WARNING,
+        "En APA 7, el año va entre paréntesis después de los autores.",
+        CheckedField.YEAR,
+        "2021",
+        "(2021)",
+    )
+
+    recorder = save({"ref-1": verified()}, 100.0, format_findings={"ref-1": [finding]})
+
+    [row] = recorder.body("POST", "t_hallazgos")
+    assert row == {
+        "referencia_id": "ref-1",
+        "tipo": "formato",
+        "codigo": "APA_ANIO_PARENTESIS",
+        "severidad": "advertencia",
+        "campo": "anio",
+        "valor_dado": "2021",
+        "valor_oficial": "(2021)",
+        "mensaje": "En APA 7, el año va entre paréntesis después de los autores.",
+    }
+    assert recorder.body("PATCH", "t_analisis") == {"indice_veracidad": 100.0}
 
 
 def test_guarda_la_referencia_corregida_en_segmentos() -> None:

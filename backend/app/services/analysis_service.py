@@ -6,8 +6,8 @@ Etapas, cada una informa su avance para la pantalla de progreso:
 2. segmentando: separa las referencias, detecta la norma (T06) y extrae los
    campos de cada una (T07).
 3. verificando: busca cada referencia en Crossref y OpenAlex, decide su
-   veredicto (T13), arma la referencia corregida (T26) y calcula el índice de
-   veracidad.
+   veredicto (T13), arma la referencia corregida (T26), revisa el formato (T25) y
+   calcula el índice de veracidad. El formato no cambia el veredicto ni el índice.
 
 Un PDF que no se puede leer termina el análisis con un mensaje para el usuario.
 Un error al verificar una referencia solo afecta a esa referencia (RNF09).
@@ -24,7 +24,7 @@ from uuid import UUID
 from app.extraction.base import ExtractedFields, ReferenceExtractor, elapsed_ms
 from app.pipeline.errors import PdfProcessingError
 from app.pipeline.references_section import extract_reference_section
-from app.pipeline.segmentation import SegmentedReference, segment_references
+from app.pipeline.segmentation import Segmentation, SegmentedReference, segment_references
 from app.repositories.analysis_queue import AnalysisQueue, QueuedAnalysis
 from app.repositories.extractions import ExtractionRepository
 from app.repositories.pdf_storage import PdfStorage
@@ -33,6 +33,8 @@ from app.repositories.supabase_http import SupabaseUnavailableError
 from app.repositories.verifications import VerificationRepository
 from app.verification.corrected import CorrectedReference, corrected_reference
 from app.verification.decision import Verification, truthfulness_index
+from app.verification.findings import Finding
+from app.verification.format_review import review_list, review_reference
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +109,7 @@ class AnalysisService:
             dict(zip(reference_ids, verifications, strict=True)),
             corrected,
             index,
+            _format_findings(segmentation, reference_ids, fields, verifications),
         )
 
         self._queue.complete(job.analysis_id, self._extractor.engine, elapsed_ms(start))
@@ -166,6 +169,35 @@ def _corrected(
     except Exception:  # una referencia nunca detiene el análisis (RNF09)
         logger.exception("Falló la referencia corregida de la referencia %d", reference.order)
         return None
+
+
+def _format_findings(
+    segmentation: Segmentation,
+    reference_ids: Sequence[str],
+    fields: Sequence[ExtractedFields | None],
+    verifications: Sequence[Verification | None],
+) -> dict[str, list[Finding]]:
+    """Hallazgos de formato (T25) por referencia. Si la revisión falla en una, esa
+    referencia solo se queda sin hallazgos."""
+    found: dict[str, list[Finding]] = {}
+    ids_by_order: dict[int, str] = {}
+    for reference_id, reference, extracted, verification in zip(
+        reference_ids, segmentation.references, fields, verifications, strict=True
+    ):
+        ids_by_order[reference.order] = reference_id
+        try:
+            items = review_reference(reference, segmentation.norm, extracted, verification)
+        except Exception:  # una referencia nunca detiene el análisis (RNF09)
+            logger.exception("Falló la revisión de formato de la referencia %d", reference.order)
+            continue
+        if items:
+            found[reference_id] = items
+    try:
+        for order, items in review_list(segmentation).items():
+            found.setdefault(ids_by_order[order], []).extend(items)
+    except Exception:  # la lista completa tampoco detiene el análisis (RNF09)
+        logger.exception("Falló la revisión de formato de la lista")
+    return found
 
 
 async def _verify_one(
