@@ -59,6 +59,8 @@ export type Report = {
   fileName: string;
   /** Norma detectada, como se muestra: "APA", "IEEE", "APA e IEEE" o "Norma no identificada". */
   standard: string;
+  /** Explicación cuando la norma no se identificó y el formato no se revisó (HU-21 CA03). */
+  standardNotice: string | null;
   /** Índice de veracidad de 0 a 100; null si ninguna referencia se pudo contar. */
   index: number | null;
   counts: Record<Verdict, number>;

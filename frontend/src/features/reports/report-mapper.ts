@@ -79,6 +79,9 @@ const FIELD_LABELS: Record<string, string> = {
   editorial: "Editorial",
 };
 
+const UNKNOWN_STANDARD_NOTICE =
+  "No se identificó si la lista de referencias sigue APA o IEEE, por lo que no se revisó su formato. La verificación de los datos de cada referencia no se ve afectada.";
+
 /** El NLI del título es el más informativo: con autores, las iniciales lo confunden. */
 const NLI_FIELD = "titulo";
 
@@ -160,6 +163,7 @@ export function toReport(dto: ReportDto): Report {
     analysisId: dto.analysis_id,
     fileName: dto.file_name,
     standard: standardLabel(dto.norm) ?? "Norma no identificada",
+    standardNotice: dto.norm === "DESCONOCIDA" ? UNKNOWN_STANDARD_NOTICE : null,
     index: dto.index === null ? null : Math.round(dto.index),
     counts: {
       verificada: dto.counts.verificada,

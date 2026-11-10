@@ -149,6 +149,13 @@ describe("toReport", () => {
     expect(reference.notice).toBe("No se pudo consultar Crossref ni OpenAlex.");
   });
 
+  it("explica que no se revisó el formato solo si la norma no se identificó", () => {
+    const unknown = toReport({ ...DTO, norm: "DESCONOCIDA" });
+    expect(unknown.standard).toBe("Norma no identificada");
+    expect(unknown.standardNotice).toContain("no se revisó su formato");
+    expect(toReport({ ...DTO, norm: "APA" }).standardNotice).toBeNull();
+  });
+
   it("sin norma detectada y sin índice", () => {
     const report = toReport({ ...DTO, norm: null, index: null });
 
