@@ -4,6 +4,7 @@
  * Realtime, como fila de la tabla t_analisis. Aquí se traduce a las etapas de la
  * pantalla.
  */
+import { VERIFY_END, VERIFY_START, verifiedCount } from "@/shared/lib/analysis-progress";
 import type { ProgressStep } from "./types";
 
 /** Estado del análisis que cambia mientras corre. */
@@ -32,14 +33,6 @@ type AnalysisItemDto = {
   norm: string | null;
   error_message: string | null;
 };
-
-/*
- * Avance en que empieza y termina la verificación, el mismo del backend
- * (PROGRESS_FIELDS y PROGRESS_VERIFIED en analysis_service.py): entre ambos
- * crece con cada referencia verificada.
- */
-const VERIFY_START = 30;
-const VERIFY_END = 95;
 
 /** Orden de las etapas: un estado de una etapa anterior nunca reemplaza a uno posterior. */
 const STATUS_RANK: Record<string, number> = {
@@ -121,16 +114,7 @@ export function verifyPercent(progress: number): number {
   return Math.round(Math.min(Math.max(ratio, 0), 1) * 100);
 }
 
-/**
- * Referencias verificadas, deducidas del avance. Es exacto hasta 65
- * referencias; con más, el backend informa cada pocas y el conteo nunca se
- * adelanta a lo real.
- */
-export function verifiedCount(progress: number, total: number | null): number {
-  if (!total) return 0;
-  const done = Math.ceil(((progress - VERIFY_START) * total) / (VERIFY_END - VERIFY_START));
-  return Math.min(Math.max(done, 0), total);
-}
+export { verifiedCount };
 
 function countLabel(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;

@@ -34,13 +34,14 @@ export type ApiResponse = { kind: "response"; status: number; body: unknown };
 export type ApiFailure = { kind: "failed"; reason: "session" | "network" };
 
 /**
- * GET a la API con el token de la sesión. Si tarda más de 5 s avisa con onSlow:
- * el backend gratuito puede estar despertando. Los temporizadores cubren también
- * la lectura de la sesión, que en el navegador a veces no responde.
+ * Petición a la API con el token de la sesión. Si tarda más de 5 s avisa con
+ * onSlow: el backend gratuito puede estar despertando. Los temporizadores cubren
+ * también la lectura de la sesión, que en el navegador a veces no responde.
  */
-export async function apiGet(
+async function apiRequest(
   path: string,
-  onSlow: () => void = () => undefined,
+  init: { method?: string; headers?: Record<string, string>; body?: string },
+  onSlow: () => void,
 ): Promise<ApiResponse | ApiFailure> {
   const controller = new AbortController();
   const slowTimer = setTimeout(onSlow, SLOW_RESPONSE_MS);
@@ -54,7 +55,8 @@ export async function apiGet(
     if (!token) return { kind: "failed", reason: "session" };
 
     const response = await fetch(`${getApiUrl()}${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      ...init,
+      headers: { ...init.headers, Authorization: `Bearer ${token}` },
       signal: controller.signal,
     });
     const body: unknown = await response.json().catch(() => null);
@@ -65,4 +67,32 @@ export async function apiGet(
     clearTimeout(slowTimer);
     clearTimeout(abortTimer);
   }
+}
+
+export function apiGet(
+  path: string,
+  onSlow: () => void = () => undefined,
+): Promise<ApiResponse | ApiFailure> {
+  return apiRequest(path, {}, onSlow);
+}
+
+export function apiPost(
+  path: string,
+  payload: unknown,
+  onSlow: () => void = () => undefined,
+): Promise<ApiResponse | ApiFailure> {
+  return apiRequest(
+    path,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    onSlow,
+  );
+}
+
+/** Despierta al backend antes de una subida; si no responde, no pasa nada. */
+export function wakeApi(): void {
+  fetch(`${getApiUrl()}/health`).catch(() => undefined);
 }

@@ -1,99 +1,122 @@
 "use client";
 
-import { FileText } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-import { PdfDropzone } from "@/shared/components/pdf-dropzone";
+import { useState, type FormEvent } from "react";
+import { PdfDropzone, type RejectedPdf } from "@/shared/components/pdf-dropzone";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
-import { StatusChip } from "@/shared/components/ui/status-chip";
-import { formatFileSize } from "@/shared/lib/format";
-import type { BatchUpload, UploadState } from "../types";
+import { useBatchUpload } from "../use-batch-upload";
+import { BatchUploadProgress } from "./batch-upload-progress";
 
 const INPUT_CLASSES =
-  "h-input w-full rounded-control border border-hairline-strong bg-surface px-4 text-small text-ink outline-none focus:border-ink";
+  "h-input w-full rounded-control border border-hairline-strong bg-surface px-4 text-small text-ink outline-none placeholder:text-muted focus:border-ink";
 
-function UploadStateChip({ state }: { state: UploadState }) {
-  if (state.kind === "listo") return <StatusChip tone="success">Listo</StatusChip>;
-  if (state.kind === "verificando") {
-    return (
-      <StatusChip tone="warning">
-        Verificando {state.done}/{state.total}
-      </StatusChip>
-    );
-  }
-  return <StatusChip tone="danger">{state.reason}</StatusChip>;
-}
+/** Los mismos límites que t_lotes_auditoria. */
+const MAX_NAME_LENGTH = 150;
+const MAX_PERIOD_LENGTH = 20;
 
 function filesLabel(count: number): string {
   return `${count} ${count === 1 ? "archivo" : "archivos"}`;
 }
 
-type NewBatchFormProps = {
-  batchId: string;
-  uploads: BatchUpload[];
-};
-
 /**
- * Formulario de nueva auditoría por lote (maqueta 15). El docente elige los PDF
- * (con una ✕ para quitar cualquiera) y los envía juntos; después, cada archivo
- * muestra su avance. El envío y el avance reales llegan con HU-08.
+ * Nueva auditoría por lote (maqueta 15, HU-08). El docente nombra el lote, elige
+ * los PDF (con una ✕ para quitar cualquiera) y los envía juntos; después, cada
+ * archivo muestra su estado. Si el lote no se puede crear, la selección se conserva.
  */
-export function NewBatchForm({ batchId, uploads }: NewBatchFormProps) {
-  const [chosen, setChosen] = useState(0);
-  const analyzed = uploads.filter((upload) => upload.state.kind === "listo").length;
+export function NewBatchForm() {
+  const { batch, uploads, creating, sending, slow, createError, start, retry } = useBatchUpload();
+  const [name, setName] = useState("");
+  const [period, setPeriod] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [rejected, setRejected] = useState<RejectedPdf[]>([]);
+  const [missingData, setMissingData] = useState(false);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanName = name.trim();
+    const cleanPeriod = period.trim();
+    // Solo con espacios, el navegador da el campo por lleno.
+    setMissingData(!cleanName || !cleanPeriod);
+    if (cleanName && cleanPeriod && files.length > 0 && !creating) {
+      void start(cleanName, cleanPeriod, files, rejected);
+    }
+  }
+
+  if (batch) {
+    return (
+      <BatchUploadProgress
+        batch={batch}
+        uploads={uploads}
+        sending={sending}
+        slow={slow}
+        onRetry={() => void retry()}
+      />
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-5">
-      <form className="flex flex-col gap-4 md:flex-row">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4 md:flex-row">
         <label className="flex flex-2 flex-col gap-1.5 text-small">
           Nombre del lote
           <input
             name="nombre"
-            defaultValue="Metodología 5B · Ensayo final"
+            required
+            maxLength={MAX_NAME_LENGTH}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            disabled={creating}
+            placeholder="Ej.: Metodología 5B · Ensayo final"
             className={INPUT_CLASSES}
           />
         </label>
         <label className="flex flex-1 flex-col gap-1.5 text-small">
           Periodo
-          <input name="periodo" defaultValue="2026-2S" className={INPUT_CLASSES} />
+          <input
+            name="periodo"
+            required
+            maxLength={MAX_PERIOD_LENGTH}
+            value={period}
+            onChange={(event) => setPeriod(event.target.value)}
+            disabled={creating}
+            placeholder="Ej.: 2026-2S"
+            className={INPUT_CLASSES}
+          />
         </label>
-      </form>
+      </div>
 
       <PdfDropzone
         multiple
         title="Arrastra aquí los PDF del curso"
         hint="Hasta 40 archivos de 10 MB cada uno · APA o IEEE (detección automática)"
-        pendingMessage="El envío del lote se conecta en la HU-08."
-        onChange={(files) => setChosen(files.length)}
+        disabled={creating}
+        onChange={setFiles}
+        onRejected={setRejected}
       >
-        <button type="button" disabled className={`${buttonStyles({ fullWidth: true })} md:w-auto`}>
-          Analizar lote ({filesLabel(chosen)})
+        <button
+          type="submit"
+          disabled={files.length === 0 || creating}
+          aria-busy={creating}
+          className={`${buttonStyles({ fullWidth: true })} md:w-auto`}
+        >
+          {creating ? "Creando el lote…" : `Analizar lote (${filesLabel(files.length)})`}
         </button>
       </PdfDropzone>
 
-      <section aria-labelledby="titulo-avance" className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="titulo-avance" className="text-small font-semibold tracking-normal text-ink">
-            Avance del lote · {filesLabel(uploads.length)} · {analyzed} analizados
-          </h2>
-          <Link
-            href={`/docente/lotes/${batchId}`}
-            className="text-small font-medium text-accent-text hover:underline"
-          >
-            Ir al tablero del lote →
-          </Link>
-        </div>
-        <ul className="flex flex-col divide-y divide-hairline rounded-card border border-hairline bg-surface px-4">
-          {uploads.map((upload) => (
-            <li key={upload.fileName} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-              <FileText aria-hidden="true" className="size-5 text-body" />
-              <span className="flex-1 text-small text-ink">{upload.fileName}</span>
-              <span className="text-small">{formatFileSize(upload.sizeBytes)}</span>
-              <UploadStateChip state={upload.state} />
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
+      <div aria-live="polite" className="flex flex-col gap-1 text-small">
+        {slow ? (
+          <p>Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.</p>
+        ) : null}
+        {missingData ? (
+          <p role="alert" className="text-verdict-contradiction-text">
+            Escribe el nombre y el periodo del lote.
+          </p>
+        ) : null}
+        {createError ? (
+          <p role="alert" className="text-verdict-contradiction-text">
+            {createError}
+          </p>
+        ) : null}
+      </div>
+    </form>
   );
 }

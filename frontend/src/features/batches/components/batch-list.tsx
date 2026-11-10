@@ -4,6 +4,8 @@ import { StatusChip } from "@/shared/components/ui/status-chip";
 import type { BatchStatus, BatchSummary } from "../types";
 
 function BatchStatusChip({ status, works }: { status: BatchStatus; works: number }) {
+  if (status.kind === "empty") return <StatusChip tone="neutral">Sin trabajos</StatusChip>;
+  if (status.kind === "failed") return <StatusChip tone="danger">Sin analizar</StatusChip>;
   if (status.kind === "analyzing") {
     return (
       <StatusChip tone="warning">
@@ -11,14 +13,15 @@ function BatchStatusChip({ status, works }: { status: BatchStatus; works: number
       </StatusChip>
     );
   }
-  // Verde solo sin alertas: cualquier alerta pide revisión.
-  if (status.count === 0) return <StatusChip tone="success">Sin alertas</StatusChip>;
-  const tone = status.count >= 5 ? "danger" : "warning";
-  return (
-    <StatusChip tone={tone}>
-      {status.count} {status.count === 1 ? "alerta" : "alertas"}
-    </StatusChip>
-  );
+  if (status.highRisk === 0) return <StatusChip tone="success">Sin riesgo alto</StatusChip>;
+  return <StatusChip tone="danger">{status.highRisk} de riesgo alto</StatusChip>;
+}
+
+function detailLine(batch: BatchSummary): string[] {
+  const parts = [`${batch.works} ${batch.works === 1 ? "trabajo" : "trabajos"}`];
+  if (batch.period) parts.push(batch.period);
+  if (batch.failed > 0) parts.push(`${batch.failed} con error`);
+  return parts;
 }
 
 const ROW_CLASSES =
@@ -35,10 +38,8 @@ export function BatchList({ batches }: { batches: BatchSummary[] }) {
             className={`${ROW_CLASSES} hover:border-hairline-strong`}
           >
             <span className="flex flex-1 flex-col">
-              <span className="font-semibold text-ink">{batch.name}</span>
-              <span className="text-small">
-                {batch.works} trabajos · <span className="whitespace-nowrap">{batch.period}</span>
-              </span>
+              <span className="font-semibold break-words text-ink">{batch.name}</span>
+              <span className="text-small">{detailLine(batch).join(" · ")}</span>
             </span>
             <BatchStatusChip status={batch.status} works={batch.works} />
           </Link>
