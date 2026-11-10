@@ -92,6 +92,22 @@ export function apiPost(
   );
 }
 
+export function apiPatch(
+  path: string,
+  payload: unknown,
+  onSlow: () => void = () => undefined,
+): Promise<ApiResponse | ApiFailure> {
+  return apiRequest(
+    path,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    onSlow,
+  );
+}
+
 /** Despierta al backend antes de una subida; si no responde, no pasa nada. */
 export function wakeApi(): void {
   fetch(`${getApiUrl()}/health`).catch(() => undefined);
