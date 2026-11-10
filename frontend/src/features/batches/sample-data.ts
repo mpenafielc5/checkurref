@@ -1,8 +1,8 @@
 /*
- * Datos de ejemplo de las maquetas 14, 15 y 16. Se reemplazan por datos de
- * Supabase en HU-08 (lotes), HU-09 (tablero) y HU-10 (exportación).
+ * Datos de ejemplo de las maquetas 14 y 16. Se reemplazan por datos reales en
+ * HU-09 (tablero) y HU-18 (estadísticas).
  */
-import type { BatchSummary, BatchUpload, BatchWork } from "./types";
+import type { BatchWork } from "./types";
 
 export const SAMPLE_TEACHER_STATS = {
   activeBatches: "3",
@@ -10,30 +10,6 @@ export const SAMPLE_TEACHER_STATS = {
   verified: "73 %",
   alerts: "11",
 };
-
-export const SAMPLE_BATCHES: BatchSummary[] = [
-  {
-    id: "is-7a",
-    name: "Ingeniería de Software 7A · Avance 2",
-    works: 28,
-    period: "2026-2S",
-    status: { kind: "alerts", count: 9 },
-  },
-  {
-    id: "met-5b",
-    name: "Metodología 5B · Ensayo final",
-    works: 20,
-    period: "2026-2S",
-    status: { kind: "analyzing", done: 14 },
-  },
-  {
-    id: "tit-c2",
-    name: "Titulación · Capítulo 2",
-    works: 16,
-    period: "2026-2S",
-    status: { kind: "alerts", count: 2 },
-  },
-];
 
 export const SAMPLE_BATCH_DETAIL = {
   id: "is-7a",
@@ -88,17 +64,3 @@ export const SAMPLE_BATCH_DETAIL = {
     },
   ] satisfies BatchWork[],
 };
-
-export const SAMPLE_NEW_BATCH_UPLOADS: BatchUpload[] = [
-  { fileName: "Ensayo_Estudiante_A.pdf", sizeBytes: 1.8 * 1024 * 1024, state: { kind: "listo" } },
-  {
-    fileName: "Ensayo_Estudiante_B.pdf",
-    sizeBytes: 2.3 * 1024 * 1024,
-    state: { kind: "verificando", done: 8, total: 22 },
-  },
-  {
-    fileName: "Ensayo_Estudiante_C.pdf",
-    sizeBytes: 6.1 * 1024 * 1024,
-    state: { kind: "error", reason: "PDF escaneado" },
-  },
-];

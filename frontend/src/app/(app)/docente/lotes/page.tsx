@@ -1,11 +1,10 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { RolePage } from "@/features/auth/components/role-page";
-import { BatchList, BatchListSkeleton } from "@/features/batches/components/batch-list";
-import { SAMPLE_BATCHES } from "@/features/batches/sample-data";
+import { BatchListSkeleton } from "@/features/batches/components/batch-list";
+import { BatchesLoader } from "@/features/batches/components/batches-loader";
 import { PageSection, PageSectionSkeleton } from "@/shared/components/page-section";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
-import { SampleDataNotice } from "@/shared/components/ui/sample-data-notice";
 
 /** Lista completa de lotes del docente. */
 export default function TeacherBatchesPage() {
@@ -14,7 +13,6 @@ export default function TeacherBatchesPage() {
       allow={["docente"]}
       skeleton={
         <PageSectionSkeleton description action>
-          <SampleDataNotice story="la HU-08" />
           <BatchListSkeleton rows={3} />
         </PageSectionSkeleton>
       }
@@ -30,8 +28,7 @@ export default function TeacherBatchesPage() {
           </Link>
         }
       >
-        <SampleDataNotice story="la HU-08" />
-        <BatchList batches={SAMPLE_BATCHES} />
+        <BatchesLoader />
       </PageSection>
     </RolePage>
   );

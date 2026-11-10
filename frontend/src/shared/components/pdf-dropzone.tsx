@@ -11,15 +11,17 @@ type PdfDropzoneProps = {
   multiple?: boolean;
   title: string;
   hint: string;
-  /** Mensaje mientras la subida real no está conectada. */
-  pendingMessage?: string;
   /** Recibe los archivos válidos cada vez que cambia la selección. */
   onChange?: (files: File[]) => void;
+  /** Recibe los archivos rechazados con su motivo: no se envían, pero el lote los informa. */
+  onRejected?: (rejected: RejectedPdf[]) => void;
   /** Mientras se sube, no se puede cambiar la selección. */
   disabled?: boolean;
   /** Acción principal (Analizar…), dentro del mismo contenedor que los archivos. */
   children?: ReactNode;
 };
+
+export type RejectedPdf = { file: File; reason: string };
 
 type Item = { key: string; file: File; error: string | null };
 
@@ -47,8 +49,8 @@ export function PdfDropzone({
   multiple = false,
   title,
   hint,
-  pendingMessage,
   onChange,
+  onRejected,
   disabled = false,
   children,
 }: PdfDropzoneProps) {
@@ -61,6 +63,9 @@ export function PdfDropzone({
   function update(next: Item[]) {
     setItems(next);
     onChange?.(next.filter((item) => !item.error).map((item) => item.file));
+    onRejected?.(
+      next.flatMap((item) => (item.error ? [{ file: item.file, reason: item.error }] : [])),
+    );
     // Sin esto, volver a elegir el mismo archivo no dispararía el cambio.
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -225,9 +230,6 @@ export function PdfDropzone({
         <p role="alert" className="text-small text-verdict-contradiction-text">
           {items[0].file.name}: {items[0].error}
         </p>
-      ) : null}
-      {showList && pendingMessage ? (
-        <p className="text-caption text-body">{pendingMessage}</p>
       ) : null}
     </div>
   );

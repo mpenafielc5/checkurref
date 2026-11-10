@@ -1,8 +1,9 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { RolePage } from "@/features/auth/components/role-page";
-import { BatchList, BatchListSkeleton } from "@/features/batches/components/batch-list";
-import { SAMPLE_BATCHES, SAMPLE_TEACHER_STATS } from "@/features/batches/sample-data";
+import { BatchListSkeleton } from "@/features/batches/components/batch-list";
+import { RecentBatchesLoader } from "@/features/batches/components/batches-loader";
+import { SAMPLE_TEACHER_STATS } from "@/features/batches/sample-data";
 import { PageSection, PageSectionSkeleton } from "@/shared/components/page-section";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { SampleDataNotice } from "@/shared/components/ui/sample-data-notice";
@@ -18,7 +19,7 @@ export default function TeacherHomePage() {
       allow={["docente"]}
       skeleton={
         <PageSectionSkeleton action>
-          <SampleDataNotice story="la HU-08" />
+          <SampleDataNotice story="la HU-18" />
           <StatRowSkeleton count={4} />
           <div className="flex flex-col gap-3">
             <SkeletonText textClass="text-small" widthClass="w-28" />
@@ -37,7 +38,7 @@ export default function TeacherHomePage() {
           </Link>
         }
       >
-        <SampleDataNotice story="la HU-08" />
+        <SampleDataNotice story="la HU-18" />
         <StatRow>
           <StatCard value={stats.activeBatches} label="Lotes activos" />
           <StatCard value={stats.works} label="Trabajos" />
@@ -51,7 +52,7 @@ export default function TeacherHomePage() {
           >
             Lotes recientes
           </h2>
-          <BatchList batches={SAMPLE_BATCHES} />
+          <RecentBatchesLoader />
         </section>
       </PageSection>
     </RolePage>
