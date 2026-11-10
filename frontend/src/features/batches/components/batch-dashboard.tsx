@@ -4,9 +4,9 @@ import { useParams } from "next/navigation";
 import { PageSection, PageSectionSkeleton } from "@/shared/components/page-section";
 import { DataTableSkeleton } from "@/shared/components/ui/data-table";
 import { StatCard, StatRow, StatRowSkeleton } from "@/shared/components/ui/stat-card";
+import { VerdictBreakdown } from "@/shared/components/ui/verdict-breakdown";
+import { shareLabel } from "@/shared/lib/format";
 import { fieldLabel } from "@/shared/lib/reference-fields";
-import { VERDICT_ORDER, VERDICTS } from "@/shared/lib/verdicts";
-import { shareLabel } from "../rules";
 import type { BatchDetail } from "../types";
 import { useBatchDetail } from "../use-batch-detail";
 import { BatchExportButton } from "./batch-export-button";
@@ -32,29 +32,7 @@ function BatchBreakdown({ batch }: { batch: BatchDetail }) {
         <h2 id="titulo-veredictos" className="text-small font-semibold tracking-normal text-ink">
           Veredictos del lote
         </h2>
-        <div aria-hidden="true" className="flex h-4 overflow-hidden rounded-control">
-          {VERDICT_ORDER.map((verdict) => (
-            <span
-              key={verdict}
-              className={VERDICTS[verdict].swatchClass}
-              style={{ flexGrow: batch.counts[verdict] }}
-            />
-          ))}
-        </div>
-        <ul className="flex flex-col gap-1 text-small">
-          {VERDICT_ORDER.map((verdict) => (
-            <li key={verdict} className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className={`size-3 shrink-0 rounded-row ${VERDICTS[verdict].swatchClass}`}
-              />
-              <span className="flex-1 text-ink">{VERDICTS[verdict].label}</span>
-              <span className="tabular-nums">
-                {shareLabel(batch.counts[verdict], batch.references)} ({batch.counts[verdict]})
-              </span>
-            </li>
-          ))}
-        </ul>
+        <VerdictBreakdown counts={batch.counts} total={batch.references} />
       </section>
 
       <section aria-labelledby="titulo-campos" className="flex flex-1 flex-col gap-3">

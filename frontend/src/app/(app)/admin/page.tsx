@@ -1,11 +1,12 @@
 import { FlaskConical, Users } from "lucide-react";
 import Link from "next/link";
-import { SAMPLE_ADMIN_STATS } from "@/features/admin/sample-data";
 import { RolePage } from "@/features/auth/components/role-page";
+import {
+  StatisticsLoader,
+  StatisticsSkeleton,
+} from "@/features/stats/components/statistics-loader";
 import { PageSection, PageSectionSkeleton } from "@/shared/components/page-section";
-import { SampleDataNotice } from "@/shared/components/ui/sample-data-notice";
 import { Skeleton, SkeletonText } from "@/shared/components/ui/skeleton";
-import { StatCard, StatRow, StatRowSkeleton } from "@/shared/components/ui/stat-card";
 
 const SHORTCUTS = [
   {
@@ -22,17 +23,14 @@ const SHORTCUTS = [
   },
 ];
 
-/** Inicio del administrador. */
+/** Inicio del administrador (HU-18). */
 export default function AdminHomePage() {
-  const stats = SAMPLE_ADMIN_STATS;
-
   return (
     <RolePage
       allow={["admin"]}
       skeleton={
         <PageSectionSkeleton>
-          <SampleDataNotice story="la HU-18" />
-          <StatRowSkeleton count={4} />
+          <StatisticsSkeleton rows={2} cards={3} />
           <div className="flex flex-col gap-4 md:flex-row">
             {SHORTCUTS.map(({ href }) => (
               <div
@@ -51,13 +49,7 @@ export default function AdminHomePage() {
       }
     >
       <PageSection eyebrow="Administración" title="Inicio">
-        <SampleDataNotice story="la HU-18" />
-        <StatRow>
-          <StatCard value={stats.users} label="Usuarios" />
-          <StatCard value={stats.analysesToday} label="Análisis hoy" />
-          <StatCard value={stats.goldSet} label="Referencias en el estándar de oro" />
-          <StatCard value={stats.lastBenchmark} label="Último benchmark" />
-        </StatRow>
+        <StatisticsLoader rows={2} cards={3} />
         <ul className="flex flex-col gap-4 md:flex-row">
           {SHORTCUTS.map(({ href, title, description, Icon }) => (
             <li key={href} className="flex flex-1">

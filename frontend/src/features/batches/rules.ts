@@ -1,4 +1,3 @@
-import { formatPercent } from "@/shared/lib/format";
 import type { BatchWork, RiskLevel } from "./types";
 
 const COMPLETED = "completado";
@@ -61,16 +60,4 @@ export function sortBatchWorks(
     if (diff !== 0 || key !== "risk") return diff * factor;
     return ((b.index ?? 0) - (a.index ?? 0)) * factor;
   });
-}
-
-/**
- * Parte de las referencias del lote con un veredicto. Lo que apenas existe no se
- * redondea a 0 % ni a 100 %: daría a entender que no hay ninguna o que son todas.
- */
-export function shareLabel(count: number, total: number): string {
-  if (total === 0) return "—";
-  const percent = (count / total) * 100;
-  if (count > 0 && percent < 1) return "< 1 %";
-  if (count < total && percent > 99) return "> 99 %";
-  return formatPercent(percent);
 }

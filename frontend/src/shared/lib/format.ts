@@ -36,6 +36,19 @@ export function formatPercent(value: number): string {
   return `${Math.round(value)} %`;
 }
 
+/**
+ * Parte de un total, por ejemplo las referencias con un veredicto. Lo que apenas
+ * existe no se redondea a 0 % ni a 100 %: daría a entender que no hay ninguna o
+ * que son todas.
+ */
+export function shareLabel(count: number, total: number): string {
+  if (total === 0) return "—";
+  const percent = (count / total) * 100;
+  if (count > 0 && percent < 1) return "< 1 %";
+  if (count < total && percent > 99) return "> 99 %";
+  return formatPercent(percent);
+}
+
 export function formatFileSize(bytes: number): string {
   const megabytes = bytes / (1024 * 1024);
   return `${formatDecimal(megabytes, 1)} MB`;
