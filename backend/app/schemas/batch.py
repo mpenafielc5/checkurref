@@ -1,4 +1,4 @@
-"""DTO de los lotes de auditoría (HU-08, HU-09)."""
+"""DTO de los lotes de auditoría (HU-08, HU-09, HU-10)."""
 
 from datetime import datetime
 from typing import Annotated
@@ -69,3 +69,29 @@ class BatchDetail(BatchSummary):
     counts: VerdictCounts
     most_different_fields: list[FieldDifference]
     works: list[BatchWork]
+
+
+class ExportReference(BaseModel):
+    order: int
+    text: str
+    # None: sin veredicto, porque una fuente no respondió.
+    verdict: str | None
+    # Códigos de campo; el navegador les pone el nombre que ve el usuario.
+    different_fields: list[str]
+
+
+class ExportWork(BaseModel):
+    file_name: str
+    authors: list[str]
+    status: str
+    error_message: str | None
+    # Vacía si el análisis no terminó.
+    references: list[ExportReference]
+
+
+class BatchExport(BaseModel):
+    """Datos del CSV del lote (HU-10). El navegador arma el archivo con los nombres de la
+    interfaz, los mismos de la pantalla."""
+
+    name: str
+    works: list[ExportWork]

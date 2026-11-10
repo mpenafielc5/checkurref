@@ -1,4 +1,4 @@
-"""Casos de uso: auditar un lote de documentos (CU-06, HU-08 y HU-09).
+"""Casos de uso: auditar un lote de documentos y exportarlo (CU-06, CU-07).
 
 Un docente solo ve sus lotes: uno ajeno responde igual que uno inexistente, para
 no revelar que existe. Los trabajos del lote son del docente que los subió, así
@@ -17,9 +17,18 @@ from app.repositories.batches import (
     BatchRepository,
     StoredBatch,
     StoredBatchAnalysis,
+    StoredExportWork,
     StoredWork,
 )
-from app.schemas.batch import BatchDetail, BatchesPage, BatchSummary, BatchWork
+from app.schemas.batch import (
+    BatchDetail,
+    BatchesPage,
+    BatchExport,
+    BatchSummary,
+    BatchWork,
+    ExportReference,
+    ExportWork,
+)
 from app.schemas.report import FieldDifference, VerdictCounts
 from app.services.upload_service import UploadRejectedError, UploadResult, UploadService
 
@@ -94,6 +103,13 @@ class BatchService:
             works=works,
         )
 
+    def export(self, teacher_id: UUID, batch_id: UUID) -> BatchExport:
+        batch = self._owned(teacher_id, batch_id)
+        return BatchExport(
+            name=batch.name,
+            works=[_export_work(item) for item in self._batches.export_works(batch_id)],
+        )
+
     def submit_work(
         self, teacher_id: UUID, batch_id: UUID, file_name: str, content: bytes
     ) -> UploadResult:
@@ -148,6 +164,26 @@ def _work(work: StoredWork) -> BatchWork:
         alerts=contradictions + _count(work, DISCREPANCY) if finished else 0,
         risk=risk_of(work.index, contradictions) if finished else None,
         error_message=work.error_message,
+    )
+
+
+def _export_work(work: StoredExportWork) -> ExportWork:
+    # Un análisis en curso aún no tiene veredictos: sus referencias no son un resultado.
+    references = work.references if work.status == COMPLETED else ()
+    return ExportWork(
+        file_name=work.file_name,
+        authors=list(work.authors),
+        status=work.status,
+        error_message=work.error_message,
+        references=[
+            ExportReference(
+                order=item.order,
+                text=item.text,
+                verdict=item.verdict,
+                different_fields=list(item.different_fields),
+            )
+            for item in references
+        ],
     )
 
 
