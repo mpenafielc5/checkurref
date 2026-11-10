@@ -44,3 +44,26 @@ export type BenchmarkOverview = {
   keyFields: string[];
   tieMargin: number;
 };
+
+/** Nombre de cada motor en la comparación de una referencia (maqueta 17). */
+export const ENGINE_LABELS: Record<EngineId, string> = {
+  anystyle: "AnyStyle (CRF)",
+  spacy: "spaCy + reglas",
+};
+
+export type EngineOutput = {
+  engine: EngineId;
+  elapsedMs: number;
+  /** El motivo si el motor no pudo procesar la referencia. */
+  error: string | null;
+  /** Por código de campo; null si el motor no pudo procesarla. */
+  fields: Record<string, string | null> | null;
+};
+
+export type LabComparison = {
+  engines: EngineOutput[];
+  /** Campos en los que los motores no coinciden. */
+  differentFields: string[];
+  comparedFields: number;
+  matchingFields: number;
+};
