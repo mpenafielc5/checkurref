@@ -1,15 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { authorsLabel, sortBatchWorks } from "./rules";
+import { authorsLabel, shareLabel, sortBatchWorks } from "./rules";
 import type { BatchWork } from "./types";
 
-const work = (name: string, risk: BatchWork["risk"], index: number, alerts: number): BatchWork => ({
+const work = (
+  name: string,
+  risk: BatchWork["risk"],
+  index: number | null,
+  alerts: number,
+): BatchWork => ({
   analysisId: name,
   fileName: "Avance 2.pdf",
   authors: [name],
+  status: "completado",
+  progress: 100,
   references: 10,
   index,
   alerts,
   risk,
+  errorMessage: null,
+});
+
+const inProgress = (name: string): BatchWork => ({
+  ...work(name, null, null, 0),
+  status: "verificando",
+  progress: 50,
 });
 
 const WORKS = [
@@ -60,9 +74,41 @@ describe("sortBatchWorks", () => {
     ]);
   });
 
+  it("los trabajos sin resultado quedan al final en ambos sentidos", () => {
+    const works = [inProgress("Analizando"), ...WORKS];
+
+    for (const direction of ["asc", "desc"] as const) {
+      expect(sortBatchWorks(works, "risk", direction).at(-1)?.authors).toEqual(["Analizando"]);
+      expect(sortBatchWorks(works, "index", direction).at(-1)?.authors).toEqual(["Analizando"]);
+    }
+  });
+
+  it("un trabajo terminado sin riesgo calculado no se adelanta a los que lo tienen", () => {
+    const works = [work("Sin índice", null, null, 0), ...WORKS];
+
+    expect(sortBatchWorks(works).at(-1)?.authors).toEqual(["Sin índice"]);
+  });
+
   it("no modifica la lista original", () => {
     const copy = [...WORKS];
     sortBatchWorks(WORKS, "name");
     expect(WORKS).toEqual(copy);
+  });
+});
+
+describe("shareLabel", () => {
+  it("redondea el porcentaje de las referencias", () => {
+    expect(shareLabel(71, 100)).toBe("71 %");
+    expect(shareLabel(0, 100)).toBe("0 %");
+    expect(shareLabel(100, 100)).toBe("100 %");
+  });
+
+  it("no redondea a 0 % ni a 100 % lo que no es exacto", () => {
+    expect(shareLabel(1, 300)).toBe("< 1 %");
+    expect(shareLabel(299, 300)).toBe("> 99 %");
+  });
+
+  it("sin referencias no hay porcentaje", () => {
+    expect(shareLabel(0, 0)).toBe("—");
   });
 });

@@ -13,6 +13,10 @@ type LoadState = { kind: "loading"; slow: boolean } | ReportOutcome;
 type ReportLoaderProps = {
   /** Lista de trabajos de la que cuelga el informe: /{listHref}/{analisisId}. */
   listHref: string;
+  /** Texto del enlace de regreso a esa lista. */
+  backLabel?: string;
+  /** El rol tiene una pantalla de progreso; si no, un análisis en curso vuelve a la lista. */
+  hasProgressPage?: boolean;
 };
 
 /**
@@ -20,7 +24,11 @@ type ReportLoaderProps = {
  * por el que no está. El id sale de la dirección (useParams): así la página no
  * espera datos de la petición y se prerenderiza con su esqueleto.
  */
-export function ReportLoader({ listHref }: ReportLoaderProps) {
+export function ReportLoader({
+  listHref,
+  backLabel = "Volver a mis trabajos",
+  hasProgressPage = true,
+}: ReportLoaderProps) {
   const { analisisId: analysisId } = useParams<{ analisisId: string }>();
   const [state, setState] = useState<LoadState>({ kind: "loading", slow: false });
 
@@ -62,10 +70,10 @@ export function ReportLoader({ listHref }: ReportLoaderProps) {
             El análisis aún no termina. El informe estará disponible cuando se complete.
           </p>
           <Link
-            href={`${listHref}/${analysisId}/progreso`}
+            href={hasProgressPage ? `${listHref}/${analysisId}/progreso` : listHref}
             className={buttonStyles({ variant: "primary" })}
           >
-            Ver el progreso
+            {hasProgressPage ? "Ver el progreso" : backLabel}
           </Link>
         </div>
       ) : null}
@@ -76,7 +84,7 @@ export function ReportLoader({ listHref }: ReportLoaderProps) {
             {state.message}
           </p>
           <Link href={listHref} className={buttonStyles({ variant: "secondary" })}>
-            Volver a mis trabajos
+            {backLabel}
           </Link>
         </div>
       ) : null}

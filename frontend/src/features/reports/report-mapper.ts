@@ -3,6 +3,7 @@
  * backend) a los tipos de la pantalla. La API manda los campos como códigos de
  * la base (titulo, anio…); los nombres que ve el usuario se ponen aquí.
  */
+import { fieldLabel } from "@/shared/lib/reference-fields";
 import { standardLabel } from "@/shared/lib/standards";
 import { VERDICT_ORDER, type Verdict } from "@/shared/lib/verdicts";
 import type { ExtractedField, FieldComparison, NliResult, ReferenceResult, Report } from "./types";
@@ -67,18 +68,6 @@ const SEGMENT_FIELDS: Record<string, ExtractedField> = {
   contenedor: "container",
 };
 
-const FIELD_LABELS: Record<string, string> = {
-  titulo: "Título",
-  autores: "Autores",
-  anio: "Año",
-  doi: "DOI",
-  contenedor: "Revista o libro",
-  volumen: "Volumen",
-  paginas: "Páginas",
-  numero: "Número",
-  editorial: "Editorial",
-};
-
 const UNKNOWN_STANDARD_NOTICE =
   "No se identificó si la lista de referencias sigue APA o IEEE, por lo que no se revisó su formato. La verificación de los datos de cada referencia no se ve afectada.";
 
@@ -97,7 +86,7 @@ function nliOf(reference: ReferenceDto): NliResult | null {
   const result = reference.nli.find((item) => item.field === NLI_FIELD) ?? reference.nli[0] ?? null;
   if (!result) return null;
   return {
-    field: (FIELD_LABELS[result.field] ?? result.field).toLowerCase(),
+    field: fieldLabel(result.field).toLowerCase(),
     entailment: percent(result.entailment),
     neutral: percent(result.neutral),
     contradiction: percent(result.contradiction),
@@ -106,7 +95,7 @@ function nliOf(reference: ReferenceDto): NliResult | null {
 
 function comparisonsOf(reference: ReferenceDto): FieldComparison[] {
   return reference.comparisons.map((comparison) => ({
-    label: FIELD_LABELS[comparison.field] ?? comparison.field,
+    label: fieldLabel(comparison.field),
     given: comparison.given,
     official: comparison.official ?? "No registrado",
     matches: comparison.matches,
