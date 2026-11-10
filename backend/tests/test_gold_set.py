@@ -68,12 +68,12 @@ IEEE_FIELDS = {
 
 def apa(reference_id: str = "R001", **changes: str) -> GoldReference:
     return GoldReference(
-        reference_id, APA_TEXT, "APA", "articulo", {**APA_FIELDS, **changes}, "Miguel"
+        reference_id, APA_TEXT, "APA", "articulo", {**APA_FIELDS, **changes}, "Anotador A"
     )
 
 
 def ieee(reference_id: str = "R002") -> GoldReference:
-    return GoldReference(reference_id, IEEE_TEXT, "IEEE", "articulo", IEEE_FIELDS, "Jackson")
+    return GoldReference(reference_id, IEEE_TEXT, "IEEE", "articulo", IEEE_FIELDS, "Anotador B")
 
 
 # --- Archivos y validación ------------------------------------------------------------------
@@ -189,10 +189,10 @@ def test_kappa_de_cohen() -> None:
 
 
 def test_acuerdo_entre_dos_anotadores() -> None:
-    miguel = [apa(), ieee()]
-    jackson = [apa(paginas="10"), ieee(), apa("R099")]  # R099 solo la anotó uno
+    first = [apa(), ieee()]
+    second = [apa(paginas="10"), ieee(), apa("R099")]  # R099 solo la anotó uno
 
-    result = agreement(miguel, jackson)
+    result = agreement(first, second)
 
     assert result.common == 2
     assert result.by_field["paginas"] == 0.5

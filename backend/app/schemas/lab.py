@@ -1,5 +1,6 @@
-"""DTO del Laboratorio de extracción (HU-13)."""
+"""DTO del Laboratorio de extracción (HU-12, HU-13)."""
 
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, StringConstraints
@@ -42,3 +43,44 @@ class LabComparison(BaseModel):
     different_fields: list[str]
     compared_fields: int
     matching_fields: int
+
+
+class FieldScore(BaseModel):
+    field: str
+    precision: float
+    recall: float
+    f1: float
+
+
+class EngineScores(BaseModel):
+    engine: str  # anystyle o spacy
+    version: str | None
+    samples: int  # referencias reales medidas
+    key_f1: float  # F1 promedio en los campos clave: decide el motor
+    fields: list[FieldScore]
+
+
+class BenchmarkRun(BaseModel):
+    """Una medición guardada."""
+
+    executed_at: datetime
+    engines: list[EngineScores]
+    selected_engine: str
+    tie: bool  # diferencia dentro del margen de error: se mantiene el motor por defecto
+    difference: float  # en puntos de F1, de 0 a 1
+
+
+class GoldSetSummary(BaseModel):
+    total: int
+    real: int  # las únicas que miden a los motores; las alteradas prueban la verificación
+    apa: int
+    ieee: int
+
+
+class BenchmarkOverview(BaseModel):
+    gold_set: GoldSetSummary
+    runs: list[BenchmarkRun]  # de la más reciente a la más antigua
+    # El motor que usa el análisis ahora: si falta AnyStyle, puede no ser el seleccionado.
+    engine_in_use: str
+    key_fields: list[str]
+    tie_margin: float

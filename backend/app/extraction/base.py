@@ -62,6 +62,14 @@ class ReferenceExtractor(ABC):
     def extract(self, reference: str) -> ExtractedFields:
         """Campos de una referencia. Lanza ExtractionError si no puede procesarla."""
 
+    def available(self) -> bool:
+        """Si el motor se puede usar en esta máquina."""
+        return True
+
+    def version(self) -> str | None:
+        """Versión del motor, para guardarla con cada medición; None si no se conoce."""
+        return None
+
     def extract_all(self, references: list[str]) -> list[Extraction]:
         """Campos de cada referencia, en el mismo orden.
 

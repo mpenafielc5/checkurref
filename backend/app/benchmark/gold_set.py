@@ -22,6 +22,7 @@ import uuid
 from collections import Counter
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import Any
 
 FIELDS = (
     "autores",
@@ -284,11 +285,12 @@ def same_value(name: str, first: str, second: str) -> bool:
     no son un desacuerdo; tampoco los espacios alrededor del punto y coma de autores.
     """
     if name == "autores":
-        return [_trimmed(s) for s in surnames(first)] == [_trimmed(s) for s in surnames(second)]
-    return _trimmed(first) == _trimmed(second)
+        return [trimmed(s) for s in surnames(first)] == [trimmed(s) for s in surnames(second)]
+    return trimmed(first) == trimmed(second)
 
 
-def _trimmed(value: str) -> str:
+def trimmed(value: str) -> str:
+    """Forma comparable de un valor: sin mayúsculas, guiones largos ni puntuación del borde."""
     return _comparable(value).strip(EDGE_PUNCTUATION)
 
 
@@ -456,6 +458,23 @@ def _replace_year(text: str, old: str, new: str, last: bool) -> str | None:
 
 
 # --- Carga en la base de datos --------------------------------------------------------------
+
+
+def from_database_row(row: dict[str, Any]) -> GoldReference:
+    """Lo contrario de to_database_row: la medición lee el estándar de oro de la base."""
+    annotated = row["campos_anotados"]
+    return GoldReference(
+        id=annotated.get("id_planilla") or "",
+        text=row["texto"],
+        norm=row["norma"],
+        work_type=annotated.get("tipo_obra") or "",
+        fields={name: annotated.get(name) or "" for name in FIELDS},
+        altered=row["es_alterada"],
+        alteration=row.get("tipo_alteracion") or "",
+        source_id=annotated.get("origen") or "",
+        document=annotated.get("documento") or "",
+        partition=annotated.get("particion") or "",
+    )
 
 
 def to_database_row(reference: GoldReference) -> dict[str, object]:

@@ -8,19 +8,25 @@ python -m scripts.gold_set preparar --apa carpeta-apa --ieee carpeta-ieee --sali
     mano, sin precargarlos con un extractor, para no sesgar la comparación.
 python -m scripts.gold_set validar anotado.csv
     Revisa la anotación y cuenta las referencias por norma y tipo de obra.
-python -m scripts.gold_set acuerdo miguel.csv jackson.csv --desde R006 --hasta R025
+python -m scripts.gold_set acuerdo anotador_a.csv anotador_b.csv --desde R006 --hasta R025
     Acuerdo entre anotadores en ese rango: coincidencia por campo, kappa y desacuerdos.
 python -m scripts.gold_set alterar anotado.csv --salida final.csv
     Agrega las 50 alteradas (semilla fija), las reparte entre calibración y prueba
     y guarda el estándar de oro final.
 python -m scripts.gold_set cargar final.csv
     Reemplaza la tabla referencias_oro con el estándar de oro final (usa backend/.env).
+python -m scripts.gold_set evaluar final.csv
+    Compara AnyStyle y spaCy con las 100 reales (HU-12): precisión, exhaustividad y
+    F1 por campo y por norma, y aplica la regla de decisión. Si AnyStyle no está
+    instalado, se detiene: nunca mide spaCy en su lugar.
 """
 
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
+from app.benchmark.evaluation import KEY_FIELDS, EngineResult, decide, evaluate
 from app.benchmark.gold_set import (
     ALTERATIONS,
     FIELDS,
@@ -39,6 +45,9 @@ from app.benchmark.gold_set import (
     write_csv,
 )
 from app.core.config import get_settings
+from app.extraction.anystyle import AnyStyleExtractor
+from app.extraction.base import ReferenceExtractor
+from app.extraction.spacy_rules import SpacyExtractor
 from app.pipeline.errors import PdfProcessingError
 from app.pipeline.references_section import extract_reference_section
 from app.pipeline.segmentation import segment_references
@@ -157,6 +166,53 @@ def load(path: Path) -> int:
     return 0
 
 
+def measure(path: Path, engines: list[str], anystyle_command: str) -> int:
+    references = read_csv(path)
+    if problems := validate(references):
+        print(f"El estándar de oro tiene {len(problems)} problemas: ejecuten validar.")
+        return 1
+    extractors: list[ReferenceExtractor] = []
+    for engine in engines:
+        if engine == "anystyle":
+            if not shutil.which(anystyle_command):
+                print(f"No se encontró {anystyle_command} (anystyle-cli): no se mide nada.")
+                return 1
+            extractors.append(AnyStyleExtractor(command=anystyle_command))
+        else:
+            extractors.append(SpacyExtractor())
+    results = [evaluate(references, extractor) for extractor in extractors]
+    _print_results(results)
+    if len(results) > 1:
+        decision = decide(results)
+        verdict = "empate: se mantiene" if decision.tie else "gana"
+        print(f"\nDecisión: {verdict} {decision.winner.value}", end=" ")
+        print(f"(diferencia de {decision.difference * 100:.1f} puntos de F1 en los campos clave).")
+    return 0
+
+
+def _print_results(results: list[EngineResult]) -> None:
+    names = " | ".join(f"{result.engine.value:^20}" for result in results)
+    print(f"Referencias reales: {results[0].references}\n")
+    print(f"{'campo':<12} | {names}")
+    print(f"{'':<12} | " + " | ".join(f"{'P':>6}{'R':>7}{'F1':>7}" for _ in results))
+    for name in FIELDS:
+        cells = " | ".join(
+            f"{c.precision:>6.2f}{c.recall:>7.2f}{c.f1:>7.2f}"
+            for c in (result.by_field[name] for result in results)
+        )
+        print(f"{name:<12} | {cells}")
+    print(f"\nF1 promedio en {', '.join(KEY_FIELDS)}:")
+    for norm in (None, *NORMS):
+        label = norm or "total"
+        cells = "  ".join(f"{r.engine.value} {r.key_f1(norm):.2f}" for r in results)
+        print(f"  {label:<6} {cells}")
+    for result in results:
+        print(
+            f"{result.engine.value}: {result.failures} referencias sin procesar, "
+            f"{result.elapsed_ms / max(result.references, 1):.0f} ms por referencia"
+        )
+
+
 def main(arguments: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="gold_set", description=(__doc__ or "").split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -174,8 +230,16 @@ def main(arguments: list[str]) -> int:
     alter_command.add_argument("csv", type=Path)
     alter_command.add_argument("--salida", type=Path, default=Path("estandar-oro-final.csv"))
     commands.add_parser("cargar").add_argument("csv", type=Path)
+    measure_command = commands.add_parser("evaluar")
+    measure_command.add_argument("csv", type=Path)
+    measure_command.add_argument(
+        "--motores", nargs="+", choices=["anystyle", "spacy"], default=["anystyle", "spacy"]
+    )
+    measure_command.add_argument("--anystyle", default="anystyle", help="comando de anystyle-cli")
 
     options = parser.parse_args(arguments)
+    if options.command == "evaluar":
+        return measure(options.csv, options.motores, options.anystyle)
     if options.command == "preparar":
         return prepare({"APA": options.apa, "IEEE": options.ieee}, options.salida)
     if options.command == "validar":
