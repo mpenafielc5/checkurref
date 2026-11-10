@@ -38,7 +38,8 @@ TEACHER = UUID(USER_ID)
 BATCH_ID = uuid4()
 NOW = datetime(2026, 11, 9, tzinfo=timezone.utc)
 REST_URL = "https://proyecto.supabase.co/rest/v1"
-PDF = make_pdf([PageSpec(lines=["Referencias", "Torres, A. (2020). Un título. Revista."])])
+REFERENCES = PageSpec(lines=["Referencias", "Torres, A. (2020). Un título. Revista."])
+PDF = make_pdf([REFERENCES])
 BATCH = StoredBatch(BATCH_ID, TEACHER, "Software 7A", "2026-2S", NOW)
 
 
@@ -266,7 +267,9 @@ def test_sube_un_trabajo_al_lote_con_la_misma_funcion_que_el_estudiante() -> Non
 
 def test_al_subir_al_lote_se_leen_los_autores_de_la_portada() -> None:
     service, _, documents = batch_service()
-    cover = make_pdf([PageSpec(lines=["Autores:", "Ana Vera", "Luis Rojas", "Tutor:", "Pablo"])])
+    cover = make_pdf(
+        [PageSpec(lines=["Autores:", "Ana Vera", "Luis Rojas", "Tutor:", "Pablo"]), REFERENCES]
+    )
 
     service.submit_work(TEACHER, BATCH_ID, "Avance 2.pdf", cover)
 
@@ -276,7 +279,7 @@ def test_al_subir_al_lote_se_leen_los_autores_de_la_portada() -> None:
 def test_el_trabajo_individual_no_lee_la_portada() -> None:
     documents = FakeDocuments()
     uploads = UploadService(documents, FakeStorage(), model_version="modelo-prueba")
-    cover = make_pdf([PageSpec(lines=["Autores:", "Ana Vera", "Tutor:", "Pablo"])])
+    cover = make_pdf([PageSpec(lines=["Autores:", "Ana Vera", "Tutor:", "Pablo"]), REFERENCES])
 
     uploads.submit(TEACHER, "Avance 2.pdf", cover)
 

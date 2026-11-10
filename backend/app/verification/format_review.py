@@ -54,7 +54,8 @@ IEEE_EARLY_YEAR = re.compile(r"\(((?:19|20)\d{2})[^)]{0,30}\)|,\s((?:19|20)\d{2}
 # Un año dentro de un paréntesis, con o sin fecha exacta: (2020), (07 de julio de 1985).
 PAREN_YEAR = re.compile(r"\([^()]{0,40}\b(?:19|20)\d{2}[a-z]?\b[^()]{0,40}\)")
 PAREN_NO_YEAR = re.compile(rf"\(\s*(?:{UNDATED}|s/f|en prensa|in press)\s*\)", re.IGNORECASE)
-EDITORS = re.compile(r"\(\s*(?:Eds?|Coords?|Comps?)\.?\s*\)", re.IGNORECASE)
+# Con el punto que lo cierra en APA, "(Eds.)."; si queda, la última inicial parece sin punto.
+EDITORS = re.compile(r"\(\s*(?:Eds?|Coords?|Comps?)\.?\s*\)\.?", re.IGNORECASE)
 
 STARTS_WITH_AUTHOR = re.compile(rf"^{SURNAME_FIRST}")
 
@@ -555,11 +556,21 @@ def _mixed_norm(references: list[SegmentedReference]) -> tuple[int, Finding] | N
     apa, ieee = counts[Norm.APA], counts[Norm.IEEE]
     if not apa or not ieee:
         return None
-    # El aviso va en la primera referencia de la norma con menos referencias.
-    minority = Norm.APA if apa < ieee else Norm.IEEE
+    # El aviso va en la primera referencia de la norma con menos referencias y habla de
+    # ella: qué norma sigue y cuál siguen las demás.
+    minority, majority = (Norm.APA, Norm.IEEE) if apa < ieee else (Norm.IEEE, Norm.APA)
     first = next(item for item in references if item.norm is minority)
-    given = f"{apa} en APA y {ieee} en IEEE"
-    finding = _finding(CATALOG[MIXED_NORM_CODE], given, "Todas las referencias en una sola norma")
+    if apa == ieee:
+        official = "Una sola norma en toda la lista"
+        extra = f"La lista tiene {apa} en APA y {ieee} en IEEE."
+    else:
+        official = f"{majority.value}, como las otras {counts[majority]} referencias de la lista"
+        extra = (
+            f"Es la única referencia en {minority.value} de la lista."
+            if counts[minority] == 1
+            else f"Es la primera de las {counts[minority]} referencias en {minority.value}."
+        )
+    finding = _finding(CATALOG[MIXED_NORM_CODE], minority.value, official, extra)
     return first.order, finding
 
 

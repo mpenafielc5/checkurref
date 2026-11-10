@@ -6,6 +6,8 @@ from pathlib import PurePath
 from uuid import UUID, uuid4
 
 from app.pipeline.cover_authors import cover_authors
+from app.pipeline.errors import PdfProcessingError
+from app.pipeline.references_section import extract_reference_section
 from app.repositories.documents import AnalysisRef, DocumentRepository, NewDocument
 from app.repositories.pdf_storage import PdfStorage
 from app.repositories.supabase_http import SupabaseUnavailableError
@@ -41,7 +43,12 @@ class UploadService:
     def submit(
         self, owner_id: UUID, file_name: str, content: bytes, batch_id: UUID | None = None
     ) -> UploadResult:
-        """Sube el PDF de un trabajo; con `batch_id`, al lote del docente (HU-08 CA04)."""
+        """Sube el PDF de un trabajo; con `batch_id`, al lote del docente (HU-08 CA04).
+
+        Lo que se puede comprobar al momento se rechaza aquí y no se guarda: un PDF
+        dañado, protegido, escaneado o sin sección de referencias. Así el historial y
+        el tablero solo muestran "Error" por fallas imprevistas del análisis.
+        """
         _validate(content)
         sha256 = hashlib.sha256(content).hexdigest()
 
@@ -80,6 +87,11 @@ def _validate(content: bytes) -> None:
         raise UploadRejectedError("El archivo supera el máximo de 10 MB.")
     if not content.startswith(PDF_SIGNATURE):
         raise UploadRejectedError("Solo se aceptan archivos PDF.")
+    # La misma lectura de la primera etapa del análisis, con sus mismos mensajes.
+    try:
+        extract_reference_section(content)
+    except PdfProcessingError as error:
+        raise UploadRejectedError(error.message) from error
 
 
 def _title_from(file_name: str) -> str:

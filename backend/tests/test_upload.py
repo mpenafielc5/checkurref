@@ -15,12 +15,16 @@ from app.repositories.documents import AnalysisRef, NewDocument, SupabaseDocumen
 from app.repositories.pdf_storage import SupabasePdfStorage
 from app.repositories.supabase_http import SupabaseUnavailableError, service_headers
 from app.services.upload_service import MAX_PDF_BYTES, UploadRejectedError, UploadService
-from tests.pdf_factory import PageSpec, make_pdf
+from tests.pdf_factory import PageSpec, make_encrypted_pdf, make_pdf, make_scanned_pdf
 from tests.session_helpers import USER_ID, act_as, bearer, make_token, trust_test_tokens
 
 OWNER = UUID(USER_ID)
 PDF = make_pdf(
     [PageSpec(lines=["Referencias", "Torres, A. (2020). Un título. Revista, 1(1), 1–2."])]
+)
+
+WITHOUT_REFERENCES = make_pdf(
+    [PageSpec(lines=["Introducción", "Un trabajo que no tiene una lista de obras al final."])]
 )
 
 
@@ -112,6 +116,36 @@ def test_rechaza_archivos_invalidos(content: bytes, message: str) -> None:
     assert storage.files == {}
 
 
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        pytest.param(b"%PDF-roto", "El archivo no es un PDF válido o está dañado.", id="dañado"),
+        pytest.param(
+            make_encrypted_pdf(),
+            "El PDF está protegido con contraseña. Súbelo sin protección.",
+            id="protegido",
+        ),
+        pytest.param(make_scanned_pdf(), "El PDF no tiene texto seleccionable", id="escaneado"),
+        pytest.param(
+            WITHOUT_REFERENCES,
+            "No se encontró la sección de referencias.",
+            id="sin referencias",
+        ),
+    ],
+)
+def test_lo_que_el_analisis_no_podria_leer_se_rechaza_al_subir_y_no_se_guarda(
+    content: bytes, message: str
+) -> None:
+    service, documents, storage = make_service()
+
+    with pytest.raises(UploadRejectedError) as error:
+        service.submit(OWNER, "trabajo.pdf", content)
+
+    assert error.value.message.startswith(message)
+    assert documents.created == []
+    assert storage.files == {}
+
+
 def test_si_la_base_falla_borra_el_pdf_ya_guardado() -> None:
     service, _documents, storage = make_service(FakeDocuments(fail=True))
 
@@ -185,6 +219,18 @@ def test_ruta_explica_por_que_rechaza_el_archivo(
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Solo se aceptan archivos PDF."
+
+
+def test_ruta_rechaza_un_pdf_sin_referencias_con_el_mismo_mensaje_del_analisis(
+    client: TestClient, services: dict[str, UploadService]
+) -> None:
+    services["actual"], documents, _storage = make_service()
+
+    response = upload(client, content=WITHOUT_REFERENCES)
+
+    assert response.status_code == 422
+    assert response.json()["detail"].startswith("No se encontró la sección de referencias.")
+    assert documents.created == []
 
 
 def test_ruta_exige_el_archivo(client: TestClient, services: dict[str, UploadService]) -> None:
