@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { FileText, Search, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import {
@@ -13,10 +13,13 @@ import {
   tdClass,
   thClass,
 } from "@/shared/components/ui/data-table";
+import { DeleteWorkButton } from "@/shared/components/delete-work-button";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { SkeletonText } from "@/shared/components/ui/skeleton";
 import { workHref } from "../history";
 import type { Work } from "../types";
 import { WorkStatusChip } from "./work-status-chip";
+import { formatIndex } from "@/shared/lib/format";
 
 const SEARCH_CLASSES =
   "flex h-input w-full items-center gap-2 rounded-control border border-hairline-strong bg-canvas px-4 md:max-w-xs";
@@ -77,6 +80,8 @@ type WorkHistoryProps = {
   works: Work[];
   /** Hay una búsqueda aplicada: cambia el mensaje de la lista vacía. */
   searching: boolean;
+  /** Tras eliminar un trabajo, la lista se vuelve a pedir. */
+  onDeleted?: () => void;
 };
 
 /**
@@ -84,26 +89,50 @@ type WorkHistoryProps = {
  * del más reciente al más antiguo. La búsqueda la hace la API, sobre todos los
  * trabajos y no solo la página visible.
  */
-export function WorkHistory({ works, searching }: WorkHistoryProps) {
-  const emptyMessage = searching
-    ? "Ningún trabajo coincide con la búsqueda."
-    : "Todavía no has subido trabajos. Sube uno desde el inicio para verificar sus referencias.";
+export function WorkHistory({ works, searching, onDeleted }: WorkHistoryProps) {
+  // Un análisis en curso todavía escribe sus resultados: se elimina cuando termina.
+  const deletable = (work: Work) => onDeleted !== undefined && work.status !== "en_proceso";
+
+  if (works.length === 0) {
+    return searching ? (
+      <EmptyState
+        icon={SearchX}
+        title="Sin resultados"
+        description="Ningún trabajo coincide con la búsqueda."
+      />
+    ) : (
+      <EmptyState
+        icon={FileText}
+        title="Aún no has subido trabajos"
+        description="Sube el PDF de tu trabajo con Subir trabajo para revisar sus referencias."
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <ul className={cardListClass}>
         {works.map((work) => (
-          <li key={work.analysisId} className="flex">
-            <Link href={workHref(work)} className={`${cardClass} hover:border-hairline-strong`}>
-              <span className="font-semibold break-words text-ink">{work.fileName}</span>
+          <li
+            key={work.analysisId}
+            className={`${cardClass} flex-row items-start has-[a:hover]:border-hairline-strong`}
+          >
+            <Link href={workHref(work)} className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="font-semibold wrap-anywhere text-ink">{work.fileName}</span>
               <span className="flex items-center justify-between gap-3">
                 <span className="text-small">{work.date}</span>
                 <WorkStatusChip work={work} />
               </span>
             </Link>
+            {deletable(work) && onDeleted ? (
+              <DeleteWorkButton
+                analysisId={work.analysisId}
+                fileName={work.fileName}
+                onDeleted={onDeleted}
+              />
+            ) : null}
           </li>
         ))}
-        {works.length === 0 ? <li className="text-small">{emptyMessage}</li> : null}
       </ul>
 
       <DataTable caption="Historial de trabajos" cardsOnMobile>
@@ -121,30 +150,44 @@ export function WorkHistory({ works, searching }: WorkHistoryProps) {
             <th scope="col" className={thClass}>
               Estado
             </th>
+            {onDeleted ? (
+              <th scope="col" className={thClass}>
+                <span className="sr-only">Acciones</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
           {works.map((work) => (
             <tr key={work.analysisId} className="hover:bg-canvas-soft">
               <td className={tdClass}>
-                <Link href={workHref(work)} className="font-medium hover:text-accent-text">
+                <Link
+                  href={workHref(work)}
+                  className="font-medium wrap-anywhere hover:text-accent-text"
+                >
                   {work.fileName}
                 </Link>
               </td>
               <td className={tdClass}>{work.date}</td>
-              <td className={`${tdClass} ${numericClass}`}>{work.index ?? "—"}</td>
+              <td className={`${tdClass} ${numericClass}`}>
+                {work.index === null ? "—" : formatIndex(work.index)}
+              </td>
               <td className={`${tdClass} ${STATUS_LABELS[work.status].className}`}>
                 {STATUS_LABELS[work.status].label}
               </td>
+              {onDeleted ? (
+                <td className={`${tdClass} py-1 text-right`}>
+                  {deletable(work) ? (
+                    <DeleteWorkButton
+                      analysisId={work.analysisId}
+                      fileName={work.fileName}
+                      onDeleted={onDeleted}
+                    />
+                  ) : null}
+                </td>
+              ) : null}
             </tr>
           ))}
-          {works.length === 0 ? (
-            <tr>
-              <td colSpan={4} className={`${tdClass} text-body`}>
-                {emptyMessage}
-              </td>
-            </tr>
-          ) : null}
         </tbody>
       </DataTable>
     </div>

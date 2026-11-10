@@ -1,3 +1,4 @@
+import type { ConfirmTone } from "@/shared/components/ui/confirm-dialog";
 import { displayFullName } from "@/shared/lib/names";
 import type { RoleFilter, UserChange, UserRole, UserRow } from "./types";
 
@@ -7,7 +8,7 @@ export const SEARCH_PARAM = "buscar";
 export const ROLE_LABELS: Record<UserRole, string> = {
   estudiante: "Estudiante",
   docente: "Docente",
-  admin: "Admin",
+  admin: "Administrador",
 };
 
 const FILTERS: RoleFilter[] = ["todos", "estudiante", "docente", "admin"];
@@ -37,30 +38,38 @@ export type Confirmation = {
   title: string;
   message: string;
   confirmLabel: string;
+  tone: ConfirmTone;
 };
 
-/** Qué se pregunta antes de aplicar un cambio (HU-11 CA02 y CA03). */
+/** Qué se pregunta antes de aplicar un cambio: el efecto, en una frase (HU-11 CA02 y CA03). */
 export function confirmationOf(user: UserRow, change: UserChange): Confirmation {
   const name = displayFullName(user.name);
   if (change.kind === "role") {
-    return {
-      title: "Cambiar el rol",
-      message:
-        change.role === "docente"
-          ? `${name} pasará de Estudiante a Docente y tendrá acceso a las funciones del docente.`
-          : `${name} pasará de Docente a Estudiante. Sus lotes se conservan, pero no podrá consultarlos mientras tenga este rol.`,
-      confirmLabel: "Cambiar rol",
-    };
+    return change.role === "docente"
+      ? {
+          title: "¿Cambiar a Docente?",
+          message: `${name} podrá crear lotes de auditoría y dejará de ver Mis trabajos.`,
+          confirmLabel: "Cambiar a Docente",
+          tone: "default",
+        }
+      : {
+          title: "¿Cambiar a Estudiante?",
+          message: `${name} ya no podrá ver sus lotes. Se conservan por si vuelve a ser docente.`,
+          confirmLabel: "Cambiar a Estudiante",
+          tone: "default",
+        };
   }
   return change.active
     ? {
-        title: "Reactivar la cuenta",
-        message: `${name} podrá iniciar sesión nuevamente con el rol de ${ROLE_LABELS[user.role]}.`,
-        confirmLabel: "Reactivar",
+        title: "¿Reactivar esta cuenta?",
+        message: `${name} podrá iniciar sesión nuevamente.`,
+        confirmLabel: "Reactivar cuenta",
+        tone: "restore",
       }
     : {
-        title: "Desactivar la cuenta",
-        message: `${name} no podrá iniciar sesión. Sus trabajos se conservan.`,
-        confirmLabel: "Desactivar",
+        title: "¿Desactivar esta cuenta?",
+        message: `${name} no podrá iniciar sesión. Sus trabajos se conservan y puedes reactivarla cuando lo necesites.`,
+        confirmLabel: "Desactivar cuenta",
+        tone: "danger",
       };
 }

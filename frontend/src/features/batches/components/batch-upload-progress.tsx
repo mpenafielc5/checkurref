@@ -6,6 +6,7 @@ import { formatFileSize } from "@/shared/lib/format";
 import type { BatchUpload, CreatedBatch, UploadState } from "../types";
 import { analyzedCount, failedUploads, isAnalyzing, sendProgress } from "../upload-progress";
 import { AnalysisStatusChip } from "./analysis-status-chip";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 function UploadStateChip({ state }: { state: UploadState }) {
   switch (state.kind) {
@@ -14,6 +15,8 @@ function UploadStateChip({ state }: { state: UploadState }) {
     case "subiendo":
       return <StatusChip tone="info">Subiendo…</StatusChip>;
     case "rechazado":
+      // El navegador no lo envió; la API sí lo recibió, lo revisó y no lo aceptó.
+      return <StatusChip tone="danger">{state.byApi ? "Rechazado" : "No enviado"}</StatusChip>;
     case "fallo_subida":
       return <StatusChip tone="danger">No enviado</StatusChip>;
     case "repetido":
@@ -87,19 +90,15 @@ export function BatchUploadProgress({
         )}
       </div>
 
-      <div aria-live="polite" className="flex flex-col gap-1 text-small">
+      <div aria-live="polite" className="flex flex-col gap-2">
         {sending ? (
-          <p>
-            Enviando {current} de {total}. Mantén esta página abierta hasta que termine el envío.
-          </p>
+          <Notice tone="warning">
+            Enviando {current} de {total}. Mantén esta página abierta hasta que termine.
+          </Notice>
         ) : null}
-        {slow ? (
-          <p>Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.</p>
-        ) : null}
+        {slow ? <WakingNotice /> : null}
         {!sending && isAnalyzing(uploads) ? (
-          <p>
-            El análisis continúa aunque salgas de esta pantalla; podrás consultarlo en el tablero.
-          </p>
+          <Notice>El análisis continúa aunque salgas; lo verás en el tablero.</Notice>
         ) : null}
       </div>
 

@@ -1,11 +1,12 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { PAGE_PARAM, parsePage } from "@/shared/lib/pagination";
 import { useHistory } from "../use-history";
 import { WorkHistory, WorkListSkeleton, WorkSearch } from "./work-history";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 /** La búsqueda viaja en la dirección, como la página (?buscar=avance&pagina=2). */
 export const SEARCH_PARAM = "buscar";
@@ -19,7 +20,8 @@ export function WorkHistoryLoader() {
   const searchParams = useSearchParams();
   const page = parsePage(searchParams.get(PAGE_PARAM));
   const search = searchParams.get(SEARCH_PARAM) ?? "";
-  const state = useHistory(page, search);
+  const [version, setVersion] = useState(0);
+  const state = useHistory(page, search, version);
 
   /** Una búsqueda nueva vuelve a la página 1. */
   const applySearch = useCallback(
@@ -42,30 +44,27 @@ export function WorkHistoryLoader() {
             <p role="status" className="sr-only">
               Cargando tus trabajos…
             </p>
-            {state.slow ? (
-              <p className="text-small">
-                Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.
-              </p>
-            ) : null}
+            {state.slow ? <WakingNotice /> : null}
             <WorkListSkeleton />
           </>
         ) : null}
 
-        {state.kind === "error" ? (
-          <p role="alert" className="text-small text-verdict-contradiction-text">
-            {state.message}
-          </p>
-        ) : null}
+        {state.kind === "error" ? <Notice tone="error">{state.message}</Notice> : null}
 
         {state.kind === "ready" ? (
           <>
-            <WorkHistory works={state.page.items} searching={search !== ""} />
+            <WorkHistory
+              works={state.page.items}
+              searching={search !== ""}
+              onDeleted={() => setVersion((current) => current + 1)}
+            />
             {state.page.total > 0 ? (
               <Pagination
                 slice={state.page}
                 pathname={pathname}
                 query={searchParams.toString()}
                 noun="trabajos"
+                nounOne="trabajo"
                 anchorId={LIST_ID}
               />
             ) : null}

@@ -15,6 +15,8 @@ import {
 } from "@/shared/components/ui/data-table";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { StatusChip, type ChipTone } from "@/shared/components/ui/status-chip";
+import { DeleteWorkButton } from "@/shared/components/delete-work-button";
+import { formatIndex } from "@/shared/lib/format";
 import { PAGE_PARAM, paginate, parsePage } from "@/shared/lib/pagination";
 import {
   authorsLabel,
@@ -78,7 +80,7 @@ function WorkIdentity({ work }: { work: BatchWork }) {
           Portada no reconocida
         </span>
       )}
-      <span className="text-caption break-words text-body">{work.fileName}</span>
+      <span className="text-caption wrap-anywhere text-body">{work.fileName}</span>
       {work.status === "error" ? (
         <span className="text-caption text-verdict-contradiction-text">
           {work.errorMessage ?? ANALYSIS_FAILED}
@@ -106,13 +108,26 @@ function metricOf(work: BatchWork, value: number | null): string {
 }
 
 function mobileSummary(work: BatchWork): string {
-  const references = `${work.references ?? 0} referencias`;
+  const count = work.references ?? 0;
+  const references = `${count} ${count === 1 ? "referencia" : "referencias"}`;
   const alerts = `${work.alerts} ${work.alerts === 1 ? "alerta" : "alertas"}`;
-  return `${references} · Índice ${work.index ?? NO_VALUE} · ${alerts}`;
+  return `${references} · Índice ${work.index === null ? NO_VALUE : formatIndex(work.index)} · ${alerts}`;
 }
 
 /** Trabajos del lote ordenados por riesgo; cada encabezado ordena (maqueta 16). */
-export function BatchRiskTable({ batchId, works }: { batchId: string; works: BatchWork[] }) {
+type BatchRiskTableProps = {
+  batchId: string;
+  works: BatchWork[];
+  /** Tras eliminar un trabajo, el tablero se vuelve a pedir. */
+  onDeleted?: () => void;
+};
+
+/** Un análisis en curso todavía escribe sus resultados: se elimina cuando termina. */
+function isFinished(work: BatchWork): boolean {
+  return isWorkCompleted(work) || work.status === "error";
+}
+
+export function BatchRiskTable({ batchId, works, onDeleted }: BatchRiskTableProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -189,18 +204,26 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
                 {completed ? <span className="text-small">{mobileSummary(work)}</span> : null}
               </>
             );
+            const body = "flex min-w-0 flex-1 flex-col gap-2";
             return (
-              <li key={work.analysisId} className="flex">
+              <li
+                key={work.analysisId}
+                className={`${cardClass} flex-row items-start has-[a:hover]:border-hairline-strong`}
+              >
                 {completed ? (
-                  <Link
-                    href={reportHref(work)}
-                    className={`${cardClass} hover:border-hairline-strong`}
-                  >
+                  <Link href={reportHref(work)} className={body}>
                     {content}
                   </Link>
                 ) : (
-                  <div className={cardClass}>{content}</div>
+                  <div className={body}>{content}</div>
                 )}
+                {onDeleted && isFinished(work) ? (
+                  <DeleteWorkButton
+                    analysisId={work.analysisId}
+                    fileName={work.fileName}
+                    onDeleted={onDeleted}
+                  />
+                ) : null}
               </li>
             );
           })}
@@ -236,6 +259,11 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
                 </th>
               );
             })}
+            {onDeleted ? (
+              <th scope="col" className={thClass}>
+                <span className="sr-only">Acciones</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -251,13 +279,26 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
                 )}
               </td>
               <td className={`${tdClass} ${numericClass}`}>{metricOf(work, work.references)}</td>
-              <td className={`${tdClass} ${numericClass}`}>{metricOf(work, work.index)}</td>
+              <td className={`${tdClass} ${numericClass}`}>
+                {isWorkCompleted(work) && work.index !== null ? formatIndex(work.index) : NO_VALUE}
+              </td>
               <td className={`${tdClass} ${numericClass}`}>{metricOf(work, work.alerts)}</td>
               <td
                 className={`${tdClass} ${work.risk ? `font-semibold ${RISK_CLASSES[work.risk]}` : ""}`}
               >
                 {work.risk ? RISK_LABELS[work.risk] : <PendingState work={work} />}
               </td>
+              {onDeleted ? (
+                <td className={`${tdClass} py-1 text-right`}>
+                  {isFinished(work) ? (
+                    <DeleteWorkButton
+                      analysisId={work.analysisId}
+                      fileName={work.fileName}
+                      onDeleted={onDeleted}
+                    />
+                  ) : null}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>
@@ -268,6 +309,7 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
         pathname={pathname}
         query={searchParams.toString()}
         noun="trabajos"
+        nounOne="trabajo"
         anchorId={TABLE_ID}
       />
     </div>

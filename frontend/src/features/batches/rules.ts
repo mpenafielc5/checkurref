@@ -1,5 +1,9 @@
 import type { BatchWork, RiskLevel } from "./types";
 
+/** Los mismos límites que t_lotes_auditoria. */
+export const MAX_NAME_LENGTH = 150;
+export const MAX_PERIOD_LENGTH = 20;
+
 const COMPLETED = "completado";
 const RISK_WEIGHT: Record<RiskLevel, number> = { alto: 3, medio: 2, bajo: 1 };
 

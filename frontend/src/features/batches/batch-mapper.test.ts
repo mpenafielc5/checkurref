@@ -150,6 +150,15 @@ describe("toBatchDetail", () => {
     expect(toBatchDetail({ ...DTO })).toBeNull();
     expect(toBatchDetail(null)).toBeNull();
   });
+
+  it("muestra los autores de la portada con mayúscula inicial", () => {
+    const batch = toBatchDetail({
+      ...DETAIL,
+      works: [{ ...WORK, authors: ["LUCÍA ÁVILA PEÑA MORA", "Luis de la Torre"] }],
+    });
+
+    expect(batch?.works[0]?.authors).toEqual(["Lucía Ávila Peña Mora", "Luis de la Torre"]);
+  });
 });
 
 describe("toBatchExport", () => {

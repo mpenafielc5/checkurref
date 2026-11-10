@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { PdfDropzone, type RejectedPdf } from "@/shared/components/pdf-dropzone";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
+import { MAX_NAME_LENGTH, MAX_PERIOD_LENGTH } from "../rules";
 import { useBatchUpload } from "../use-batch-upload";
 import { BatchUploadProgress } from "./batch-upload-progress";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 const INPUT_CLASSES =
   "h-input w-full rounded-control border border-hairline-strong bg-surface px-4 text-small text-ink outline-none placeholder:text-muted focus:border-ink";
-
-/** Los mismos límites que t_lotes_auditoria. */
-const MAX_NAME_LENGTH = 150;
-const MAX_PERIOD_LENGTH = 20;
 
 function filesLabel(count: number): string {
   return `${count} ${count === 1 ? "archivo" : "archivos"}`;
@@ -23,12 +21,35 @@ function filesLabel(count: number): string {
  * archivo muestra su estado. Si el lote no se puede crear, la selección se conserva.
  */
 export function NewBatchForm() {
-  const { batch, uploads, creating, sending, slow, createError, start, retry } = useBatchUpload();
+  const { batch, uploads, creating, sending, slow, createError, start, retry, reset } =
+    useBatchUpload();
   const [name, setName] = useState("");
   const [period, setPeriod] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [rejected, setRejected] = useState<RejectedPdf[]>([]);
   const [missingData, setMissingData] = useState(false);
+  /** Cambiarla vuelve a montar la zona de subida, que guarda los archivos elegidos. */
+  const [dropzoneKey, setDropzoneKey] = useState(0);
+
+  const busyRef = useRef(false);
+  useEffect(() => {
+    busyRef.current = creating || sending;
+  }, [creating, sending]);
+
+  // Next.js oculta la página al navegar y conserva su estado. Al volver, Nueva auditoría
+  // empieza de cero; solo se conserva el avance si todavía se están enviando archivos.
+  useLayoutEffect(() => {
+    return () => {
+      if (busyRef.current) return;
+      reset();
+      setName("");
+      setPeriod("");
+      setFiles([]);
+      setRejected([]);
+      setMissingData(false);
+      setDropzoneKey((key) => key + 1);
+    };
+  }, [reset]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,6 +81,7 @@ export function NewBatchForm() {
           Nombre del lote
           <input
             name="nombre"
+            autoComplete="off"
             required
             maxLength={MAX_NAME_LENGTH}
             value={name}
@@ -73,6 +95,7 @@ export function NewBatchForm() {
           Periodo
           <input
             name="periodo"
+            autoComplete="off"
             required
             maxLength={MAX_PERIOD_LENGTH}
             value={period}
@@ -85,6 +108,7 @@ export function NewBatchForm() {
       </div>
 
       <PdfDropzone
+        key={dropzoneKey}
         multiple
         title="Arrastra aquí los PDF del curso"
         hint="Hasta 40 archivos de 10 MB cada uno · APA o IEEE (detección automática)"
@@ -103,19 +127,11 @@ export function NewBatchForm() {
       </PdfDropzone>
 
       <div aria-live="polite" className="flex flex-col gap-1 text-small">
-        {slow ? (
-          <p>Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.</p>
-        ) : null}
+        {slow ? <WakingNotice /> : null}
         {missingData ? (
-          <p role="alert" className="text-verdict-contradiction-text">
-            Escribe el nombre y el periodo del lote.
-          </p>
+          <Notice tone="error">Escribe el nombre y el periodo del lote.</Notice>
         ) : null}
-        {createError ? (
-          <p role="alert" className="text-verdict-contradiction-text">
-            {createError}
-          </p>
-        ) : null}
+        {createError ? <Notice tone="error">{createError}</Notice> : null}
       </div>
     </form>
   );

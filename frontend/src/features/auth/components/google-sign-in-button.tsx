@@ -5,6 +5,7 @@ import { useState } from "react";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { createSupabaseBrowserClient } from "@/shared/lib/supabase/client";
 import { INSTITUTIONAL_DOMAIN } from "../rules";
+import { Notice } from "@/shared/components/ui/notice";
 
 type GoogleSignInButtonProps = {
   label?: string;
@@ -59,11 +60,7 @@ export function GoogleSignInButton({
         {withIcon ? <LogIn aria-hidden="true" className="size-5" /> : null}
         {pending ? "Redirigiendo a Google…" : label}
       </button>
-      {error ? (
-        <p role="alert" className="text-small text-error">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
     </div>
   );
 }

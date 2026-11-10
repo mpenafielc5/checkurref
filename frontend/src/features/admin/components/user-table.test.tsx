@@ -11,7 +11,6 @@ const route = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/admin/usuarios",
-  useRouter: () => ({ replace: route.replace }),
   useSearchParams: () => new URLSearchParams(route.search),
 }));
 
@@ -65,6 +64,9 @@ async function renderUsers(items: UserRow[] = [STUDENT, TEACHER, ADMIN]) {
 beforeEach(() => {
   vi.clearAllMocks();
   route.search = "";
+  vi.spyOn(window.history, "replaceState").mockImplementation((_data, _unused, url) =>
+    route.replace(url),
+  );
   // jsdom no siempre abre el elemento dialog: basta con marcarlo como abierto.
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
     this.setAttribute("open", "");
@@ -80,13 +82,14 @@ describe("UserTable", () => {
     await renderUsers();
 
     expect(table().getByText("Ana Torres")).toBeTruthy();
-    expect(table().getByText("Desactivada")).toBeTruthy();
+    expect(table().getByText("Inactivo")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Estudiantes 1/ })).toBeTruthy();
   });
 
   it("no ofrece acciones sobre una cuenta de administrador, incluida la propia", async () => {
     await renderUsers();
 
+    expect(table().getByText("Sin acciones")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /privas@ejemplo.test/ })).toBeNull();
   });
 
@@ -96,7 +99,7 @@ describe("UserTable", () => {
     fireEvent.click(table().getByRole("button", { name: /Cambiar el rol de atorres/ }));
 
     const dialog = within(screen.getByRole("dialog"));
-    expect(dialog.getByText(/pasará de Estudiante a Docente/)).toBeTruthy();
+    expect(dialog.getByRole("heading", { name: "¿Cambiar a Docente?" })).toBeTruthy();
     expect(updateMock).not.toHaveBeenCalled();
 
     fireEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
@@ -112,7 +115,7 @@ describe("UserTable", () => {
 
     fireEvent.click(table().getByRole("button", { name: /Cambiar el rol de atorres/ }));
     fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Cambiar rol" }),
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Cambiar a Docente" }),
     );
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -127,12 +130,57 @@ describe("UserTable", () => {
     fireEvent.click(table().getByRole("button", { name: /Desactivar la cuenta de atorres/ }));
     const dialog = within(screen.getByRole("dialog"));
     expect(dialog.getByText(/no podrá iniciar sesión. Sus trabajos se conservan/)).toBeTruthy();
+    expect(dialog.getByRole("button", { name: "Desactivar cuenta" }).className).toContain(
+      "bg-danger",
+    );
 
-    fireEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+    fireEvent.click(dialog.getByRole("button", { name: "Desactivar cuenta" }));
 
     await waitFor(() =>
       expect(updateMock).toHaveBeenCalledWith("u1", { kind: "active", active: false }),
     );
+  });
+
+  it("reactivar se confirma con el botón verde y cambiar el rol con el principal", async () => {
+    await renderUsers();
+
+    fireEvent.click(table().getByRole("button", { name: /Reactivar la cuenta de lvera/ }));
+    const reactivate = within(screen.getByRole("dialog"));
+    expect(reactivate.getByRole("button", { name: "Reactivar cuenta" }).className).toContain(
+      "bg-restore",
+    );
+    fireEvent.click(reactivate.getByRole("button", { name: "Cancelar" }));
+
+    fireEvent.click(table().getByRole("button", { name: /Cambiar el rol de atorres/ }));
+    const role = within(screen.getByRole("dialog"));
+    expect(role.getByRole("button", { name: "Cambiar a Docente" }).className).toContain(
+      "bg-action",
+    );
+  });
+
+  it("desactivar se pone rojo y reactivar verde, únicamente al pasar el cursor", async () => {
+    await renderUsers();
+
+    const deactivate = table().getByRole("button", { name: /Desactivar la cuenta de atorres/ });
+    const reactivate = table().getByRole("button", { name: /Reactivar la cuenta de lvera/ });
+    const role = table().getByRole("button", { name: /Cambiar el rol de atorres/ });
+    expect(deactivate.className).toContain("hover:bg-danger");
+    expect(deactivate.className).toContain("text-ink");
+    expect(reactivate.className).toContain("hover:bg-restore");
+    expect(reactivate.className).toContain("text-ink");
+    expect(reactivate.className).not.toContain("danger");
+    expect(role.className).not.toContain("danger");
+  });
+
+  it("al cancelar, el foco vuelve al botón que abrió el diálogo", async () => {
+    await renderUsers();
+    const opener = table().getByRole("button", { name: /Cambiar el rol de atorres/ });
+
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancelar" }));
+
+    expect(document.activeElement).toBe(opener);
   });
 
   it("la reactivación también requiere confirmación", async () => {
@@ -142,7 +190,9 @@ describe("UserTable", () => {
     fireEvent.click(table().getByRole("button", { name: /Reactivar la cuenta de lvera/ }));
     expect(updateMock).not.toHaveBeenCalled();
 
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Reactivar" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Reactivar cuenta" }),
+    );
 
     await waitFor(() =>
       expect(updateMock).toHaveBeenCalledWith("u2", { kind: "active", active: true }),
@@ -155,7 +205,7 @@ describe("UserTable", () => {
 
     fireEvent.click(table().getByRole("button", { name: /Cambiar el rol de atorres/ }));
     const dialog = within(screen.getByRole("dialog"));
-    fireEvent.click(dialog.getByRole("button", { name: "Cambiar rol" }));
+    fireEvent.click(dialog.getByRole("button", { name: "Cambiar a Docente" }));
 
     expect((await dialog.findByRole("alert")).textContent).toBe("No se permite este cambio.");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -170,7 +220,23 @@ describe("UserTable", () => {
 
     expect(route.replace).not.toHaveBeenCalled();
     await act(async () => vi.advanceTimersByTimeAsync(400));
-    expect(route.replace).toHaveBeenCalledWith("/admin/usuarios?buscar=torres", { scroll: false });
+    expect(route.replace).toHaveBeenCalledWith("/admin/usuarios?buscar=torres");
+  });
+
+  it("al escribir seguido hace una sola búsqueda, con el texto completo", async () => {
+    await renderUsers();
+    vi.useFakeTimers();
+    const box = screen.getByRole("searchbox");
+
+    for (const text of ["t", "to", "tor", "torr", "torre", "torres"]) {
+      fireEvent.change(box, { target: { value: text } });
+      await act(async () => vi.advanceTimersByTimeAsync(150));
+    }
+    expect(route.replace).not.toHaveBeenCalled();
+
+    await act(async () => vi.advanceTimersByTimeAsync(400));
+    expect(route.replace).toHaveBeenCalledTimes(1);
+    expect(route.replace).toHaveBeenCalledWith("/admin/usuarios?buscar=torres");
   });
 
   it("consulta con la página, la búsqueda y el rol de la dirección", async () => {
@@ -186,7 +252,7 @@ describe("UserTable", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Docentes/ }));
 
-    expect(route.replace).toHaveBeenCalledWith("/admin/usuarios?rol=docente", { scroll: false });
+    expect(route.replace).toHaveBeenCalledWith("/admin/usuarios?rol=docente");
   });
 
   it("si la lista no carga, muestra el motivo", async () => {

@@ -27,9 +27,16 @@ export function initialUploads(files: File[], rejected: RejectedPdf[]): BatchUpl
   return [...waiting, ...invalid];
 }
 
-/** Estado de un archivo según la respuesta de la API a su subida. */
+/**
+ * Estado de un archivo según la respuesta de la API a su subida. Un archivo que la
+ * API rechaza tras revisarlo queda como los inválidos del navegador: sin reintento.
+ */
 export function stateAfterUpload(outcome: UploadOutcome): UploadState {
-  if (outcome.kind === "error") return { kind: "fallo_subida", reason: outcome.message };
+  if (outcome.kind === "error") {
+    return outcome.rejected
+      ? { kind: "rechazado", reason: outcome.message, byApi: true }
+      : { kind: "fallo_subida", reason: outcome.message };
+  }
   if (outcome.kind === "duplicate") return { kind: "repetido" };
   return {
     kind: "en_analisis",
@@ -68,6 +75,17 @@ export function isAnalyzing(uploads: BatchUpload[]): boolean {
   return uploads.some((upload) => upload.state.kind === "en_analisis");
 }
 
+/**
+ * Todos los archivos llegaron a la API sin nada que explicar: no hay rechazados,
+ * fallidos ni repetidos. Entonces el avance se sigue mejor en el tablero del lote.
+ */
+export function allSentCleanly(uploads: BatchUpload[]): boolean {
+  return (
+    uploads.length > 0 &&
+    uploads.every((upload) => upload.state.kind === "en_analisis" || upload.state.kind === "listo")
+  );
+}
+
 export function analyzedCount(uploads: BatchUpload[]): number {
   return uploads.filter((upload) => upload.state.kind === "listo").length;
 }
@@ -79,7 +97,10 @@ export function failedUploads(uploads: BatchUpload[]): BatchUpload[] {
 
 /** Cuántos archivos llegaron a su turno de envío: para "Enviando 3 de 12". */
 export function sendProgress(uploads: BatchUpload[]): { current: number; total: number } {
-  const toSend = uploads.filter((upload) => upload.state.kind !== "rechazado");
+  // Los que rechazó el navegador nunca se envían; los que rechazó la API sí tuvieron su turno.
+  const toSend = uploads.filter(
+    (upload) => upload.state.kind !== "rechazado" || upload.state.byApi === true,
+  );
   const waiting = toSend.filter((upload) => upload.state.kind === "en_espera").length;
   return { current: toSend.length - waiting, total: toSend.length };
 }

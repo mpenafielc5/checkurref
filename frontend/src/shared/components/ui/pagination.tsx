@@ -12,12 +12,21 @@ type PaginationProps = {
   query?: string;
   /** Qué se cuenta, en plural: "referencias", "trabajos". */
   noun: string;
+  /** El mismo nombre en singular, para cuando hay uno solo: "referencia", "trabajo". */
+  nounOne: string;
   /** id del inicio de la lista: al cambiar de página se vuelve ahí, no al tope de la pantalla. */
   anchorId?: string;
 };
 
 /** "Anterior · Página 2 de 6 · Siguiente" y "Mostrando 11–20 de 58". */
-export function Pagination({ slice, pathname, query = "", noun, anchorId }: PaginationProps) {
+export function Pagination({
+  slice,
+  pathname,
+  query = "",
+  noun,
+  nounOne,
+  anchorId,
+}: PaginationProps) {
   const { page, totalPages, total, first, last } = slice;
   const href = (target: number) => pageHref(pathname, query, target, anchorId);
 
@@ -27,7 +36,8 @@ export function Pagination({ slice, pathname, query = "", noun, anchorId }: Pagi
       className="flex w-full flex-col items-center gap-2 text-small md:flex-row md:justify-between"
     >
       <p>
-        Mostrando {first}–{last} de {total} {noun}
+        Mostrando {first === last ? first : `${first}–${last}`} de {total}{" "}
+        {total === 1 ? nounOne : noun}
       </p>
       {totalPages > 1 ? (
         <div className="flex items-center gap-2">

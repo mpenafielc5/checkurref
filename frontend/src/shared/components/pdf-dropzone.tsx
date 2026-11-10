@@ -5,6 +5,8 @@ import { useId, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { formatFileSize } from "@/shared/lib/format";
 import { MAX_FILES_PER_BATCH, validatePdfFile } from "@/shared/lib/pdf-rules";
+import { Notice } from "@/shared/components/ui/notice";
+import { StatusChip } from "@/shared/components/ui/status-chip";
 
 type PdfDropzoneProps = {
   /** Varios archivos: subida por lote del docente. */
@@ -17,6 +19,8 @@ type PdfDropzoneProps = {
   onRejected?: (rejected: RejectedPdf[]) => void;
   /** Mientras se sube, no se puede cambiar la selección. */
   disabled?: boolean;
+  /** Cuántos archivos se aceptan como máximo; por omisión, los de un lote nuevo. */
+  maxFiles?: number;
   /** Acción principal (Analizar…), dentro del mismo contenedor que los archivos. */
   children?: ReactNode;
 };
@@ -52,6 +56,7 @@ export function PdfDropzone({
   onChange,
   onRejected,
   disabled = false,
+  maxFiles = MAX_FILES_PER_BATCH,
   children,
 }: PdfDropzoneProps) {
   const inputId = useId();
@@ -83,8 +88,8 @@ export function PdfDropzone({
     }
     const known = new Set(items.map((item) => item.key));
     const merged = [...items, ...incoming.filter((item) => !known.has(item.key))];
-    setOverLimit(merged.length > MAX_FILES_PER_BATCH);
-    update(merged.slice(0, MAX_FILES_PER_BATCH));
+    setOverLimit(merged.length > maxFiles);
+    update(merged.slice(0, maxFiles));
   }
 
   function remove(key: string) {
@@ -102,6 +107,10 @@ export function PdfDropzone({
   const showList = multiple && items.length > 0;
   const filled = Boolean(single) || showList;
   const pickerDisabled = disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer";
+  // Mientras elige, el docente debe ver cuántos lleva y cuántos caben todavía.
+  const slotsLeft = Math.max(maxFiles - items.length, 0);
+  const listFull = slotsLeft === 0;
+  const addMoreDisabled = disabled || listFull ? "cursor-not-allowed opacity-70" : "cursor-pointer";
 
   return (
     <div className="flex flex-col gap-3">
@@ -146,6 +155,14 @@ export function PdfDropzone({
           </div>
         ) : showList ? (
           <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p aria-live="polite" className="text-small font-semibold text-ink">
+                {items.length} {items.length === 1 ? "archivo elegido" : "archivos elegidos"}
+              </p>
+              <StatusChip tone={listFull ? "warning" : "neutral"}>
+                {listFull ? "Límite alcanzado" : `Caben ${slotsLeft} más`}
+              </StatusChip>
+            </div>
             <ul aria-label="Archivos elegidos" className="flex flex-col divide-y divide-hairline">
               {items.map((item) => (
                 <li key={item.key} className="flex items-center gap-3 py-2 first:pt-0">
@@ -183,16 +200,19 @@ export function PdfDropzone({
               ))}
             </ul>
             {overLimit ? (
-              <p className="text-small text-verdict-discrepancy-text">
-                Un lote admite hasta {MAX_FILES_PER_BATCH} archivos; se conservaron los{" "}
-                {MAX_FILES_PER_BATCH} primeros.
-              </p>
+              <Notice tone="warning">
+                {maxFiles === MAX_FILES_PER_BATCH
+                  ? `Un lote admite hasta ${maxFiles} archivos; se conservaron los ${maxFiles} primeros.`
+                  : maxFiles === 1
+                    ? "Este lote admite 1 archivo más; se conservó el primero."
+                    : `Este lote admite ${maxFiles} archivos más; se conservaron los ${maxFiles} primeros.`}
+              </Notice>
             ) : null}
             <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end">
               <label
-                htmlFor={inputId}
-                aria-disabled={disabled}
-                className={`${buttonStyles({ variant: "secondary", fullWidth: true })} md:w-auto ${pickerDisabled}`}
+                htmlFor={listFull ? undefined : inputId}
+                aria-disabled={disabled || listFull}
+                className={`${buttonStyles({ variant: "secondary", fullWidth: true })} md:w-auto ${addMoreDisabled}`}
               >
                 Agregar más
               </label>
@@ -227,9 +247,9 @@ export function PdfDropzone({
 
       {/* Un archivo inválido en la subida individual: el recuadro sigue vacío y se explica por qué. */}
       {!multiple && items.length === 1 && items[0].error ? (
-        <p role="alert" className="text-small text-verdict-contradiction-text">
+        <Notice tone="error">
           {items[0].file.name}: {items[0].error}
-        </p>
+        </Notice>
       ) : null}
     </div>
   );

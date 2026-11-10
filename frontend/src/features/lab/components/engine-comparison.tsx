@@ -6,12 +6,12 @@ import { fieldLabel } from "@/shared/lib/reference-fields";
 import { compareEngines } from "../api";
 import { comparedFieldsOf } from "../comparison-mapper";
 import { ENGINE_LABELS, type EngineOutput, type LabComparison } from "../types";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 /** Los mismos límites del backend: fuera de ellos ya no es una referencia. */
 const MIN_REFERENCE_LENGTH = 10;
 const MAX_REFERENCE_LENGTH = 2000;
 
-const SLOW_MESSAGE = "Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.";
 const NOT_DETECTED = "No detectado";
 
 type EngineCardProps = {
@@ -28,16 +28,14 @@ function EngineCard({ output, fields, different }: EngineCardProps) {
       className="flex flex-1 flex-col gap-3 rounded-card border border-hairline bg-canvas px-5 py-4"
     >
       <header className="flex items-center justify-between gap-2">
-        <h3 className="text-small font-semibold tracking-normal text-ink">
+        <h2 className="text-small font-semibold tracking-normal text-ink">
           {ENGINE_LABELS[output.engine]}
-        </h3>
+        </h2>
         <span className="font-mono text-caption text-body">{output.elapsedMs} ms</span>
       </header>
 
       {output.fields ? null : (
-        <p role="alert" className="text-small text-verdict-contradiction-text">
-          Este motor no pudo procesar la referencia: {output.error}
-        </p>
+        <Notice tone="error">Este motor no pudo procesar la referencia: {output.error}</Notice>
       )}
 
       {output.fields ? (
@@ -129,6 +127,8 @@ export function EngineComparison() {
           Referencia de prueba
           <textarea
             value={reference}
+            name="referencia"
+            autoComplete="off"
             rows={3}
             maxLength={MAX_REFERENCE_LENGTH}
             disabled={comparing}
@@ -155,12 +155,8 @@ export function EngineComparison() {
       </form>
 
       <div aria-live="polite" className="flex flex-col gap-1 text-small empty:hidden">
-        {slow ? <p>{SLOW_MESSAGE}</p> : null}
-        {error ? (
-          <p role="alert" className="text-verdict-contradiction-text">
-            {error}
-          </p>
-        ) : null}
+        {slow ? <WakingNotice /> : null}
+        {error ? <Notice tone="error">{error}</Notice> : null}
       </div>
 
       {comparison ? <ComparisonResults comparison={comparison} /> : null}

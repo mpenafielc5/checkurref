@@ -69,7 +69,7 @@ describe("BenchmarkPanel", () => {
     await renderPanel();
 
     const table = screen.getByRole("table");
-    expect(within(table).getByRole("columnheader", { name: "spaCy F1" })).toBeTruthy();
+    expect(within(table).getByRole("columnheader", { name: "F1 de spaCy" })).toBeTruthy();
     const titleRow = within(table).getByRole("row", { name: /Título/ });
     const cells = within(titleRow)
       .getAllByRole("cell")
@@ -79,13 +79,22 @@ describe("BenchmarkPanel", () => {
     expect(screen.getByText("Versión de spaCy: spacy 1.0")).toBeTruthy();
   });
 
-  it("el gráfico nombra a cada motor y dibuja la barra en proporción al F1", async () => {
+  it("el gráfico nombra a cada motor y ubica cada punto según su F1", async () => {
     await renderPanel();
 
     const figure = screen.getByRole("figure");
     expect(within(figure).getByText("AnyStyle")).toBeTruthy();
-    const bar = within(figure).getByTitle("spaCy · Título: F1 0,60");
-    expect(bar.style.width).toBe("60%");
+    expect(within(figure).getByTitle(/^Título: AnyStyle .* · spaCy 0,60$/)).toBeTruthy();
+    // Todos los valores son de 0,5 o más: la escala va de 0,5 a 1 y 0,60 queda al 20 %.
+    expect(within(figure).getByTestId("spacy-titulo").style.left).toBe("20%");
+  });
+
+  it("el gráfico muestra los dos puntos cuando los motores empatan en un campo", async () => {
+    await renderPanel();
+
+    const figure = screen.getByRole("figure");
+    expect(within(figure).getByTestId("anystyle-doi").className).toContain("-translate-x-full");
+    expect(within(figure).getByTestId("spacy-doi").className).toContain("translate-x-0");
   });
 
   it("ejecutar guarda la medición y muestra el resultado nuevo", async () => {
@@ -126,7 +135,7 @@ describe("BenchmarkPanel", () => {
   it("sin mediciones lo dice y aun así muestra la regla y el motor en uso", async () => {
     await renderPanel({ ...OVERVIEW, runs: [] });
 
-    expect(screen.getByText(/Todavía no hay mediciones guardadas/)).toBeTruthy();
+    expect(screen.getByText("Aún no hay mediciones")).toBeTruthy();
     expect(screen.getByRole("region", { name: "Regla de decisión" })).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.queryByRole("figure")).toBeNull();

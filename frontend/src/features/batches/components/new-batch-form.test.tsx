@@ -1,8 +1,15 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Activity } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBatch, fetchBatchProgress, submitBatchWork } from "../api";
 import { POLL_MS } from "../use-batch-upload";
 import { NewBatchForm } from "./new-batch-form";
+
+const push = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
+}));
 
 vi.mock("../api", () => ({
   createBatch: vi.fn(),
@@ -49,7 +56,46 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+function page(mode: "visible" | "hidden") {
+  return (
+    <Activity mode={mode}>
+      <NewBatchForm />
+    </Activity>
+  );
+}
+
 describe("NewBatchForm", () => {
+  it("al volver a la página después de enviar el lote, empieza uno nuevo", async () => {
+    submitMock.mockResolvedValue({ kind: "created", analysisId: "a1" });
+    const { rerender } = render(page("visible"));
+    fillForm([pdf("Ensayo.pdf")]);
+    submit();
+    expect(await screen.findByText("Ensayo.pdf")).toBeTruthy();
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1));
+
+    // Next.js oculta la página con Activity al navegar y la vuelve a mostrar al regresar.
+    await act(async () => rerender(page("hidden")));
+    await act(async () => rerender(page("visible")));
+
+    const nameInput = screen.getByLabelText<HTMLInputElement>("Nombre del lote");
+    expect(nameInput.value).toBe("");
+    expect(screen.queryByText("Ensayo.pdf")).toBeNull();
+  });
+
+  it("si todavía se envían archivos, al volver se sigue viendo su avance", async () => {
+    submitMock.mockReturnValue(new Promise(() => undefined));
+    const { rerender } = render(page("visible"));
+    fillForm([pdf("Ensayo.pdf")]);
+    submit();
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1));
+
+    await act(async () => rerender(page("hidden")));
+    await act(async () => rerender(page("visible")));
+
+    expect(screen.getByText("Ensayo.pdf")).toBeTruthy();
+    expect(screen.queryByLabelText("Nombre del lote")).toBeNull();
+  });
+
   it("el botón sigue inactivo hasta que hay un archivo válido", () => {
     render(<NewBatchForm />);
 
@@ -135,6 +181,25 @@ describe("NewBatchForm", () => {
     expect(rowOf("Ensayo_A.pdf").textContent).toContain("El archivo está dañado.");
     expect(rowOf("Ensayo_A.pdf").textContent).toContain("No enviado");
     expect(rowOf("Ensayo_B.pdf").textContent).toContain("En cola");
+  });
+
+  it("un archivo que la API rechaza queda Rechazado, con su motivo y sin reintento", async () => {
+    submitMock
+      .mockResolvedValueOnce({
+        kind: "error",
+        message: "No se encontró la sección de referencias.",
+        rejected: true,
+      })
+      .mockResolvedValueOnce({ kind: "created", analysisId: "a2" });
+    render(<NewBatchForm />);
+
+    fillForm([pdf("Ensayo_A.pdf"), pdf("Ensayo_B.pdf")]);
+    submit();
+
+    await waitFor(() => expect(rowOf("Ensayo_B.pdf").textContent).toContain("En cola"));
+    expect(rowOf("Ensayo_A.pdf").textContent).toContain("Rechazado");
+    expect(rowOf("Ensayo_A.pdf").textContent).toContain("No se encontró la sección");
+    expect(screen.queryByRole("button", { name: /Reintentar/ })).toBeNull();
   });
 
   it("reintentar envía solo los que fallaron y al mismo lote", async () => {

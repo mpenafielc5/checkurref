@@ -1,5 +1,6 @@
 import { StatusChip } from "@/shared/components/ui/status-chip";
 import type { Work } from "../types";
+import { formatIndex } from "@/shared/lib/format";
 
 /** Estado de un trabajo: índice si terminó, avance si sigue en análisis, o error. */
 export function WorkStatusChip({ work }: { work: Work }) {
@@ -9,5 +10,9 @@ export function WorkStatusChip({ work }: { work: Work }) {
   if (work.status === "error") {
     return <StatusChip tone="danger">Error</StatusChip>;
   }
-  return <StatusChip tone="success">Índice {work.index ?? "—"}</StatusChip>;
+  return (
+    <StatusChip tone="success">
+      Índice {work.index === null ? "—" : formatIndex(work.index)}
+    </StatusChip>
+  );
 }

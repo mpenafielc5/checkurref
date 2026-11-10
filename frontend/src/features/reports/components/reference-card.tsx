@@ -85,10 +85,10 @@ function FormatFindings({ findings }: { findings: FormatFinding[] }) {
         {findings.map((finding) => (
           <li key={finding.message} className="flex flex-col gap-0.5">
             <p className="font-semibold text-ink">{finding.message}</p>
-            <p className="break-words text-ink">
+            <p className="wrap-anywhere text-ink">
               <span className="text-body">En tu referencia:</span> {finding.given}
             </p>
-            <p className="break-words text-ink">
+            <p className="wrap-anywhere text-ink">
               <span className="text-body">Según la norma:</span> {finding.expected}
             </p>
           </li>
@@ -151,7 +151,7 @@ export function ReferenceCard({ reference }: { reference: ReferenceResult }) {
         </summary>
 
         <div className="flex flex-col gap-3 pt-3">
-          <p className="text-ink">
+          <p className="wrap-anywhere text-ink">
             {reference.segments.map((segment, index) =>
               segment.field ? (
                 <span key={index} className={FIELD_CLASSES[segment.field]}>
@@ -204,8 +204,8 @@ export function ReferenceCard({ reference }: { reference: ReferenceResult }) {
                     {reference.comparisons.map((row) => (
                       <tr key={row.label} className="align-top">
                         <td className="px-3 py-1.5 whitespace-nowrap">{row.label}</td>
-                        <td className="px-3 py-1.5">{row.given}</td>
-                        <td className="px-3 py-1.5">{row.official}</td>
+                        <td className="px-3 py-1.5 wrap-anywhere">{row.given}</td>
+                        <td className="px-3 py-1.5 wrap-anywhere">{row.official}</td>
                         <td className={`px-3 py-1.5 whitespace-nowrap ${matchClass(row.matches)}`}>
                           {matchLabel(row.matches)}
                         </td>

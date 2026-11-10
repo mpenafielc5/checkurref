@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shareLabel, formatDecimal, formatFileSize, formatPercent } from "./format";
+import { formatIndex, shareLabel, formatDecimal, formatFileSize, formatPercent } from "./format";
 
 describe("formatos de la interfaz", () => {
   it("usa coma decimal, como en las maquetas", () => {
@@ -13,6 +13,8 @@ describe("formatos de la interfaz", () => {
 
   it("muestra el tamaño de archivo en MB", () => {
     expect(formatFileSize(2.4 * 1024 * 1024)).toBe("2,4 MB");
+    expect(formatFileSize(45 * 1024)).toBe("45 KB");
+    expect(formatFileSize(12)).toBe("1 KB");
   });
 });
 
@@ -30,5 +32,13 @@ describe("shareLabel", () => {
 
   it("sin referencias no hay porcentaje", () => {
     expect(shareLabel(0, 0)).toBe("—");
+  });
+});
+
+describe("formatIndex", () => {
+  it("usa coma decimal y no agrega decimales a un entero", () => {
+    expect(formatIndex(58.5)).toBe("58,5");
+    expect(formatIndex(71)).toBe("71");
+    expect(formatIndex(72.456)).toBe("72,5");
   });
 });

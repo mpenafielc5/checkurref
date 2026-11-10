@@ -1,15 +1,18 @@
 import Link from "next/link";
+import { formatIndex } from "@/shared/lib/format";
 import { VERDICT_ORDER, VERDICTS, type Verdict } from "@/shared/lib/verdicts";
+import { Notice } from "@/shared/components/ui/notice";
 
 const RING_RADIUS = 40;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-const LEGEND_LABELS: Record<Verdict, string> = {
-  verificada: "verificadas",
-  discrepancia: "con discrepancias",
-  contradiccion: "contradicción",
-  sin_respaldo: "sin respaldo",
-  no_verificable: "no verificables",
+/** Cada filtro con su cantidad, que concuerda en número: [una, varias o ninguna]. */
+const LEGEND_LABELS: Record<Verdict, [string, string]> = {
+  verificada: ["verificada", "verificadas"],
+  discrepancia: ["con discrepancias", "con discrepancias"],
+  contradiccion: ["contradicción", "contradicciones"],
+  sin_respaldo: ["sin respaldo", "sin respaldo"],
+  no_verificable: ["no verificable", "no verificables"],
 };
 
 /** Anillo con el índice de veracidad de 0 a 100; sin índice, vacío y con una raya. */
@@ -21,7 +24,9 @@ function IndexRing({ index }: { index: number | null }) {
         viewBox="0 0 96 96"
         role="img"
         aria-label={
-          index === null ? "Sin índice de veracidad" : `Índice de veracidad: ${index} de 100`
+          index === null
+            ? "Sin índice de veracidad"
+            : `Índice de veracidad: ${formatIndex(index)} de 100`
         }
         className="absolute inset-0 size-24"
       >
@@ -46,7 +51,7 @@ function IndexRing({ index }: { index: number | null }) {
         />
       </svg>
       <span aria-hidden="true" className="text-display-sm font-bold tracking-normal text-ink">
-        {index ?? "—"}
+        {index === null ? "—" : formatIndex(index)}
       </span>
     </div>
   );
@@ -148,7 +153,7 @@ export function ReportSummary({
             {VERDICT_ORDER.map((verdict) => (
               <li key={verdict} className="flex">
                 <FilterChip
-                  label={`${counts[verdict]} ${LEGEND_LABELS[verdict]}`}
+                  label={`${counts[verdict]} ${LEGEND_LABELS[verdict][counts[verdict] === 1 ? 0 : 1]}`}
                   href={filterHref(verdict)}
                   selected={active === verdict}
                   empty={counts[verdict] === 0}
@@ -159,11 +164,11 @@ export function ReportSummary({
           </ul>
         </nav>
         {queryErrors > 0 ? (
-          <p className="text-small text-body">
+          <Notice tone="warning">
             {queryErrors === 1
-              ? "1 referencia no se pudo verificar porque una fuente no respondió; no cuenta en el índice."
-              : `${queryErrors} referencias no se pudieron verificar porque una fuente no respondió; no cuentan en el índice.`}
-          </p>
+              ? "1 referencia quedó sin verificar porque una fuente no respondió; no cuenta en el índice."
+              : `${queryErrors} referencias quedaron sin verificar porque una fuente no respondió; no cuentan en el índice.`}
+          </Notice>
         ) : null}
       </div>
     </section>

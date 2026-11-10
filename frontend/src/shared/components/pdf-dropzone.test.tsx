@@ -79,6 +79,19 @@ describe("PdfDropzone de varios archivos (lote)", () => {
     expect(onChange).toHaveBeenLastCalledWith([PDF, OTRO]);
   });
 
+  it("mientras elige muestra cuántos lleva y cuántos caben todavía", () => {
+    render(<PdfDropzone multiple maxFiles={3} title="Arrastra aquí" hint="hasta 3" />);
+
+    chooseMany([PDF]);
+    expect(screen.getByText("1 archivo elegido")).toBeTruthy();
+    expect(screen.getByText("Caben 2 más")).toBeTruthy();
+
+    chooseMany([OTRO, new File(["%PDF-1.7"], "Tercero.pdf", { type: "application/pdf" })]);
+    expect(screen.getByText("3 archivos elegidos")).toBeTruthy();
+    expect(screen.getByText("Límite alcanzado")).toBeTruthy();
+    expect(screen.getByText("Agregar más").getAttribute("aria-disabled")).toBe("true");
+  });
+
   it("la ✕ quita solo ese archivo del lote", () => {
     const onChange = vi.fn();
     render(<PdfDropzone multiple title="Arrastra aquí" hint="hasta 40" onChange={onChange} />);

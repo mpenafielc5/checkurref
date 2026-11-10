@@ -155,7 +155,7 @@ describe("BatchDashboardView", () => {
   it("un lote sin trabajos lo dice en lugar de mostrar indicadores en cero", () => {
     render(<BatchDashboardView batch={{ ...BATCH, totalWorks: 0, references: 0, works: [] }} />);
 
-    expect(screen.getByText("Este lote aún no tiene trabajos.")).toBeTruthy();
+    expect(screen.getByText("Este lote no tiene trabajos")).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
   });
 });

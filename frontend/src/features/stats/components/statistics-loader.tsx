@@ -8,6 +8,7 @@ import { formatDecimal } from "@/shared/lib/format";
 import { fieldLabel } from "@/shared/lib/reference-fields";
 import { fetchStatistics, type StatisticsOutcome } from "../api";
 import type { AdminStatistics, Statistics, StudentStatistics, TeacherStatistics } from "../types";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 const NO_VALUE = "—";
 const NO_ANALYSES = "Las estadísticas aparecerán cuando termine el primer análisis.";
@@ -36,7 +37,11 @@ function TeacherCards({ statistics }: { statistics: TeacherStatistics }) {
       <StatCard value={String(statistics.batches)} label="Lotes" />
       <StatCard value={String(statistics.works)} label="Trabajos analizados" />
       <StatCard value={String(statistics.references)} label="Referencias" />
-      <StatCard value={String(statistics.highRiskWorks)} label="De riesgo alto" tone="danger" />
+      <StatCard
+        value={String(statistics.highRiskWorks)}
+        label="De riesgo alto"
+        tone={statistics.highRiskWorks > 0 ? "danger" : "default"}
+      />
     </StatRow>
   );
 }
@@ -44,18 +49,15 @@ function TeacherCards({ statistics }: { statistics: TeacherStatistics }) {
 function AdminCards({ statistics }: { statistics: AdminStatistics }) {
   const { users, documents, references, queryErrors } = statistics;
   return (
-    <>
-      <StatRow>
-        <StatCard value={String(users.estudiante)} label="Estudiantes" />
-        <StatCard value={String(users.docente)} label="Docentes" />
-        <StatCard value={String(users.admin)} label="Administradores" />
-      </StatRow>
-      <StatRow>
-        <StatCard value={String(documents)} label="Documentos analizados" />
-        <StatCard value={String(references)} label="Referencias procesadas" />
-        <StatCard value={String(queryErrors)} label="Errores de consulta a las fuentes" />
-      </StatRow>
-    </>
+    // Una sola fila de seis: en el celular quedan tres filas de dos, sin tarjetas sueltas.
+    <StatRow>
+      <StatCard value={String(users.estudiante)} label="Estudiantes" thirds />
+      <StatCard value={String(users.docente)} label="Docentes" thirds />
+      <StatCard value={String(users.admin)} label="Administradores" thirds />
+      <StatCard value={String(documents)} label="Documentos analizados" thirds />
+      <StatCard value={String(references)} label="Referencias procesadas" thirds />
+      <StatCard value={String(queryErrors)} label="Errores de consulta a las fuentes" thirds />
+    </StatRow>
   );
 }
 
@@ -89,11 +91,11 @@ export function StatisticsView({ statistics }: { statistics: Statistics }) {
           </h2>
           <VerdictBreakdown counts={statistics.counts} total={statistics.references} />
           {statistics.queryErrors > 0 && statistics.role !== "admin" ? (
-            <p className="text-small">
+            <Notice tone="warning">
               {statistics.queryErrors === 1
-                ? "1 referencia no se pudo verificar porque una fuente no respondió."
-                : `${statistics.queryErrors} referencias no se pudieron verificar porque una fuente no respondió.`}
-            </p>
+                ? "1 referencia quedó sin verificar porque una fuente no respondió."
+                : `${statistics.queryErrors} referencias quedaron sin verificar porque una fuente no respondió.`}
+            </Notice>
           ) : null}
         </section>
       ) : (
@@ -104,29 +106,32 @@ export function StatisticsView({ statistics }: { statistics: Statistics }) {
 }
 
 /** Esqueleto de las cifras, con la misma cantidad de tarjetas de la pantalla. */
-export function StatisticsSkeleton({ rows = 1, cards = 4 }: { rows?: number; cards?: number }) {
+export function StatisticsSkeleton({ cards = 4, thirds = false }: StatisticsLayout) {
   return (
     <div className="flex flex-col gap-4">
-      {Array.from({ length: rows }, (_, row) => (
-        <StatRowSkeleton key={row} count={cards} />
-      ))}
+      <StatRowSkeleton count={cards} thirds={thirds} />
       <Skeleton className="h-40 w-full rounded-panel" />
     </div>
   );
 }
 
-type StatisticsLoaderProps = {
+type StatisticsLayout = {
+  cards?: number;
+  /** Seis tarjetas en filas de tres en escritorio (inicio del administrador). */
+  thirds?: boolean;
+};
+
+type StatisticsLoaderProps = StatisticsLayout & {
   /**
-   * Es un complemento del inicio: mientras carga, si falla o si aún no hay análisis,
-   * no ocupa lugar. Así el estudiante nuevo solo ve la subida de su trabajo.
+   * Es un complemento del inicio: mientras carga muestra su esqueleto, pero si falla
+   * o si aún no hay análisis no ocupa lugar. Así el estudiante nuevo solo ve la
+   * subida de su trabajo.
    */
   quiet?: boolean;
-  rows?: number;
-  cards?: number;
 };
 
 /** Pide las cifras del rol de la sesión y muestra la carga, los datos o el motivo. */
-export function StatisticsLoader({ quiet = false, rows, cards }: StatisticsLoaderProps) {
+export function StatisticsLoader({ quiet = false, cards, thirds }: StatisticsLoaderProps) {
   const [outcome, setOutcome] = useState<StatisticsOutcome | null>(null);
   const [slow, setSlow] = useState(false);
 
@@ -143,28 +148,19 @@ export function StatisticsLoader({ quiet = false, rows, cards }: StatisticsLoade
   }, []);
 
   if (!outcome) {
-    if (quiet) return null;
     return (
       <div className="flex flex-col gap-4">
         <p role="status" className="sr-only">
           Cargando las estadísticas…
         </p>
-        {slow ? (
-          <p className="text-small">
-            Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.
-          </p>
-        ) : null}
-        <StatisticsSkeleton rows={rows} cards={cards} />
+        {slow ? <WakingNotice /> : null}
+        <StatisticsSkeleton cards={cards} thirds={thirds} />
       </div>
     );
   }
   if (outcome.kind === "error") {
     if (quiet) return null;
-    return (
-      <p role="alert" className="text-small text-verdict-contradiction-text">
-        {outcome.message}
-      </p>
-    );
+    return <Notice tone="error">{outcome.message}</Notice>;
   }
   if (quiet && outcome.statistics.references === 0) return null;
   return <StatisticsView statistics={outcome.statistics} />;

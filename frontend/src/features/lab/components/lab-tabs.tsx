@@ -1,18 +1,33 @@
 "use client";
 
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { KeyboardEvent, ReactNode } from "react";
 
 type Tab = { id: string; label: string; content: ReactNode };
 
-/** Pestañas accesibles del Laboratorio: Comparar y Benchmark. */
+const TAB_PARAM = "pestana";
+
+/** Pestañas accesibles del Laboratorio; la elegida viaja en la dirección (?pestana=benchmark). */
 export function LabTabs({ tabs }: { tabs: Tab[] }) {
-  const [active, setActive] = useState(tabs[0].id);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requested = searchParams.get(TAB_PARAM);
+  const active = tabs.find((tab) => tab.id === requested)?.id ?? tabs[0].id;
+
+  function choose(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(TAB_PARAM, id);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
     const index = tabs.findIndex((tab) => tab.id === active);
     const step = event.key === "ArrowRight" ? 1 : -1;
-    setActive(tabs[(index + step + tabs.length) % tabs.length].id);
+    const next = tabs[(index + step + tabs.length) % tabs.length].id;
+    choose(next);
+    document.getElementById(`tab-${next}`)?.focus();
   }
 
   return (
@@ -34,7 +49,7 @@ export function LabTabs({ tabs }: { tabs: Tab[] }) {
               aria-selected={selected}
               aria-controls={`panel-${tab.id}`}
               tabIndex={selected ? 0 : -1}
-              onClick={() => setActive(tab.id)}
+              onClick={() => choose(tab.id)}
               className={`rounded-pill px-4 py-1.5 text-small font-semibold ${
                 selected ? "bg-action text-on-action" : "text-body hover:text-ink"
               }`}

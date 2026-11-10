@@ -13,11 +13,21 @@ import { AppSidebar, AppSidebarSkeleton } from "./app-sidebar";
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col desktop-nav:flex-row">
+      <a
+        href="#contenido"
+        className="sr-only focus:not-sr-only focus:m-2 focus:self-start focus:rounded-control focus:bg-action focus:px-4 focus:py-2 focus:text-small focus:text-on-action"
+      >
+        Saltar al contenido
+      </a>
       <Suspense fallback={<AppSidebarSkeleton />}>
         <AppSidebar />
       </Suspense>
       {/* pb-nav: con la barra inferior (celular, tableta), el final del contenido no queda tapado */}
-      <main className="flex min-w-0 flex-1 flex-col bg-surface pb-nav short-screen:pb-nav-compact desktop-nav:pb-0">
+      <main
+        id="contenido"
+        tabIndex={-1}
+        className="flex min-w-0 flex-1 flex-col bg-surface pb-nav short-screen:pb-nav-compact desktop-nav:pb-0"
+      >
         {children}
       </main>
     </div>

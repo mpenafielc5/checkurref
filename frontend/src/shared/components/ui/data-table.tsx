@@ -11,14 +11,20 @@ type DataTableProps = {
   caption: string;
   /** La pantalla muestra tarjetas en el celular: la tabla aparece desde md. */
   cardsOnMobile?: boolean;
+  /** Tarjetas también en la tableta: la tabla aparece desde lg. */
+  cardsOnTablet?: boolean;
   children: ReactNode;
 };
 
-export function DataTable({ caption, cardsOnMobile = false, children }: DataTableProps) {
+export function DataTable({
+  caption,
+  cardsOnMobile = false,
+  cardsOnTablet = false,
+  children,
+}: DataTableProps) {
+  const visibility = cardsOnTablet ? "hidden lg:flex" : cardsOnMobile ? "hidden md:flex" : "flex";
   return (
-    <div
-      className={`${cardsOnMobile ? "hidden md:flex" : "flex"} w-full overflow-x-auto rounded-card border border-hairline`}
-    >
+    <div className={`${visibility} w-full overflow-x-auto rounded-card border border-hairline`}>
       <table className="w-full min-w-xl border-collapse text-small">
         <caption className="sr-only">{caption}</caption>
         {children}
@@ -34,6 +40,8 @@ export const numericClass = "text-right tabular-nums";
 
 /** Lista de tarjetas que reemplaza a la tabla en el celular. */
 export const cardListClass = "flex flex-col gap-2 md:hidden";
+/** Igual, pero también en la tableta: para tablas con botones que no caben en ese ancho. */
+export const tabletCardListClass = "flex flex-col gap-2 lg:hidden";
 export const cardClass =
   "flex w-full flex-col gap-2 rounded-card border border-hairline bg-canvas px-4 py-3";
 
@@ -44,6 +52,8 @@ type DataTableSkeletonProps = {
   withAction?: boolean;
   /** Igual que en DataTable: tarjetas en el celular y tabla desde md. */
   cardsOnMobile?: boolean;
+  /** Igual que en DataTable: tarjetas hasta la tableta y tabla desde lg. */
+  cardsOnTablet?: boolean;
 };
 
 /** Esqueleto de DataTable con el mismo encabezado, relleno y líneas. */
@@ -52,14 +62,21 @@ export function DataTableSkeleton({
   rows,
   withAction = false,
   cardsOnMobile = false,
+  cardsOnTablet = false,
 }: DataTableSkeletonProps) {
+  const withCards = cardsOnMobile || cardsOnTablet;
+  const tableVisibility = cardsOnTablet
+    ? "hidden lg:flex"
+    : cardsOnMobile
+      ? "hidden md:flex"
+      : "flex";
   const cells = Array.from({ length: columns }, (_, index) => index);
   const rowIndexes = Array.from({ length: rows }, (_, index) => index);
 
   return (
     <>
-      {cardsOnMobile ? (
-        <div className={cardListClass}>
+      {withCards ? (
+        <div className={cardsOnTablet ? tabletCardListClass : cardListClass}>
           {rowIndexes.map((row) => (
             <div key={row} className={cardClass}>
               <SkeletonText widthClass="w-48 max-w-full" />
@@ -70,7 +87,7 @@ export function DataTableSkeleton({
         </div>
       ) : null}
       <div
-        className={`${cardsOnMobile ? "hidden md:flex" : "flex"} w-full flex-col overflow-hidden rounded-card border border-hairline`}
+        className={`${tableVisibility} w-full flex-col overflow-hidden rounded-card border border-hairline`}
       >
         <div className="flex gap-4 bg-canvas px-4 py-2">
           {cells.map((cell) => (

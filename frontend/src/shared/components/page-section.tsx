@@ -17,13 +17,18 @@ type PageSectionProps = {
   actions?: ReactNode;
   /** Enlace a la pantalla de nivel superior, en las pantallas de detalle. */
   back?: BackLink;
+  /** Varias acciones en la cabecera: se ponen junto al título solo en pantallas anchas. */
+  wideActions?: boolean;
   children?: ReactNode;
 };
 
 const SECTION_CLASSES =
   "mx-auto flex w-full max-w-content flex-col gap-6 px-4 py-6 md:px-8 md:py-10";
-const HEADER_CLASSES = "flex w-full flex-col gap-4 md:flex-row md:items-center md:justify-between";
-const TITLE_TEXT = "text-display-sm md:text-display-md";
+const HEADER_CLASSES = "flex w-full flex-col gap-4";
+/** Título y acciones lado a lado; con varias acciones, solo desde lg para que el título no se apriete. */
+const HEADER_ROW = "md:flex-row md:items-center md:justify-between";
+const HEADER_ROW_WIDE = "lg:flex-row lg:items-center lg:justify-between";
+const TITLE_TEXT = "text-display-sm text-balance break-words md:text-display-md";
 const BACK_CLASSES = "mb-2 flex items-center gap-1.5 self-start text-small";
 
 /** Encabezado y contenedor estándar de una pantalla interna. */
@@ -33,12 +38,13 @@ export function PageSection({
   description,
   actions,
   back,
+  wideActions = false,
   children,
 }: PageSectionProps) {
   return (
     <section aria-labelledby="titulo-pagina" className={SECTION_CLASSES}>
-      <header className={HEADER_CLASSES}>
-        <div className="flex flex-col gap-2">
+      <header className={`${HEADER_CLASSES} ${wideActions ? HEADER_ROW_WIDE : HEADER_ROW}`}>
+        <div className="flex min-w-0 flex-col gap-2">
           {back ? (
             <Link href={back.href} className={`${BACK_CLASSES} text-body hover:text-ink`}>
               <ArrowLeft aria-hidden="true" className="size-4" />

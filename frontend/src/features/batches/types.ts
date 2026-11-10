@@ -88,8 +88,12 @@ export type BatchExport = {
 export type UploadState =
   | { kind: "en_espera" }
   | { kind: "subiendo" }
-  /** No es PDF o supera el límite: nunca se envía (HU-08 CA02). */
-  | { kind: "rechazado"; reason: string }
+  /**
+   * No se analiza y no se reintenta (HU-08 CA02). El navegador rechaza lo que no es PDF
+   * o supera el límite; la API (`byApi`), el PDF que no podría leerse o no tiene sección
+   * de referencias.
+   */
+  | { kind: "rechazado"; reason: string; byApi?: boolean }
   /** La subida falló, por ejemplo sin conexión: se puede reintentar. */
   | { kind: "fallo_subida"; reason: string }
   /** El mismo PDF ya estaba en el lote: no se analiza de nuevo. */

@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { loginErrorMessage } from "../rules";
+import { Notice } from "@/shared/components/ui/notice";
 
 /** Muestra el motivo por el que no se pudo iniciar sesión (?error=…). */
 export function LoginError() {
@@ -9,12 +10,5 @@ export function LoginError() {
 
   if (!message) return null;
 
-  return (
-    <p
-      role="alert"
-      className="rounded-control border border-verdict-contradiction bg-surface px-4 py-3 text-small text-verdict-contradiction-text"
-    >
-      {message}
-    </p>
-  );
+  return <Notice tone="error">{message}</Notice>;
 }

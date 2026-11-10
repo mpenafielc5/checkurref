@@ -75,7 +75,7 @@ export function AnalysisProgress({ steps, percent, details }: AnalysisProgressPr
               className="flex flex-col gap-1 rounded-card border border-hairline px-4 py-3 text-small"
             >
               <dt>{item.label}</dt>
-              <dd className="font-semibold text-ink">{item.value}</dd>
+              <dd className="font-semibold wrap-anywhere text-ink">{item.value}</dd>
             </div>
           ))}
         </dl>

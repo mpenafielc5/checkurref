@@ -63,7 +63,7 @@ describe("StatisticsLoader", () => {
     expect(card("Referencias revisadas")).toContain("11");
     expect(card("Índice de veracidad promedio")).toContain("72,5");
     expect(card("Campo con más diferencias")).toContain("Año");
-    expect(screen.getByText(/1 referencia no se pudo verificar/)).toBeTruthy();
+    expect(screen.getByText(/1 referencia quedó sin verificar/)).toBeTruthy();
   });
 
   it("el docente ve lotes, trabajos, referencias y los trabajos de riesgo alto", async () => {
@@ -133,7 +133,12 @@ describe("StatisticsLoader", () => {
       statistics: { ...STUDENT, works: 0, references: 0 },
     });
     const { container } = render(<StatisticsLoader quiet />);
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(container.textContent).toBe("");
+    await waitFor(() => expect(container.textContent).toBe(""));
+  });
+
+  it("en modo discreto muestra su esqueleto mientras carga", () => {
+    fetchMock.mockReturnValueOnce(new Promise(() => {}));
+    render(<StatisticsLoader quiet />);
+    expect(screen.getByRole("status").textContent).toBe("Cargando las estadísticas…");
   });
 });

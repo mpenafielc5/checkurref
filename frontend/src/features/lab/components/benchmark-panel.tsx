@@ -2,6 +2,8 @@
 
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import {
+  cardClass,
+  cardListClass,
   DataTable,
   numericClass,
   tableHeadClass,
@@ -20,8 +22,9 @@ import {
 } from "../types";
 import { useBenchmark } from "../use-benchmark";
 import { BenchmarkChart } from "./benchmark-chart";
-
-const SLOW_MESSAGE = "Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
+import { EmptyState } from "@/shared/components/ui/empty-state";
+import { FlaskConical } from "lucide-react";
 
 function points(difference: number): string {
   return formatDecimal(difference * 100, 1);
@@ -42,9 +45,9 @@ function DecisionRule({
       aria-labelledby="titulo-regla"
       className="flex flex-col gap-1 rounded-card border border-hairline bg-canvas px-5 py-4 text-small"
     >
-      <h3 id="titulo-regla" className="text-small font-semibold tracking-normal text-ink">
+      <h2 id="titulo-regla" className="text-small font-semibold tracking-normal text-ink">
         Regla de decisión
-      </h3>
+      </h2>
       <p>
         Gana el motor con mayor F1 promedio en {fields}, los campos con los que se busca cada
         referencia en Crossref y OpenAlex. Si la diferencia es menor de{" "}
@@ -66,32 +69,84 @@ function bestOf(first: number, second: number, engines: EngineScores[]): string 
   return ENGINE_NAMES[first > second ? engines[0].engine : engines[1].engine];
 }
 
+const METRICS = [
+  { key: "precision", short: "P", long: "Precisión" },
+  { key: "recall", short: "R", long: "Exhaustividad" },
+  { key: "f1", short: "F1", long: "F1" },
+] as const;
+
 /** Precisión, exhaustividad y F1 de cada motor por campo (HU-12 CA01). */
 function ScoresTable({ run, keyFields }: { run: BenchmarkRun; keyFields: string[] }) {
   const [first, second] = run.engines;
   if (!first || !second) return null;
   return (
     <div className="flex flex-col gap-2">
-      <DataTable caption="Precisión, exhaustividad y F1 por campo de cada motor">
+      {/* En el celular, una tarjeta por campo: ocho columnas no caben. */}
+      <ul className={cardListClass}>
+        {first.fields.map((score, position) => {
+          const other = second.fields[position];
+          return (
+            <li key={score.field} className={cardClass}>
+              <span className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-ink">{fieldLabel(score.field)}</span>
+                <span className="text-caption text-body">
+                  Mejor F1: {bestOf(score.f1, other.f1, run.engines)}
+                </span>
+              </span>
+              {run.engines.map((engine, side) => {
+                const item = side === 0 ? score : other;
+                return (
+                  <span
+                    key={engine.engine}
+                    className="flex flex-wrap justify-between gap-x-3 text-small tabular-nums"
+                  >
+                    <span className="text-ink">{ENGINE_NAMES[engine.engine]}</span>
+                    <span>
+                      {METRICS.map(({ key, short }) => `${short} ${formatDecimal(item[key])}`).join(
+                        " · ",
+                      )}
+                    </span>
+                  </span>
+                );
+              })}
+            </li>
+          );
+        })}
+      </ul>
+
+      <DataTable caption="Precisión, exhaustividad y F1 por campo de cada motor" cardsOnMobile>
         <thead className={tableHeadClass}>
           <tr>
-            <th scope="col" className={thClass}>
+            <th scope="col" rowSpan={2} className={thClass}>
               Campo
             </th>
+            {run.engines.map((engine) => (
+              <th
+                key={engine.engine}
+                scope="colgroup"
+                colSpan={METRICS.length}
+                className={`${thClass} text-center`}
+              >
+                {ENGINE_NAMES[engine.engine]}
+              </th>
+            ))}
+            <th scope="col" rowSpan={2} className={thClass}>
+              Mejor F1
+            </th>
+          </tr>
+          <tr>
             {run.engines.flatMap((engine) =>
-              ["P", "R", "F1"].map((metric) => (
+              METRICS.map(({ key, short, long }) => (
                 <th
-                  key={`${engine.engine}-${metric}`}
+                  key={`${engine.engine}-${key}`}
                   scope="col"
+                  aria-label={`${long} de ${ENGINE_NAMES[engine.engine]}`}
                   className={`${thClass} ${numericClass}`}
                 >
-                  {ENGINE_NAMES[engine.engine]} {metric}
+                  {short}
                 </th>
               )),
             )}
-            <th scope="col" className={thClass}>
-              Mejor F1
-            </th>
           </tr>
         </thead>
         <tbody>
@@ -105,9 +160,9 @@ function ScoresTable({ run, keyFields }: { run: BenchmarkRun; keyFields: string[
                   </span>
                 </td>
                 {[score, other].flatMap((item, side) =>
-                  [item.precision, item.recall, item.f1].map((value, metric) => (
-                    <td key={`${side}-${metric}`} className={`${tdClass} ${numericClass}`}>
-                      {formatDecimal(value)}
+                  METRICS.map(({ key }) => (
+                    <td key={`${side}-${key}`} className={`${tdClass} ${numericClass}`}>
+                      {formatDecimal(item[key])}
                     </td>
                   )),
                 )}
@@ -143,10 +198,21 @@ function f1Of(run: BenchmarkRun, position: number): string {
 function RunHistory({ runs }: { runs: BenchmarkRun[] }) {
   return (
     <section aria-labelledby="titulo-historial" className="flex flex-col gap-3">
-      <h3 id="titulo-historial" className="text-small font-semibold tracking-normal text-ink">
+      <h2 id="titulo-historial" className="text-small font-semibold tracking-normal text-ink">
         Mediciones anteriores
-      </h3>
-      <DataTable caption="Mediciones anteriores del benchmark">
+      </h2>
+      <ul className={cardListClass}>
+        {runs.map((run) => (
+          <li key={run.executedAt} className={cardClass}>
+            <span className="font-semibold text-ink">{formatDateTime(run.executedAt)}</span>
+            <span className="text-small tabular-nums">
+              AnyStyle {f1Of(run, 0)} · spaCy {f1Of(run, 1)} · Seleccionado:{" "}
+              {ENGINE_NAMES[run.selectedEngine]}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <DataTable caption="Mediciones anteriores del benchmark" cardsOnMobile>
         <thead className={tableHeadClass}>
           <tr>
             <th scope="col" className={thClass}>
@@ -215,12 +281,8 @@ export function BenchmarkView({ overview, running, slow, runError, onRun }: Benc
       </div>
 
       <div aria-live="polite" className="flex flex-col gap-1 text-small empty:hidden">
-        {slow ? <p>{SLOW_MESSAGE}</p> : null}
-        {runError ? (
-          <p role="alert" className="text-verdict-contradiction-text">
-            {runError}
-          </p>
-        ) : null}
+        {slow ? <WakingNotice /> : null}
+        {runError ? <Notice tone="error">{runError}</Notice> : null}
       </div>
 
       {latest ? (
@@ -237,25 +299,26 @@ export function BenchmarkView({ overview, running, slow, runError, onRun }: Benc
             <StatCard value={ENGINE_NAMES[engineInUse]} label="Motor en uso" />
           </StatRow>
           {latest.selectedEngine !== engineInUse ? (
-            <p role="status" className="text-small text-verdict-discrepancy-text">
+            <Notice tone="warning" role="status">
               El análisis usa {ENGINE_NAMES[engineInUse]}, pero la última medición seleccionó{" "}
               {ENGINE_NAMES[latest.selectedEngine]}. Revisa la instalación de AnyStyle o la
               configuración del motor.
-            </p>
+            </Notice>
           ) : null}
         </>
       ) : (
-        <p className="text-small">
-          Todavía no hay mediciones guardadas. Motor en uso: {ENGINE_NAMES[engineInUse]}. Ejecuta el
-          benchmark para comparar los motores.
-        </p>
+        <EmptyState
+          icon={FlaskConical}
+          title="Aún no hay mediciones"
+          description={`Motor en uso: ${ENGINE_NAMES[engineInUse]}. Ejecuta el benchmark para comparar los motores.`}
+        />
       )}
 
       <DecisionRule overview={overview} latest={latest} />
 
       {latest ? (
         <>
-          <BenchmarkChart engines={latest.engines} />
+          <BenchmarkChart engines={latest.engines} keyFields={keyFields} />
           <ScoresTable run={latest} keyFields={keyFields} />
         </>
       ) : null}
@@ -274,7 +337,7 @@ export function BenchmarkPanel() {
         <p role="status" className="sr-only">
           Cargando el benchmark…
         </p>
-        {slow ? <p className="text-small">{SLOW_MESSAGE}</p> : null}
+        {slow ? <WakingNotice /> : null}
         <Skeleton className="h-16 w-full rounded-card" />
         <StatRowSkeleton count={4} />
         <Skeleton className="h-40 w-full rounded-card" />
@@ -282,11 +345,7 @@ export function BenchmarkPanel() {
     );
   }
   if (state.kind === "error") {
-    return (
-      <p role="alert" className="text-small text-verdict-contradiction-text">
-        {state.message}
-      </p>
-    );
+    return <Notice tone="error">{state.message}</Notice>;
   }
   return (
     <BenchmarkView
