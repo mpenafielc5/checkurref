@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, Up
 
 from app.api.dependencies import UNAVAILABLE, ActiveUser, require_supabase
 from app.core.config import Settings, get_settings
+from app.repositories.batches import SupabaseBatchRepository
 from app.repositories.documents import SupabaseDocumentRepository
 from app.repositories.pdf_storage import SupabasePdfStorage
 from app.repositories.reports import SupabaseReportRepository
@@ -20,6 +21,7 @@ from app.services.report_service import (
     ReportService,
 )
 from app.services.upload_service import MAX_PDF_BYTES, UploadRejectedError, UploadService
+from app.services.work_service import WorkInProgressError, WorkNotFoundError, WorkService
 
 router = APIRouter(tags=["análisis"])
 
@@ -30,6 +32,7 @@ NOT_FINISHED = {
     "error": "El análisis terminó con un error, así que no tiene informe.",
 }
 IN_PROGRESS = "El análisis aún no termina. El informe estará listo al completarse."
+DELETE_IN_PROGRESS = "El análisis aún no termina. Podrás eliminar el trabajo cuando se complete."
 
 
 def get_upload_service(settings: Annotated[Settings, Depends(get_settings)]) -> UploadService:
@@ -136,5 +139,40 @@ def get_report(
     except AnalysisNotFinishedError as error:
         detail = NOT_FINISHED.get(error.status, IN_PROGRESS)
         raise HTTPException(status.HTTP_409_CONFLICT, detail=detail) from None
+    except SupabaseUnavailableError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=UNAVAILABLE) from None
+
+
+def get_work_service(settings: Annotated[Settings, Depends(get_settings)]) -> WorkService:
+    require_supabase(settings)
+    client = shared_client(settings.supabase_service_role_key)
+    return WorkService(
+        documents=SupabaseDocumentRepository(settings.supabase_rest_url, client),
+        storage=SupabasePdfStorage(settings.supabase_storage_url, settings.storage_bucket, client),
+        batches=SupabaseBatchRepository(settings.supabase_rest_url, client),
+    )
+
+
+@router.delete(
+    "/analisis/{analysis_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        404: {"description": NOT_FOUND},
+        409: {"description": "El análisis sigue en curso."},
+    },
+)
+def delete_work(
+    analysis_id: UUID,
+    user: ActiveUser,
+    service: Annotated[WorkService, Depends(get_work_service)],
+) -> None:
+    """Elimina el trabajo, su PDF y todos sus resultados. Sirve al estudiante con los
+    suyos y al docente con los de sus lotes."""
+    try:
+        service.delete(user.id, analysis_id)
+    except WorkNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NOT_FOUND) from None
+    except WorkInProgressError:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=DELETE_IN_PROGRESS) from None
     except SupabaseUnavailableError:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=UNAVAILABLE) from None

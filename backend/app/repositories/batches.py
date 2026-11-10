@@ -93,6 +93,10 @@ class BatchRepository(Protocol):
 
     def get(self, batch_id: UUID) -> StoredBatch | None: ...
 
+    def update(self, batch_id: UUID, name: str, period: str) -> None: ...
+
+    def delete(self, batch_id: UUID) -> None: ...
+
     def list_batches(self, teacher_id: UUID, offset: int, limit: int) -> BatchPage:
         """Lotes del docente, del más reciente al más antiguo."""
         ...
@@ -132,6 +136,19 @@ class SupabaseBatchRepository:
             params={"select": BATCH_COLUMNS, "id": f"eq.{batch_id}"},
         )
         return _batch(rows[0]) if rows else None
+
+    def update(self, batch_id: UUID, name: str, period: str) -> None:
+        send(
+            self._client,
+            "PATCH",
+            f"{self._rest_url}/t_lotes_auditoria",
+            params={"id": f"eq.{batch_id}"},
+            json={"nombre": name, "periodo_academico": period},
+        )
+
+    def delete(self, batch_id: UUID) -> None:
+        url = f"{self._rest_url}/t_lotes_auditoria"
+        send(self._client, "DELETE", url, params={"id": f"eq.{batch_id}"})
 
     def list_batches(self, teacher_id: UUID, offset: int, limit: int) -> BatchPage:
         # De cada referencia solo interesan las contradicciones: deciden el riesgo alto.
