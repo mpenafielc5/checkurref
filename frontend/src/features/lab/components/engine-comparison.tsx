@@ -6,12 +6,12 @@ import { fieldLabel } from "@/shared/lib/reference-fields";
 import { compareEngines } from "../api";
 import { comparedFieldsOf } from "../comparison-mapper";
 import { ENGINE_LABELS, type EngineOutput, type LabComparison } from "../types";
+import { WakingNotice } from "@/shared/components/ui/notice";
 
 /** Los mismos límites del backend: fuera de ellos ya no es una referencia. */
 const MIN_REFERENCE_LENGTH = 10;
 const MAX_REFERENCE_LENGTH = 2000;
 
-const SLOW_MESSAGE = "Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.";
 const NOT_DETECTED = "No detectado";
 
 type EngineCardProps = {
@@ -157,7 +157,7 @@ export function EngineComparison() {
       </form>
 
       <div aria-live="polite" className="flex flex-col gap-1 text-small empty:hidden">
-        {slow ? <p>{SLOW_MESSAGE}</p> : null}
+        {slow ? <WakingNotice /> : null}
         {error ? (
           <p role="alert" className="text-verdict-contradiction-text">
             {error}

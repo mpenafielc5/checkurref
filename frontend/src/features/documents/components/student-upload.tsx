@@ -7,6 +7,7 @@ import { PdfDropzone } from "@/shared/components/pdf-dropzone";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { submitDocument, wakeApi } from "../api";
 import { analysisHref } from "../upload-rules";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 type Phase =
   | { kind: "idle" }
@@ -78,26 +79,22 @@ export function StudentUpload() {
       </PdfDropzone>
 
       <div aria-live="polite" className="flex flex-col text-center">
-        {phase.kind === "uploading" && phase.slow ? (
-          <p className="text-small">
-            Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.
-          </p>
-        ) : null}
+        {phase.kind === "uploading" && phase.slow ? <WakingNotice /> : null}
         {phase.kind === "error" ? (
           <p role="alert" className="text-small text-verdict-contradiction-text">
             {phase.message}
           </p>
         ) : null}
         {phase.kind === "duplicate" ? (
-          <p className="text-small">
-            Este PDF ya fue subido anteriormente; no se procesará de nuevo.{" "}
+          <Notice>
+            Este PDF ya se analizó antes; no se procesa de nuevo.{" "}
             <Link
               href={analysisHref(phase.analysisId, phase.finished)}
               className="font-semibold text-accent-text hover:underline"
             >
               {phase.finished ? "Abrir su informe" : "Ver su progreso"}
             </Link>
-          </p>
+          </Notice>
         ) : null}
       </div>
     </div>

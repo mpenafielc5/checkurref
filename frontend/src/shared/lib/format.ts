@@ -56,5 +56,7 @@ export function shareLabel(count: number, total: number): string {
 
 export function formatFileSize(bytes: number): string {
   const megabytes = bytes / (1024 * 1024);
+  // Por debajo de 0,1 MB se mostraría "0,0 MB": en ese caso se usa KB.
+  if (megabytes < 0.1) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${formatDecimal(megabytes, 1)} MB`;
 }

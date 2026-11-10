@@ -135,7 +135,7 @@ describe("BenchmarkPanel", () => {
   it("sin mediciones lo dice y aun así muestra la regla y el motor en uso", async () => {
     await renderPanel({ ...OVERVIEW, runs: [] });
 
-    expect(screen.getByText(/Todavía no hay mediciones guardadas/)).toBeTruthy();
+    expect(screen.getByText("Aún no hay mediciones")).toBeTruthy();
     expect(screen.getByRole("region", { name: "Regla de decisión" })).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.queryByRole("figure")).toBeNull();

@@ -8,8 +8,8 @@ export type HistoryState = { kind: "loading"; slow: boolean } | HistoryOutcome;
  * distinta: mientras no llega la respuesta de la actual, el estado es "loading"
  * (con slow si el backend está despertando).
  */
-export function useHistory(page: number, search: string): HistoryState {
-  const request = `${page}|${search}`;
+export function useHistory(page: number, search: string, version = 0): HistoryState {
+  const request = `${page}|${search}|${version}`;
   const [result, setResult] = useState<{ request: string; outcome: HistoryOutcome } | null>(null);
   const [slowRequest, setSlowRequest] = useState<string | null>(null);
 

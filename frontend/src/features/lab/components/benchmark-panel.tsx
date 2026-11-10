@@ -22,8 +22,9 @@ import {
 } from "../types";
 import { useBenchmark } from "../use-benchmark";
 import { BenchmarkChart } from "./benchmark-chart";
-
-const SLOW_MESSAGE = "Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
+import { EmptyState } from "@/shared/components/ui/empty-state";
+import { FlaskConical } from "lucide-react";
 
 function points(difference: number): string {
   return formatDecimal(difference * 100, 1);
@@ -280,7 +281,7 @@ export function BenchmarkView({ overview, running, slow, runError, onRun }: Benc
       </div>
 
       <div aria-live="polite" className="flex flex-col gap-1 text-small empty:hidden">
-        {slow ? <p>{SLOW_MESSAGE}</p> : null}
+        {slow ? <WakingNotice /> : null}
         {runError ? (
           <p role="alert" className="text-verdict-contradiction-text">
             {runError}
@@ -302,18 +303,19 @@ export function BenchmarkView({ overview, running, slow, runError, onRun }: Benc
             <StatCard value={ENGINE_NAMES[engineInUse]} label="Motor en uso" />
           </StatRow>
           {latest.selectedEngine !== engineInUse ? (
-            <p role="status" className="text-small text-verdict-discrepancy-text">
+            <Notice tone="warning" role="status">
               El análisis usa {ENGINE_NAMES[engineInUse]}, pero la última medición seleccionó{" "}
               {ENGINE_NAMES[latest.selectedEngine]}. Revisa la instalación de AnyStyle o la
               configuración del motor.
-            </p>
+            </Notice>
           ) : null}
         </>
       ) : (
-        <p className="text-small">
-          Todavía no hay mediciones guardadas. Motor en uso: {ENGINE_NAMES[engineInUse]}. Ejecuta el
-          benchmark para comparar los motores.
-        </p>
+        <EmptyState
+          icon={FlaskConical}
+          title="Aún no hay mediciones"
+          description={`Motor en uso: ${ENGINE_NAMES[engineInUse]}. Ejecuta el benchmark para comparar los motores.`}
+        />
       )}
 
       <DecisionRule overview={overview} latest={latest} />
@@ -339,7 +341,7 @@ export function BenchmarkPanel() {
         <p role="status" className="sr-only">
           Cargando el benchmark…
         </p>
-        {slow ? <p className="text-small">{SLOW_MESSAGE}</p> : null}
+        {slow ? <WakingNotice /> : null}
         <Skeleton className="h-16 w-full rounded-card" />
         <StatRowSkeleton count={4} />
         <Skeleton className="h-40 w-full rounded-card" />

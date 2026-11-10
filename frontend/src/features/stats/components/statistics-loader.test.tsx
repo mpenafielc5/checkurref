@@ -63,7 +63,7 @@ describe("StatisticsLoader", () => {
     expect(card("Referencias revisadas")).toContain("11");
     expect(card("Índice de veracidad promedio")).toContain("72,5");
     expect(card("Campo con más diferencias")).toContain("Año");
-    expect(screen.getByText(/1 referencia no se pudo verificar/)).toBeTruthy();
+    expect(screen.getByText(/1 referencia quedó sin verificar/)).toBeTruthy();
   });
 
   it("el docente ve lotes, trabajos, referencias y los trabajos de riesgo alto", async () => {

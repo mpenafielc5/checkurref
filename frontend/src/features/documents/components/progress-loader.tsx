@@ -12,6 +12,7 @@ import { standardLabel } from "@/shared/lib/standards";
 import { toSteps, verifyPercent, type AnalysisInfo } from "../progress";
 import { useAnalysisProgress } from "../use-analysis-progress";
 import { AnalysisProgress } from "./analysis-progress";
+import { WakingNotice } from "@/shared/components/ui/notice";
 
 const LIST_HREF = "/estudiante/trabajos";
 const BACK = { href: LIST_HREF, label: "Mis trabajos" };
@@ -51,11 +52,7 @@ export function ProgressLoader() {
     return (
       <PageSectionSkeleton back description>
         <div className="flex flex-col gap-4">
-          {state.slow ? (
-            <p className="text-small">
-              Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.
-            </p>
-          ) : null}
+          {state.slow ? <WakingNotice /> : null}
           <Skeleton className="h-40 w-full rounded-card" />
         </div>
       </PageSectionSkeleton>

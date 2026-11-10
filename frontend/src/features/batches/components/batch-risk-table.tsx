@@ -15,6 +15,7 @@ import {
 } from "@/shared/components/ui/data-table";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { StatusChip, type ChipTone } from "@/shared/components/ui/status-chip";
+import { DeleteWorkButton } from "@/shared/components/delete-work-button";
 import { formatIndex } from "@/shared/lib/format";
 import { PAGE_PARAM, paginate, parsePage } from "@/shared/lib/pagination";
 import {
@@ -113,7 +114,19 @@ function mobileSummary(work: BatchWork): string {
 }
 
 /** Trabajos del lote ordenados por riesgo; cada encabezado ordena (maqueta 16). */
-export function BatchRiskTable({ batchId, works }: { batchId: string; works: BatchWork[] }) {
+type BatchRiskTableProps = {
+  batchId: string;
+  works: BatchWork[];
+  /** Tras eliminar un trabajo, el tablero se vuelve a pedir. */
+  onDeleted?: () => void;
+};
+
+/** Un análisis en curso todavía escribe sus resultados: se elimina cuando termina. */
+function isFinished(work: BatchWork): boolean {
+  return isWorkCompleted(work) || work.status === "error";
+}
+
+export function BatchRiskTable({ batchId, works, onDeleted }: BatchRiskTableProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -190,18 +203,26 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
                 {completed ? <span className="text-small">{mobileSummary(work)}</span> : null}
               </>
             );
+            const body = "flex min-w-0 flex-1 flex-col gap-2";
             return (
-              <li key={work.analysisId} className="flex">
+              <li
+                key={work.analysisId}
+                className={`${cardClass} flex-row items-start has-[a:hover]:border-hairline-strong`}
+              >
                 {completed ? (
-                  <Link
-                    href={reportHref(work)}
-                    className={`${cardClass} hover:border-hairline-strong`}
-                  >
+                  <Link href={reportHref(work)} className={body}>
                     {content}
                   </Link>
                 ) : (
-                  <div className={cardClass}>{content}</div>
+                  <div className={body}>{content}</div>
                 )}
+                {onDeleted && isFinished(work) ? (
+                  <DeleteWorkButton
+                    analysisId={work.analysisId}
+                    fileName={work.fileName}
+                    onDeleted={onDeleted}
+                  />
+                ) : null}
               </li>
             );
           })}
@@ -237,6 +258,11 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
                 </th>
               );
             })}
+            {onDeleted ? (
+              <th scope="col" className={thClass}>
+                <span className="sr-only">Acciones</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -261,6 +287,17 @@ export function BatchRiskTable({ batchId, works }: { batchId: string; works: Bat
               >
                 {work.risk ? RISK_LABELS[work.risk] : <PendingState work={work} />}
               </td>
+              {onDeleted ? (
+                <td className={`${tdClass} py-1 text-right`}>
+                  {isFinished(work) ? (
+                    <DeleteWorkButton
+                      analysisId={work.analysisId}
+                      fileName={work.fileName}
+                      onDeleted={onDeleted}
+                    />
+                  ) : null}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, wakeApi } from "@/shared/lib/api-client";
+import { apiDelete, apiGet, apiPatch, apiPost, wakeApi } from "@/shared/lib/api-client";
 import type { PageSlice } from "@/shared/lib/pagination";
 import { detailOf, uploadPdf, type UploadOutcome } from "@/shared/lib/pdf-upload";
 import {
@@ -41,6 +41,49 @@ export async function createBatch(
     kind: "error",
     message:
       detailOf(response.body) ?? "No se pudo crear el lote. Intenta de nuevo en unos minutos.",
+  };
+}
+
+export type UpdateBatchOutcome = { kind: "updated" } | { kind: "error"; message: string };
+
+/** Corrige el nombre o el periodo del lote; sus trabajos y resultados no cambian. */
+export async function updateBatch(
+  batchId: string,
+  name: string,
+  period: string,
+): Promise<UpdateBatchOutcome> {
+  const response = await apiPatch(`/lotes/${encodeURIComponent(batchId)}`, { name, period });
+  if (response.kind === "failed") {
+    return {
+      kind: "error",
+      message: response.reason === "session" ? SESSION_ERROR : NETWORK_ERROR,
+    };
+  }
+  if (response.status === 204) return { kind: "updated" };
+  return {
+    kind: "error",
+    message:
+      detailOf(response.body) ?? "No se pudo guardar el lote. Intenta de nuevo en unos minutos.",
+  };
+}
+
+export type DeleteBatchOutcome = { kind: "deleted" } | { kind: "error"; message: string };
+
+/** Elimina el lote con todos sus trabajos, sus PDF y sus resultados (HU-23). */
+export async function deleteBatch(batchId: string): Promise<DeleteBatchOutcome> {
+  const response = await apiDelete(`/lotes/${encodeURIComponent(batchId)}`);
+  if (response.kind === "failed") {
+    return {
+      kind: "error",
+      message: response.reason === "session" ? SESSION_ERROR : NETWORK_ERROR,
+    };
+  }
+  // 404: el lote ya no existe, que es justo lo que se quería.
+  if (response.status === 204 || response.status === 404) return { kind: "deleted" };
+  return {
+    kind: "error",
+    message:
+      detailOf(response.body) ?? "No se pudo eliminar el lote. Intenta de nuevo en unos minutos.",
   };
 }
 

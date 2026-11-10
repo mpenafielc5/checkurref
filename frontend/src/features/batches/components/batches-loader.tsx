@@ -1,15 +1,16 @@
 "use client";
 
+import { FolderOpen } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { PAGE_PARAM, parsePage } from "@/shared/lib/pagination";
 import type { BatchSummary } from "../types";
 import { useBatches, type BatchesState } from "../use-batches";
 import { BatchList, BatchListSkeleton } from "./batch-list";
+import { WakingNotice } from "@/shared/components/ui/notice";
 
 const LIST_ID = "lotes";
-const EMPTY_MESSAGE =
-  "Todavía no has creado lotes. Crea uno con Nueva auditoría para revisar los trabajos de un curso.";
 
 /** Cuántos lotes muestra el inicio; el resto está en Lotes. */
 const RECENT_COUNT = 3;
@@ -28,11 +29,7 @@ function BatchesBody({ state, skeletonRows, children }: BatchesBodyProps) {
         <p role="status" className="sr-only">
           Cargando los lotes…
         </p>
-        {state.slow ? (
-          <p className="text-small">
-            Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.
-          </p>
-        ) : null}
+        {state.slow ? <WakingNotice /> : null}
         <BatchListSkeleton rows={skeletonRows} />
       </div>
     );
@@ -44,7 +41,15 @@ function BatchesBody({ state, skeletonRows, children }: BatchesBodyProps) {
       </p>
     );
   }
-  if (state.page.total === 0) return <p className="text-small">{EMPTY_MESSAGE}</p>;
+  if (state.page.total === 0) {
+    return (
+      <EmptyState
+        icon={FolderOpen}
+        title="Aún no tienes lotes"
+        description="Un lote reúne los trabajos de un curso para revisarlos juntos. Créalo con Nueva auditoría."
+      />
+    );
+  }
   return children(state.page.items);
 }
 

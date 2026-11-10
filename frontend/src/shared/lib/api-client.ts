@@ -108,6 +108,13 @@ export function apiPatch(
   );
 }
 
+export function apiDelete(
+  path: string,
+  onSlow: () => void = () => undefined,
+): Promise<ApiResponse | ApiFailure> {
+  return apiRequest(path, { method: "DELETE" }, onSlow);
+}
+
 /** Despierta al backend antes de una subida; si no responde, no pasa nada. */
 export function wakeApi(): void {
   fetch(`${getApiUrl()}/health`).catch(() => undefined);

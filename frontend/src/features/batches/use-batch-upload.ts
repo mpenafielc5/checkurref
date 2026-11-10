@@ -1,8 +1,10 @@
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { RejectedPdf } from "@/shared/components/pdf-dropzone";
 import { createBatch, fetchBatchProgress, submitBatchWork, wakeApi } from "./api";
 import type { BatchUpload, CreatedBatch, UploadState } from "./types";
 import {
+  allSentCleanly,
   applyWorksProgress,
   failedUploads,
   initialUploads,
@@ -26,12 +28,20 @@ export function useBatchUpload() {
   const [slow, setSlow] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  const router = useRouter();
   const batchId = batch?.id ?? null;
   const polling = isAnalyzing(uploads);
+  const sentCleanly = !sending && allSentCleanly(uploads);
 
   useEffect(() => {
     wakeApi();
   }, []);
+
+  // Si todo se envió sin problemas, el avance se sigue en el tablero: no hace falta
+  // un clic más. Con rechazados, fallidos o repetidos se queda aquí para leer el motivo.
+  useEffect(() => {
+    if (batchId && sentCleanly) router.push(`/docente/lotes/${encodeURIComponent(batchId)}`);
+  }, [batchId, sentCleanly, router]);
 
   // Cerrar la pestaña corta el envío de los archivos que faltan: se pide confirmar.
   const busy = creating || sending;
@@ -96,6 +106,18 @@ export function useBatchUpload() {
     );
   }
 
+  /** Agrega archivos a un lote que ya existe: no se crea otro. */
+  async function addTo(existing: CreatedBatch, files: File[], rejected: RejectedPdf[]) {
+    setCreateError(null);
+    const initial = initialUploads(files, rejected);
+    setBatch(existing);
+    setUploads(initial);
+    await send(
+      existing.id,
+      initial.filter((upload) => upload.state.kind === "en_espera"),
+    );
+  }
+
   async function retry() {
     if (!batchId || sending) return;
     await send(batchId, failedUploads(uploads));
@@ -109,5 +131,5 @@ export function useBatchUpload() {
     setCreateError(null);
   }, []);
 
-  return { batch, uploads, creating, sending, slow, createError, start, retry, reset };
+  return { batch, uploads, creating, sending, slow, createError, start, addTo, retry, reset };
 }

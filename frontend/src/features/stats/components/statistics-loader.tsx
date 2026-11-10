@@ -8,6 +8,7 @@ import { formatDecimal } from "@/shared/lib/format";
 import { fieldLabel } from "@/shared/lib/reference-fields";
 import { fetchStatistics, type StatisticsOutcome } from "../api";
 import type { AdminStatistics, Statistics, StudentStatistics, TeacherStatistics } from "../types";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 const NO_VALUE = "—";
 const NO_ANALYSES = "Las estadísticas aparecerán cuando termine el primer análisis.";
@@ -90,11 +91,11 @@ export function StatisticsView({ statistics }: { statistics: Statistics }) {
           </h2>
           <VerdictBreakdown counts={statistics.counts} total={statistics.references} />
           {statistics.queryErrors > 0 && statistics.role !== "admin" ? (
-            <p className="text-small">
+            <Notice tone="warning">
               {statistics.queryErrors === 1
-                ? "1 referencia no se pudo verificar porque una fuente no respondió."
-                : `${statistics.queryErrors} referencias no se pudieron verificar porque una fuente no respondió.`}
-            </p>
+                ? "1 referencia quedó sin verificar porque una fuente no respondió."
+                : `${statistics.queryErrors} referencias quedaron sin verificar porque una fuente no respondió.`}
+            </Notice>
           ) : null}
         </section>
       ) : (
@@ -152,11 +153,7 @@ export function StatisticsLoader({ quiet = false, cards, thirds }: StatisticsLoa
         <p role="status" className="sr-only">
           Cargando las estadísticas…
         </p>
-        {slow ? (
-          <p className="text-small">
-            Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.
-          </p>
-        ) : null}
+        {slow ? <WakingNotice /> : null}
         <StatisticsSkeleton cards={cards} thirds={thirds} />
       </div>
     );

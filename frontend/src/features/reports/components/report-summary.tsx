@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatIndex } from "@/shared/lib/format";
 import { VERDICT_ORDER, VERDICTS, type Verdict } from "@/shared/lib/verdicts";
+import { Notice } from "@/shared/components/ui/notice";
 
 const RING_RADIUS = 40;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
@@ -162,11 +163,11 @@ export function ReportSummary({
           </ul>
         </nav>
         {queryErrors > 0 ? (
-          <p className="text-small text-body">
+          <Notice tone="warning">
             {queryErrors === 1
-              ? "1 referencia no se pudo verificar porque una fuente no respondió; no cuenta en el índice."
-              : `${queryErrors} referencias no se pudieron verificar porque una fuente no respondió; no cuentan en el índice.`}
-          </p>
+              ? "1 referencia quedó sin verificar porque una fuente no respondió; no cuenta en el índice."
+              : `${queryErrors} referencias quedaron sin verificar porque una fuente no respondió; no cuentan en el índice.`}
+          </Notice>
         ) : null}
       </div>
     </section>

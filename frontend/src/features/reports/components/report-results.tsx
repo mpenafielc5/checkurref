@@ -1,6 +1,8 @@
 "use client";
 
+import { ListFilter } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { PAGE_PARAM, paginate, parsePage } from "@/shared/lib/pagination";
 import type { Verdict } from "@/shared/lib/verdicts";
@@ -68,7 +70,11 @@ export function ReportResults({ report }: { report: Report }) {
             anchorId={LIST_ID}
           />
         ) : (
-          <p className="text-small">Ninguna referencia tiene este veredicto.</p>
+          <EmptyState
+            icon={ListFilter}
+            title="Sin referencias con este veredicto"
+            description="Elige otro veredicto en la barra de arriba o pulsa Todas."
+          />
         )}
       </section>
     </>

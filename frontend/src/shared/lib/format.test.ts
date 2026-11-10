@@ -13,6 +13,8 @@ describe("formatos de la interfaz", () => {
 
   it("muestra el tamaño de archivo en MB", () => {
     expect(formatFileSize(2.4 * 1024 * 1024)).toBe("2,4 MB");
+    expect(formatFileSize(45 * 1024)).toBe("45 KB");
+    expect(formatFileSize(12)).toBe("1 KB");
   });
 });
 

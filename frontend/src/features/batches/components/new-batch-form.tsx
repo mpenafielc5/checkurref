@@ -3,15 +3,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { PdfDropzone, type RejectedPdf } from "@/shared/components/pdf-dropzone";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
+import { MAX_NAME_LENGTH, MAX_PERIOD_LENGTH } from "../rules";
 import { useBatchUpload } from "../use-batch-upload";
 import { BatchUploadProgress } from "./batch-upload-progress";
+import { WakingNotice } from "@/shared/components/ui/notice";
 
 const INPUT_CLASSES =
   "h-input w-full rounded-control border border-hairline-strong bg-surface px-4 text-small text-ink outline-none placeholder:text-muted focus:border-ink";
-
-/** Los mismos límites que t_lotes_auditoria. */
-const MAX_NAME_LENGTH = 150;
-const MAX_PERIOD_LENGTH = 20;
 
 function filesLabel(count: number): string {
   return `${count} ${count === 1 ? "archivo" : "archivos"}`;
@@ -129,9 +127,7 @@ export function NewBatchForm() {
       </PdfDropzone>
 
       <div aria-live="polite" className="flex flex-col gap-1 text-small">
-        {slow ? (
-          <p>Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.</p>
-        ) : null}
+        {slow ? <WakingNotice /> : null}
         {missingData ? (
           <p role="alert" className="text-verdict-contradiction-text">
             Escribe el nombre y el periodo del lote.

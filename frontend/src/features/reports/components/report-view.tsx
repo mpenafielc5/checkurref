@@ -1,3 +1,4 @@
+import { Printer } from "lucide-react";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { StatusChip } from "@/shared/components/ui/status-chip";
 import type { Report } from "../types";
@@ -15,6 +16,7 @@ export function ReportView({ report }: { report: Report }) {
         <span className="flex-1" />
         {/* Se activa con la vista de impresión del informe (HU-15). */}
         <button type="button" disabled className={buttonStyles({ variant: "secondary" })}>
+          <Printer aria-hidden="true" className="size-4" />
           Exportar PDF
         </button>
       </div>

@@ -5,6 +5,12 @@ import { createBatch, fetchBatchProgress, submitBatchWork } from "../api";
 import { POLL_MS } from "../use-batch-upload";
 import { NewBatchForm } from "./new-batch-form";
 
+const push = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
+}));
+
 vi.mock("../api", () => ({
   createBatch: vi.fn(),
   fetchBatchProgress: vi.fn(),

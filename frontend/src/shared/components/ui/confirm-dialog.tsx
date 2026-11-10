@@ -27,7 +27,8 @@ type ConfirmDialogProps = {
 
 /**
  * Pide confirmar una acción antes de aplicarla. Se monta solo mientras hace falta;
- * el elemento dialog atrapa el foco y se cierra con Esc.
+ * el elemento dialog atrapa el foco y se cierra con Esc. Alinea su texto a la
+ * izquierda aunque se abra desde una celda alineada a la derecha.
  */
 export function ConfirmDialog({
   title,
@@ -63,7 +64,7 @@ export function ConfirmDialog({
         event.preventDefault();
         if (!busy) onCancel();
       }}
-      className="m-auto w-11/12 max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-panel border border-hairline bg-canvas p-6 text-ink backdrop:bg-ink/40 open:flex"
+      className="m-auto w-11/12 max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-panel border border-hairline bg-canvas p-6 text-left text-ink backdrop:bg-ink/40 open:flex"
     >
       <h2 id="titulo-confirmacion" className="text-title font-semibold tracking-normal">
         {title}

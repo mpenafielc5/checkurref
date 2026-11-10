@@ -68,6 +68,17 @@ export function isAnalyzing(uploads: BatchUpload[]): boolean {
   return uploads.some((upload) => upload.state.kind === "en_analisis");
 }
 
+/**
+ * Todos los archivos llegaron a la API sin nada que explicar: no hay rechazados,
+ * fallidos ni repetidos. Entonces el avance se sigue mejor en el tablero del lote.
+ */
+export function allSentCleanly(uploads: BatchUpload[]): boolean {
+  return (
+    uploads.length > 0 &&
+    uploads.every((upload) => upload.state.kind === "en_analisis" || upload.state.kind === "listo")
+  );
+}
+
 export function analyzedCount(uploads: BatchUpload[]): number {
   return uploads.filter((upload) => upload.state.kind === "listo").length;
 }

@@ -7,6 +7,7 @@ import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { fetchReport, type ReportOutcome } from "../api";
 import { ReportView } from "./report-view";
+import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 
 type LoadState = { kind: "loading"; slow: boolean } | ReportOutcome;
 
@@ -53,11 +54,7 @@ export function ReportLoader({
       {state.kind === "loading" ? (
         <>
           <p className="sr-only">Cargando el informe…</p>
-          {state.slow ? (
-            <p className="text-small">
-              Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.
-            </p>
-          ) : null}
+          {state.slow ? <WakingNotice /> : null}
           <Skeleton className="h-8 w-2/3 rounded-control" />
           <Skeleton className="h-32 w-full rounded-panel" />
           <Skeleton className="h-24 w-full rounded-panel" />
@@ -66,9 +63,9 @@ export function ReportLoader({
 
       {state.kind === "in_progress" ? (
         <div className="flex flex-col items-start gap-3">
-          <p className="text-body">
+          <Notice tone="wait">
             El análisis aún no termina. El informe estará disponible cuando se complete.
-          </p>
+          </Notice>
           <Link
             href={hasProgressPage ? `${listHref}/${analysisId}/progreso` : listHref}
             className={buttonStyles({ variant: "primary" })}

@@ -1,10 +1,11 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, SearchX } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import {
   cardClass,
   DataTable,
@@ -32,6 +33,7 @@ import {
 } from "../rules";
 import type { RoleCounts, RoleFilter, UserChange, UserRow } from "../types";
 import { useUsers } from "../use-users";
+import { WakingNotice } from "@/shared/components/ui/notice";
 
 const FILTERS: { id: RoleFilter; label: string }[] = [
   { id: "todos", label: "Todos" },
@@ -49,7 +51,6 @@ const TOOLBAR_CLASSES = "flex w-full flex-wrap items-center justify-between gap-
 const FILTER_CLASSES = "rounded-pill border px-4 py-1.5 text-small font-semibold";
 const SEARCH_CLASSES =
   "flex h-input w-full items-center gap-2 rounded-control border border-hairline-strong bg-canvas px-4 focus-within:border-ink md:w-auto md:max-w-xs md:flex-1";
-const EMPTY_MESSAGE = "Ninguna cuenta coincide con el filtro.";
 
 /** Mismo ancho en todas las filas, para que estados y botones queden en columna. */
 const STATUS_WIDTH = "w-20";
@@ -110,6 +111,15 @@ type UserRowsProps = {
 
 /** Tarjetas en el celular y tabla desde md. */
 function UserRows({ users, onChoose }: UserRowsProps) {
+  if (users.length === 0) {
+    return (
+      <EmptyState
+        icon={SearchX}
+        title="Sin resultados"
+        description="Ninguna cuenta coincide con la búsqueda o el filtro."
+      />
+    );
+  }
   return (
     <>
       {/* Con dos botones por fila, la tabla no cabe en una tableta: tarjetas hasta lg. */}
@@ -127,7 +137,6 @@ function UserRows({ users, onChoose }: UserRowsProps) {
             {canManage(user) ? <UserActions user={user} onChoose={onChoose} /> : null}
           </li>
         ))}
-        {users.length === 0 ? <li className="text-small">{EMPTY_MESSAGE}</li> : null}
       </ul>
 
       <DataTable caption="Usuarios del sistema" cardsOnTablet>
@@ -165,13 +174,6 @@ function UserRows({ users, onChoose }: UserRowsProps) {
               </td>
             </tr>
           ))}
-          {users.length === 0 ? (
-            <tr>
-              <td colSpan={4} className={`${tdClass} text-body`}>
-                {EMPTY_MESSAGE}
-              </td>
-            </tr>
-          ) : null}
         </tbody>
       </DataTable>
     </>
@@ -300,11 +302,7 @@ export function UserTable() {
           <p role="status" className="sr-only">
             Cargando los usuarios…
           </p>
-          {state.slow ? (
-            <p className="text-small">
-              Iniciando el motor de análisis; este proceso puede tardar hasta un minuto.
-            </p>
-          ) : null}
+          {state.slow ? <WakingNotice /> : null}
           <DataTableSkeleton columns={4} rows={5} withAction cardsOnTablet />
         </div>
       ) : null}
