@@ -312,6 +312,43 @@ def test_actas_en_ieee() -> None:
     )
 
 
+def test_conserva_el_doi_citado_que_la_fuente_reconoce() -> None:
+    record = replace(ARTICLE, doi="10.1145/publicado.2021")
+    fields = replace(APA_WRONG_FIELDS, year=2021, volume="8", doi=DOI)
+
+    corrected = correct(APA_WRONG, fields, record=record, by="doi")
+
+    assert f"https://doi.org/{DOI}" in corrected.text
+    assert CheckedField.DOI not in corrected.changed_fields
+
+
+def test_usa_el_dato_oficial_si_el_estudiante_lo_escribio_completo() -> None:
+    # El extractor perdió la letra del número de artículo, que el texto sí trae.
+    text = APA_WRONG.replace("10-25.", "e289.")
+    fields = replace(APA_WRONG_FIELDS, pages="289")
+
+    corrected = correct(text, fields, record=replace(ARTICLE, pages="e289"))
+
+    assert ", e289." in corrected.text
+    assert CheckedField.PAGES not in corrected.changed_fields
+
+
+def test_el_subtitulo_devuelto_al_titulo_no_se_repite_en_la_revista() -> None:
+    record = replace(ARTICLE, title="Redes neuronales: en la educación superior")
+    fields = replace(
+        APA_WRONG_FIELDS,
+        title="Redes neuronales",
+        container="En la educación superior. Revista Andina",
+    )
+    verification = decide(APA_WRONG, fields, by_search(record), FakeNli())
+    assert verification.cited is not None
+
+    corrected = corrected_reference(APA_WRONG, Norm.APA, verification.cited, verification)
+
+    assert corrected is not None
+    assert corrected.text.count("educación superior") == 1
+
+
 # --- Cuándo no hay referencia corregida -----------------------------------------------------
 
 

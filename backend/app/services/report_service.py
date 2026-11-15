@@ -32,7 +32,7 @@ from app.schemas.report import (
     TextSegment,
     VerdictCounts,
 )
-from app.verification.decision import CheckedField
+from app.verification.decision import CheckedField, index_level
 from app.verification.findings import MISMATCH_CODES
 
 HISTORY_PAGE_SIZE = 20  # HU-07 CA02
@@ -101,6 +101,7 @@ class ReportService:
             engine=analysis.engine,
             total_references=len(references),
             index=analysis.index,
+            index_level=_level(analysis.index),
             counts=_counts(references),
             most_different_fields=_most_different(references),
             references=references,
@@ -124,8 +125,14 @@ def _item(analysis: AnalysisRecord) -> AnalysisItem:
         total_references=analysis.total_references,
         norm=analysis.norm,
         index=analysis.index,
+        index_level=_level(analysis.index),
         error_message=analysis.error_message,
     )
+
+
+def _level(index: float | None) -> str | None:
+    level = index_level(index)
+    return level.value if level else None
 
 
 def _reference(stored: StoredReference) -> ReferenceReport:

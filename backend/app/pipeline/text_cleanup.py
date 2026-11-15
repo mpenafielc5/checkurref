@@ -26,6 +26,9 @@ MAX_FURNITURE_WORDS = 12
 PAGE_NUMBER = re.compile(r"^(p[aá]g(ina)?\.?\s*)?\d{1,4}(\s*(de|of|/)\s*\d{1,4})?$", re.IGNORECASE)
 URL_OR_DOI = re.compile(r"(https?://|www\.|doi\.org/|^doi:|^10\.\d{4,9}/)", re.IGNORECASE)
 URL_CONTINUATION_CHARS = set("/._-=?&%#~")
+# Título numerado ("7. Anexos", "8.1 Apéndice"): empieza con cifra, pero no continúa
+# el DOI o la URL de la línea anterior.
+NUMBERED_HEADING = re.compile(r"^\d+(\.\d+)*[.)]?\s+[A-ZÁÉÍÓÚÑ]")
 
 
 def remove_page_furniture(pages: list[list[TextLine]]) -> list[list[TextLine]]:
@@ -84,6 +87,8 @@ def _looks_like_url_continuation(text: str) -> bool:
     # Se mira solo el primer carácter: una referencia nueva empieza con mayúscula
     # o con [n], aunque su primer apellido lleve guion (Delgado-Quirós).
     first = text[0]
+    if NUMBERED_HEADING.match(text):
+        return False
     return first.islower() or first.isdigit() or first in URL_CONTINUATION_CHARS
 
 

@@ -27,6 +27,8 @@ class AnalysisItem(BaseModel):
     norm: str | None
     # Índice de veracidad de 0 a 100; None mientras se analiza o si no hay referencias que contar.
     index: float | None
+    # alto, medio o bajo (RF20-CA02); el frontend solo lo muestra.
+    index_level: str | None
     error_message: str | None
 
 
@@ -132,6 +134,8 @@ class ReportResponse(BaseModel):
     engine: str
     total_references: int
     index: float | None
+    # alto, medio o bajo (RF20-CA02); el frontend solo lo muestra.
+    index_level: str | None
     counts: VerdictCounts
     # Campos que más difieren del registro, de mayor a menor (HU-06 CA01).
     most_different_fields: list[FieldDifference]

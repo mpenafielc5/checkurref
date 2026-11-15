@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import analyses, batches, health, lab, session, statistics, users
 from app.core.config import Settings, get_settings
+from app.core.security_headers import add_security_headers
 from app.verification.nli import NliModelError
 from app.workers.analysis_worker import create_worker
 
@@ -60,6 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json" if public_docs else None,
     )
 
+    add_security_headers(app, production=not public_docs)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

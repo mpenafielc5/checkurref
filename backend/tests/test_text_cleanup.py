@@ -37,6 +37,12 @@ def texts(result: list[TextLine]) -> list[str]:
             id="URL partida",
         ),
         pytest.param(
+            "https://doi.org/10.1016/j.jss.2021.",
+            "111187",
+            "https://doi.org/10.1016/j.jss.2021.111187",
+            id="DOI partido después de un punto",
+        ),
+        pytest.param(
             "Revista Ciencia y Tecnología, 14(2), 45-",
             "60.",
             "Revista Ciencia y Tecnología, 14(2), 45-60.",
@@ -76,6 +82,16 @@ def test_une_las_lineas_cortadas(previous: str, current: str, expected: str) -> 
             "Data, 9(5), 71. https://doi.org/10.3390/data9050071",
             "Delgado-Quirós, L., & Ortega, J. L. (2024). Completeness degree of metadata.",
             id="DOI seguido de un apellido con guion",
+        ),
+        pytest.param(
+            "Revista Andina, 14(18), 11668. https://doi.org/10.1234/ra141811668",
+            "8. Anexos",
+            id="DOI seguido del título numerado de la sección siguiente",
+        ),
+        pytest.param(
+            "https://doi.org/10.1234/cit.2023.10386116",
+            "7.1. Modelo entidad-relación de la base de datos",
+            id="DOI seguido de un subtítulo numerado",
         ),
     ],
 )

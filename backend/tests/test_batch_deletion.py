@@ -97,7 +97,7 @@ def test_un_lote_vacio_se_elimina_sin_tocar_el_almacenamiento() -> None:
     assert steps[-1] == f"lote:{BATCH_ID}"
 
 
-def test_el_lote_de_otro_docente_no_existe_para_el() -> None:
+def test_no_se_elimina_el_lote_de_otro_docente() -> None:
     work_service, steps, _ = service()
 
     with pytest.raises(BatchNotFoundError):

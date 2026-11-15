@@ -11,7 +11,7 @@ import httpx
 
 from app.extraction.base import Author
 from app.sources.http import SourceHttp
-from app.sources.records import Source, SourceRecord, normalize_doi
+from app.sources.records import Source, SourceRecord, normalize_doi, plain_text
 
 BASE_URL = "https://api.openalex.org"
 MAX_CONCURRENT = 5
@@ -47,10 +47,11 @@ def _record(item: dict[str, Any]) -> SourceRecord:
     location = (item.get("primary_location") or {}).get("source") or {}
     first_page, last_page = biblio.get("first_page"), biblio.get("last_page")
     pages = f"{first_page}-{last_page}" if first_page and last_page else first_page
+    repository = location.get("type") == "repository" and item.get("type") != "preprint"
     return SourceRecord(
         source=Source.OPENALEX,
         doi=normalize_doi(item.get("doi")),
-        title=item.get("display_name") or None,
+        title=plain_text(item.get("display_name")),
         # OpenAlex da el nombre completo sin separar ("Francisco José García-Peñalvo"):
         # con dos apellidos no se puede partir con seguridad, así que va entero.
         authors=tuple(
@@ -59,8 +60,9 @@ def _record(item: dict[str, Any]) -> SourceRecord:
             if authorship.get("author")
         ),
         year=item.get("publication_year"),
-        container=location.get("display_name") or None,
-        publisher=location.get("host_organization_name") or None,
+        # Un repositorio (PubMed, Europe PMC) es dónde está la copia, no la revista.
+        container=None if repository else plain_text(location.get("display_name")),
+        publisher=None if repository else location.get("host_organization_name") or None,
         volume=biblio.get("volume") or None,
         issue=biblio.get("issue") or None,
         pages=pages or None,

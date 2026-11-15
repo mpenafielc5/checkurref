@@ -34,7 +34,7 @@ partición de calibración del estándar de oro.
 import re
 import unicodedata
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Protocol
 
@@ -76,6 +76,9 @@ class CheckedField(str, Enum):
 
 @dataclass(frozen=True)
 class Thresholds:
+    """Umbrales calibrados con la partición de calibración del estándar de oro (T18):
+    solo doi_author_support mejoró al moverlo; los demás conservan su valor inicial."""
+
     # Similitud mínima (0-1) para que el título se dé por igual.
     title_match: float = 0.90
     # Por debajo, el título es de otra obra; entre ambos valores decide el NLI.
@@ -83,8 +86,9 @@ class Thresholds:
     # Similitud mínima entre dos apellidos para tomarlos como la misma persona.
     surname_match: float = 0.85
     # Parte de los autores citados con la que el registro de un DOI es la obra
-    # aunque el título no coincida (citado traducido, por ejemplo).
-    doi_author_support: float = 0.50
+    # aunque el título no coincida (citado traducido, por ejemplo). Con la mitad
+    # bastaba que una referencia inventada conservara uno de dos autores.
+    doi_author_support: float = 0.80
     container_match: float = 0.85
     # Probabilidad de implicación con la que el NLI confirma un título dudoso.
     nli_entailment: float = 0.50
@@ -119,6 +123,9 @@ class Verification:
     record: SourceRecord | None = None  # registro con el que se comparó
     checks: tuple[FieldCheck, ...] = ()
     nli: tuple[NliCheck, ...] = ()
+    # Campos con los que se comparó: los extraídos, o con el subtítulo devuelto al
+    # título (rejoin_subtitle). None si no se comparó con ningún registro.
+    cited: ExtractedFields | None = None
 
     @property
     def query_failed(self) -> bool:
@@ -162,13 +169,44 @@ def decide(
         verdict = Verdict.NOT_VERIFIABLE if uncovered else Verdict.UNSUPPORTED
         return Verification(verdict, strategy)
 
+    checks = best.checks
     if not best.same_work:
         verdict = Verdict.CONTRADICTION
-    elif any(not check.matches for check in best.checks):
-        verdict = Verdict.DISCREPANCY
     else:
-        verdict = Verdict.VERIFIED
-    return Verification(verdict, strategy, best.record, best.checks, best.nli)
+        checks = _flag_missing_authors(checks, best.cited, best.record, text)
+        verdict = (
+            Verdict.DISCREPANCY if any(not check.matches for check in checks) else Verdict.VERIFIED
+        )
+    return Verification(verdict, strategy, best.record, checks, best.nli, best.cited)
+
+
+# Marcas de una lista de autores acortada a propósito: "et al.", "y otros", "y cols." o
+# los puntos suspensivos de APA con más de 20 autores.
+SHORTENED_AUTHORS = re.compile(
+    r"\bet\.?\s+al\b|\by\s+otros\b|\by\s+cols?\b|…|\.\.\.", re.IGNORECASE
+)
+
+
+def _flag_missing_authors(
+    checks: tuple[FieldCheck, ...], cited: ExtractedFields, record: SourceRecord, text: str
+) -> tuple[FieldCheck, ...]:
+    """Una lista de autores incompleta es una discrepancia de la misma obra.
+
+    Se mira solo después de reconocer la obra, para no cambiar cómo se reconoce:
+    los autores citados firman la obra, pero el registro tiene más y la referencia
+    no los acorta con "et al." ni con puntos suspensivos. Si la acorta, la norma
+    decide si estaba permitido (IEEE con más de seis autores; en APA 7 es un
+    hallazgo de formato).
+    """
+    given, official = _named(cited.authors), _named(record.authors)
+    if len(given) >= len(official) or SHORTENED_AUTHORS.search(text):
+        return checks
+    return tuple(
+        replace(check, matches=False)
+        if check.field is CheckedField.AUTHORS and check.matches
+        else check
+        for check in checks
+    )
 
 
 def truthfulness_index(verdicts: Iterable[Verdict | None]) -> float | None:
@@ -181,6 +219,30 @@ def truthfulness_index(verdicts: Iterable[Verdict | None]) -> float | None:
     return round(100 * verified / len(counted), 2)
 
 
+# Cortes del nivel del índice de veracidad (RF20-CA02). El riesgo de un trabajo en un
+# lote es su inverso: índice bajo, riesgo alto. Están solo aquí; el frontend recibe el
+# nivel ya calculado.
+LOW_INDEX_BELOW = 60.0
+HIGH_INDEX_FROM = 85.0
+
+
+class IndexLevel(str, Enum):
+    HIGH = "alto"
+    MEDIUM = "medio"
+    LOW = "bajo"
+
+
+def index_level(index: float | None) -> IndexLevel | None:
+    """Nivel del índice con el valor que se muestra (un decimal): así un 84,96, que se ve
+    como 85, no queda en el nivel medio. None si no hay índice."""
+    if index is None:
+        return None
+    shown = round(index, 1)
+    if shown < LOW_INDEX_BELOW:
+        return IndexLevel.LOW
+    return IndexLevel.HIGH if shown >= HIGH_INDEX_FROM else IndexLevel.MEDIUM
+
+
 # --- Identidad de la obra -------------------------------------------------------------------
 
 
@@ -189,6 +251,7 @@ class _Assessment:
     """Un candidato evaluado; el mejor es la obra citada con el título más parecido."""
 
     record: SourceRecord
+    cited: ExtractedFields
     checks: tuple[FieldCheck, ...]
     nli: tuple[NliCheck, ...]
     same_work: bool
@@ -221,6 +284,7 @@ def _assess(
     thresholds: Thresholds,
     uncovered_work: bool,
 ) -> _Assessment:
+    fields = rejoin_subtitle(fields, record)
     checks = _compare(fields, record, strategy, thresholds)
     nli_checks = _infer(fields, record, nli)
     by_field = {check.field: check for check in checks}
@@ -242,6 +306,7 @@ def _assess(
     )
     return _Assessment(
         record,
+        fields,
         checks,
         nli_checks,
         same_work,
@@ -287,6 +352,30 @@ def _search_found_the_work(evidence: _Evidence, thresholds: Thresholds) -> bool:
     if authors is None:
         return evidence.nli_confirms_title
     return authors.matches or evidence.nli_confirms_title
+
+
+def rejoin_subtitle(fields: ExtractedFields, record: SourceRecord) -> ExtractedFields:
+    """Devuelve al título el subtítulo que el extractor dejó en el contenedor.
+
+    El extractor a veces corta el título en los dos puntos y deja el subtítulo al
+    inicio del contenedor: título "SIGA" y contenedor "Sistema de gestión académica
+    en línea. Congreso Internacional de Tecnología". Si
+    el título del registro es el citado más un trozo con el que empieza el contenedor,
+    ese trozo vuelve al título y el contenedor se queda con el resto.
+    """
+    title, container = fields.title, fields.container
+    if not title or not container or not record.title:
+        return fields
+    given, official = _normalize(title), _normalize(record.title)
+    if not official.startswith(given + " "):
+        return fields
+    subtitle = official[len(given) :].strip()
+    for end in [match.start() for match in re.finditer(r"[.:]\s", container)] + [len(container)]:
+        if _normalize(container[:end]) == subtitle:
+            rest = container[end:].lstrip(" .:")
+            joined = f"{title.rstrip(' :')}: {container[:end].strip()}"
+            return replace(fields, title=joined, container=rest or None)
+    return fields
 
 
 def title_identity(given: str | None, official: str | None) -> float | None:
@@ -341,10 +430,13 @@ def _compare(
         checks.append(_direct(CheckedField.YEAR, str(fields.year), str(official), matches))
     if doi := normalize_doi(fields.doi):
         if strategy is Strategy.BIBLIOGRAPHIC_SEARCH:
-            # Se buscó por título porque ninguna fuente registra el DOI citado.
+            # Se buscó por título porque ninguna fuente registra el DOI citado como obra.
             checks.append(_direct(CheckedField.DOI, doi, record.doi, False))
         elif record.doi:
-            checks.append(_direct(CheckedField.DOI, doi, record.doi, doi == record.doi))
+            # El registro llegó por el DOI citado, así que ese DOI está registrado. Si el
+            # registro trae otro, la fuente agrupó dos versiones de la obra (OpenAlex une
+            # la preimpresión de arXiv con el artículo publicado): el citado es válido.
+            checks.append(_direct(CheckedField.DOI, doi, doi, True))
     if fields.container and record.container:
         similarity = _container_similarity(fields.container, record.container)
         checks.append(
@@ -458,7 +550,11 @@ def _container_similarity(given: str, official: str) -> float:
 
 
 def _abbreviates(given: str, official: str) -> bool:
-    """ "IEEE Trans. Educ." abrevia "IEEE Transactions on Education"."""
+    """ "IEEE Trans. Educ." abrevia "IEEE Transactions on Education".
+
+    La última palabra puede llegar sin su punto: el extractor quita la puntuación
+    final ("IEEE Trans. Dependable Secur. Comput").
+    """
     short = [
         word
         for word in re.findall(r"\w+\.?", _strip_accents(given).lower())
@@ -471,9 +567,12 @@ def _abbreviates(given: str, official: str) -> bool:
     ]
     if len(short) != len(full) or not any(w.endswith(".") for w in short):
         return False
+    last = len(short) - 1
     return all(
-        long.startswith(word.rstrip(".")) if word.endswith(".") else word == long
-        for word, long in zip(short, full, strict=True)
+        long.startswith(word.rstrip("."))
+        if word.endswith(".") or position == last
+        else word == long
+        for position, (word, long) in enumerate(zip(short, full, strict=True))
     )
 
 
@@ -488,7 +587,8 @@ def _without_leading_zeros(value: str) -> str:
 
 def _page_bounds(value: str) -> tuple[str, str | None] | None:
     """Primera y última página ("pp. 10–25" -> ("10", "25")); None si no hay números."""
-    numbers = re.findall(r"[a-z]?\d+", value.lower().replace("pp.", "").replace("p.", ""))
+    # Sin la letra de los números de artículo: "e289" y "289" son la misma página.
+    numbers = re.findall(r"\d+", value.lower().replace("pp.", "").replace("p.", ""))
     if not numbers:
         return None
     first, last = numbers[0], numbers[1] if len(numbers) > 1 else None
@@ -497,7 +597,16 @@ def _page_bounds(value: str) -> tuple[str, str | None] | None:
 
 def _same_pages(given: tuple[str, str | None], official: tuple[str, str | None]) -> bool:
     # Si una de las dos solo trae la primera página, se compara esa.
-    return given[0] == official[0] and (None in (given[1], official[1]) or given[1] == official[1])
+    if given[0] != official[0]:
+        return False
+    if given[1] is None or official[1] is None:
+        return True
+    return _same_last_page(given[1], official[1]) or _same_last_page(official[1], given[1])
+
+
+def _same_last_page(full: str, short: str) -> bool:
+    """La última página abreviada es la misma: "644-651" y "644-51"."""
+    return full == short or (len(short) < len(full) and full.endswith(short))
 
 
 # --- Coherencia general (NLI) ---------------------------------------------------------------
@@ -507,13 +616,18 @@ def _infer(fields: ExtractedFields, record: SourceRecord, nli: NliScorer) -> tup
     """Cada campo de la referencia es una hipótesis frente al registro completo.
 
     Premisa e hipótesis usan las mismas frases, así que un campo igual al del
-    registro queda implicado y uno distinto, contradicho.
+    registro queda implicado y uno distinto, contradicho. Las dos se escriben igual
+    aunque la fuente y la norma no lo hagan: el título en minúsculas (APA lo pide en
+    tipo oración y las fuentes lo guardan en tipo título) y los autores por su
+    apellido (la referencia trae iniciales y la fuente, el nombre completo). Con
+    "Agile" frente a "agile" o "M. Pérez" frente a "María Pérez", el modelo
+    marcaba como contradicción un campo igual.
     """
     premise = " ".join(
         sentence
         for _, sentence in _sentences(
-            record.title,
-            [_full_name(author) for author in _named(record.authors)],
+            _lower(record.title),
+            [author.family for author in _named(record.authors)],
             record.year,
             record.container,
         )
@@ -521,8 +635,8 @@ def _infer(fields: ExtractedFields, record: SourceRecord, nli: NliScorer) -> tup
     hypotheses = [
         (field, sentence)
         for field, sentence in _sentences(
-            fields.title,
-            [_full_name(author) for author in _named(fields.authors)],
+            _lower(fields.title),
+            [author.family for author in _named(fields.authors)],
             fields.year,
             fields.container,
         )
@@ -562,8 +676,8 @@ def _has(record: SourceRecord, field: CheckedField) -> bool:
     return bool(values.get(field))
 
 
-def _full_name(author: Author) -> str:
-    return f"{author.given} {author.family}".strip()
+def _lower(title: str | None) -> str | None:
+    return title.lower() if title else title
 
 
 def _join(names: list[str]) -> str:

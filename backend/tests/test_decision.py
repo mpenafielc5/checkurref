@@ -11,8 +11,10 @@ from app.sources.lookup import LookupResult, Strategy
 from app.sources.records import Source, SourceRecord
 from app.verification.decision import (
     CheckedField,
+    IndexLevel,
     Verdict,
     decide,
+    index_level,
     is_uncovered_work,
     truthfulness_index,
 )
@@ -199,10 +201,32 @@ def test_un_dato_que_el_registro_no_tiene_no_cuenta_como_diferencia() -> None:
 # --- Autores, revista y páginas -------------------------------------------------------------
 
 
-def test_con_et_al_basta_que_los_autores_citados_firmen_la_obra() -> None:
-    fields = replace(FIELDS, authors=(Author("Pérez", "M."),))
+ONE_AUTHOR = replace(FIELDS, authors=(Author("Pérez", "M."),))
 
-    assert verdict_of(RECORD, fields) is Verdict.VERIFIED
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        TEXT.replace("Pérez, M. y López Vera, J.", "Pérez, M. et al."),
+        TEXT.replace("Pérez, M. y López Vera, J.", "Pérez, M., y otros"),
+        TEXT.replace("Pérez, M. y López Vera, J.", "Pérez, M., ... López Vera, J."),
+    ],
+)
+def test_con_et_al_basta_que_los_autores_citados_firmen_la_obra(text: str) -> None:
+    verification = decide(text, ONE_AUTHOR, by_doi(RECORD), FakeNli())
+
+    assert verification.verdict is Verdict.VERIFIED
+
+
+def test_una_lista_de_autores_incompleta_es_una_discrepancia() -> None:
+    # Caso real: se cita solo al último de cinco autores, sin "et al.".
+    text = TEXT.replace("Pérez, M. y López Vera, J.", "López Vera, J.")
+    fields = replace(FIELDS, authors=(Author("López Vera", "J."),))
+
+    verification = decide(text, fields, by_doi(RECORD), FakeNli())
+
+    assert verification.verdict is Verdict.DISCREPANCY
+    assert [check.field for check in verification.mismatches] == [CheckedField.AUTHORS]
 
 
 def test_reconoce_el_apellido_en_el_nombre_completo_de_openalex() -> None:
@@ -246,6 +270,11 @@ def test_autor_institucional() -> None:
     [
         ("Rev. Andina", "Revista Andina"),
         ("IEEE Trans. Educ.", "IEEE Transactions on Education"),
+        # El extractor quita el punto de la última abreviatura.
+        (
+            "IEEE Trans. Dependable Secur. Comput",
+            "IEEE Transactions on Dependable and Secure Computing",
+        ),
         ("Revista Andina", "Revista Andina de Educación"),
     ],
 )
@@ -257,7 +286,8 @@ def test_revista_abreviada_o_sin_subtitulo_coincide(given: str, official: str) -
 
 
 @pytest.mark.parametrize(
-    ("given", "official"), [("pp. 10–25", "10-25"), ("10-25", "10"), ("e123", "e123")]
+    ("given", "official"),
+    [("pp. 10–25", "10-25"), ("10-25", "10"), ("e123", "e123"), ("644-651", "644-51")],
 )
 def test_paginas_en_otra_forma_coinciden(given: str, official: str) -> None:
     fields = replace(FIELDS, pages=given)
@@ -274,6 +304,50 @@ def test_ceros_a_la_izquierda_no_son_una_diferencia() -> None:
     record = replace(RECORD, volume="08", pages="010-025")
 
     assert verdict_of(record) is Verdict.VERIFIED
+
+
+def test_devuelve_al_titulo_el_subtitulo_que_quedo_en_el_contenedor() -> None:
+    # El extractor cortó el título en los dos puntos y dejó el subtítulo en la revista.
+    record = replace(RECORD, title="Redes neuronales: en la educación superior")
+    fields = replace(
+        FIELDS, title="Redes neuronales", container="En la educación superior. Revista Andina"
+    )
+
+    verification = decide(TEXT, fields, by_doi(record), FakeNli())
+
+    assert verification.verdict is Verdict.VERIFIED
+    assert verification.cited is not None
+    assert verification.cited.title == "Redes neuronales: En la educación superior"
+    assert verification.cited.container == "Revista Andina"
+
+
+def test_un_titulo_corto_que_no_es_el_inicio_del_registro_no_se_toca() -> None:
+    fields = replace(FIELDS, title="Redes", container="Neuronales. Revista Andina")
+
+    verification = decide(TEXT, fields, by_doi(RECORD), FakeNli())
+
+    assert verification.cited is not None
+    assert verification.cited.title == "Redes"
+
+
+def test_el_doi_citado_vale_aunque_la_fuente_traiga_el_de_otra_version() -> None:
+    # OpenAlex une la preimpresión de arXiv con el artículo publicado: el DOI citado
+    # lleva al registro, aunque el registro traiga el del artículo.
+    record = replace(RECORD, doi="10.1145/publicado.2021")
+
+    verification = decide(TEXT, FIELDS, by_doi(record), FakeNli())
+
+    assert verification.verdict is Verdict.VERIFIED
+    doi = verification.check(CheckedField.DOI)
+    assert doi is not None and doi.matches and doi.official == DOI
+
+
+def test_numero_de_articulo_con_letra_es_la_misma_pagina() -> None:
+    verification = decide(
+        TEXT, replace(FIELDS, pages="289"), by_doi(replace(RECORD, pages="e289")), FakeNli()
+    )
+
+    assert verification.verdict is Verdict.VERIFIED
 
 
 # --- Contradicción --------------------------------------------------------------------------
@@ -320,8 +394,17 @@ def test_doi_con_otro_titulo_y_un_apellido_en_comun_por_azar_es_contradiccion() 
     assert verdict_of(record) is Verdict.CONTRADICTION
 
 
-def test_doi_con_otro_titulo_y_el_mismo_primer_autor_es_la_misma_obra() -> None:
+def test_doi_con_otro_titulo_y_solo_la_mitad_de_los_autores_es_contradiccion() -> None:
+    # Así queda una referencia inventada que conserva el DOI y uno de dos autores:
+    # con el umbral calibrado (T18), la mitad de los autores no basta.
     record = replace(OTHER_WORK, authors=(Author("Pérez", "Ana"), Author("Mora", "Luis")))
+
+    assert verdict_of(record) is Verdict.CONTRADICTION
+
+
+def test_doi_con_otro_titulo_y_todos_los_autores_es_la_misma_obra() -> None:
+    # El título pudo citarse traducido: el DOI y los autores dicen que es la obra.
+    record = replace(OTHER_WORK, authors=RECORD.authors)
 
     assert verdict_of(record) is Verdict.DISCREPANCY
 
@@ -495,8 +578,8 @@ def test_cada_campo_es_una_hipotesis_frente_al_registro() -> None:
         CheckedField.CONTAINER,
     }
     assert by_field[CheckedField.TITLE].premise == (
-        "El título de la obra es «Redes neuronales en la educación superior». "
-        "La obra fue escrita por María Pérez y Juan López Vera. "
+        "El título de la obra es «redes neuronales en la educación superior». "
+        "La obra fue escrita por Pérez y López Vera. "
         "La obra se publicó en 2021. La obra apareció en Revista Andina."
     )
     assert by_field[CheckedField.YEAR].hypothesis == "La obra se publicó en 2019."
@@ -593,3 +676,22 @@ def test_sin_campos_extraidos_es_no_verificable() -> None:
     verification = asyncio.run(ReferenceVerifier(lookup, FakeNli()).verify(TEXT, None))
 
     assert verification.verdict is Verdict.NOT_VERIFIABLE
+
+
+@pytest.mark.parametrize(
+    ("index", "level"),
+    [
+        (None, None),
+        (0.0, IndexLevel.LOW),
+        (59.9, IndexLevel.LOW),
+        (60.0, IndexLevel.MEDIUM),
+        (84.9, IndexLevel.MEDIUM),
+        (84.96, IndexLevel.HIGH),  # se muestra como 85,0
+        (85.0, IndexLevel.HIGH),
+        (100.0, IndexLevel.HIGH),
+    ],
+)
+def test_nivel_del_indice_con_los_cortes_de_rf20(
+    index: float | None, level: IndexLevel | None
+) -> None:
+    assert index_level(index) is level
