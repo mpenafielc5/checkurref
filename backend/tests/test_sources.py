@@ -115,6 +115,24 @@ def test_crossref_une_el_titulo_con_su_subtitulo() -> None:
     assert record.title == "Redes neuronales en la educación superior: Un estudio en Ecuador"
 
 
+def test_crossref_quita_las_entidades_y_etiquetas_html_del_titulo_y_la_revista() -> None:
+    # Caso real: Crossref registra "Cif &amp; Par"; la referencia corregida lo copiaba así.
+    work = {
+        **CROSSREF_WORK,
+        "title": ["Control de <i>Moniliophthora roreri</i> Cif &amp; Par en cacao"],
+        "container-title": ["Ciencia &amp; Tecnolog&#237;a"],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"message": work})
+
+    record = asyncio.run(CrossrefClient(client(handler)).by_doi(DOI))
+
+    assert record is not None
+    assert record.title == "Control de Moniliophthora roreri Cif & Par en cacao"
+    assert record.container == "Ciencia & Tecnología"
+
+
 def test_crossref_busca_por_titulo_y_autor() -> None:
     seen: list[httpx.Request] = []
 
@@ -154,6 +172,26 @@ def test_openalex_traduce_al_mismo_formato_comun() -> None:
     )
     assert record.authors == (Author("María Pérez Vera"),)
     assert (record.container, record.publisher) == ("Revista Andina", "UNEMI")
+
+
+def test_openalex_no_toma_un_repositorio_como_revista() -> None:
+    work = {
+        **OPENALEX_WORK,
+        "primary_location": {
+            "source": {
+                "display_name": "PubMed",
+                "host_organization_name": "National Institutes of Health",
+                "type": "repository",
+            }
+        },
+    }
+
+    record = asyncio.run(
+        OpenAlexClient(client(lambda _: httpx.Response(200, json=work))).by_doi(DOI)
+    )
+
+    assert record is not None
+    assert (record.container, record.publisher) == (None, None)
 
 
 def test_obra_inexistente_no_es_un_error() -> None:
@@ -340,6 +378,34 @@ def test_doi_que_nadie_tiene_se_intenta_por_titulo_y_autor() -> None:
     assert result.strategy is Strategy.BIBLIOGRAPHIC_SEARCH
     assert result.candidates == (found,)
     assert crossref.calls == [f"doi:{DOI}", "búsqueda:Redes neuronales|Pérez"]
+
+
+ISSUE = SourceRecord(source=Source.CROSSREF, doi=DOI, title=None, year=2021, volume="2")
+
+
+def test_el_doi_del_numero_de_una_revista_no_es_la_obra_y_se_busca_por_titulo() -> None:
+    # Caso real: "10.38035/dijefa.v2i3" (el número) por "10.38035/dijefa.v2i3.910".
+    article = work(doi=f"{DOI}.910")
+    crossref = FakeSource(Source.CROSSREF, by_doi=ISSUE, found=[article])
+    openalex = FakeSource(Source.OPENALEX)
+    cache = MemoryCache()
+
+    result = asyncio.run(lookup(crossref, openalex, cache=cache).lookup(REFERENCE))
+
+    assert result.strategy is Strategy.BIBLIOGRAPHIC_SEARCH
+    assert result.candidates == (article,)
+    assert cache.records.get(DOI) is None  # el número no queda como si fuera la obra
+
+
+def test_el_numero_de_una_revista_guardado_en_cache_tampoco_es_la_obra() -> None:
+    article = work(doi=f"{DOI}.910")
+    crossref = FakeSource(Source.CROSSREF, found=[article])
+
+    result = asyncio.run(
+        lookup(crossref, FakeSource(Source.OPENALEX), cache=MemoryCache([ISSUE])).lookup(REFERENCE)
+    )
+
+    assert result.candidates == (article,)
 
 
 def test_sin_doi_ni_titulo_no_se_consulta() -> None:

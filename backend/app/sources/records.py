@@ -4,6 +4,7 @@ Cada fuente responde con su propio formato; su adaptador lo traduce a
 SourceRecord, y el resto del análisis solo conoce este formato.
 """
 
+import html
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -13,6 +14,8 @@ from app.extraction.base import Author
 
 DOI_PREFIX = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", re.IGNORECASE)
 VALID_DOI = re.compile(r"^10\.\d{4,9}/\S+$")
+# Etiquetas de formato que las fuentes dejan en algunos títulos: <i>, <sub>, <scp>, <mml:math>.
+MARKUP_TAG = re.compile(r"</?[A-Za-z][\w:.-]*(?:\s[^<>]*)?/?>")
 
 
 class Source(str, Enum):
@@ -55,3 +58,12 @@ def normalize_doi(value: str | None) -> str | None:
         doi = stripped
     doi = doi.rstrip(".,;)").lower()
     return doi if VALID_DOI.match(doi) else None
+
+
+def plain_text(value: str | None) -> str | None:
+    """Texto sin etiquetas ni entidades HTML y con los espacios normalizados: las
+    fuentes registran algunos títulos como "Cif &amp; Par" o "<i>Theobroma</i> cacao",
+    y la referencia corregida los copiaría así."""
+    if not value:
+        return None
+    return " ".join(html.unescape(MARKUP_TAG.sub("", value)).split()) or None

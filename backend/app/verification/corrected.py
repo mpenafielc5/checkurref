@@ -89,6 +89,15 @@ def corrected_reference(
     return None
 
 
+# Idioma de una traducción que Crossref registra aparte: "Título [Russian]".
+TRANSLATION_TAG = re.compile(
+    r"\[(arabic|bengali|chinese|english|french|german|hindi|indonesian|italian|japanese|"
+    r"korean|persian|portuguese|russian|spanish|swahili|thai|turkish|ukrainian|urdu|"
+    r"vietnamese)\]\s*$",
+    re.IGNORECASE,
+)
+
+
 def trusted_record(fields: ExtractedFields, verification: Verification) -> SourceRecord | None:
     """El registro, si es seguro que es la obra citada; si no, None."""
     record = verification.record
@@ -98,7 +107,20 @@ def trusted_record(fields: ExtractedFields, verification: Verification) -> Sourc
         title = title_identity(fields.title, record.title)
         if title is None or title < THRESHOLDS.title_match:
             return None
+        if is_translation(fields.title, record.title):
+            return None
     return record
+
+
+def is_translation(cited_title: str | None, record_title: str | None) -> bool:
+    """El registro es una traducción de la obra citada, con su propio DOI.
+
+    Los organismos internacionales (UNESCO, por ejemplo) registran cada idioma de un
+    informe con otro DOI y el idioma al final del título. La búsqueda puede hallar
+    una traducción: la obra existe, pero sus datos no son los de la versión citada.
+    """
+    tag = TRANSLATION_TAG.search(record_title or "")
+    return tag is not None and tag.group(1).lower() not in (cited_title or "").lower()
 
 
 # --- Valor de cada campo --------------------------------------------------------------------
@@ -162,13 +184,13 @@ def _merge(
         CheckedField.TITLE: _title(cited.title, record.title),
         CheckedField.YEAR: _Value(str(year), year != cited.year) if year else None,
         CheckedField.CONTAINER: _pick(
-            checks, CheckedField.CONTAINER, cited.container, record.container
+            checks, CheckedField.CONTAINER, cited.container, record.container, text
         ),
-        CheckedField.VOLUME: _pick(checks, CheckedField.VOLUME, cited.volume, record.volume),
-        CheckedField.ISSUE: _pick(checks, CheckedField.ISSUE, cited.issue, record.issue),
-        CheckedField.PAGES: _pick(checks, CheckedField.PAGES, cited.pages, record.pages),
+        CheckedField.VOLUME: _pick(checks, CheckedField.VOLUME, cited.volume, record.volume, text),
+        CheckedField.ISSUE: _pick(checks, CheckedField.ISSUE, cited.issue, record.issue, text),
+        CheckedField.PAGES: _pick(checks, CheckedField.PAGES, cited.pages, record.pages, text),
         CheckedField.PUBLISHER: _pick(
-            checks, CheckedField.PUBLISHER, cited.publisher, record.publisher
+            checks, CheckedField.PUBLISHER, cited.publisher, record.publisher, text
         ),
         CheckedField.DOI: _doi(checks.get(CheckedField.DOI), cited.doi, record.doi),
     }
@@ -200,10 +222,17 @@ def _pick(
     field: CheckedField,
     given: str | None,
     official: str | None,
+    text: str,
 ) -> _Value | None:
-    """El dato citado si coincide con el registro (o el registro no lo tiene); si no, el oficial."""
+    """El dato citado si coincide con el registro (o el registro no lo tiene); si no, el oficial.
+
+    Si coincide y el texto de la referencia trae el dato oficial tal cual, se usa ese:
+    el extractor a veces pierde un trozo ("(CIT" por "(CIT)", "289" por "e289").
+    """
     check = checks.get(field)
     if given and (not official or (check.matches if check else _same_text(given, official))):
+        if official and official != given and given in official and official in text:
+            return _Value(official, False)
         return _Value(given, False)
     return _Value(official, True) if official else None
 
@@ -216,11 +245,14 @@ def _title(given: str | None, official: str | None) -> _Value | None:
 
 
 def _doi(check: FieldCheck | None, given: str | None, official: str | None) -> _Value | None:
-    """El DOI del registro. Uno citado que ninguna fuente tiene no se conserva."""
+    """El DOI del registro. Uno citado que ninguna fuente tiene no se conserva; uno citado
+    que la fuente reconoce sí, aunque el registro traiga el de otra versión de la obra."""
     cited = normalize_doi(given)
+    if cited and check is not None and check.matches:
+        return _Value(cited, False)
     if official:
         return _Value(official, cited != official)
-    if cited and (check is None or check.matches):
+    if cited and check is None:
         return _Value(cited, False)
     return None
 

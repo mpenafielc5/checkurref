@@ -31,6 +31,7 @@ from app.schemas.batch import (
 )
 from app.schemas.report import FieldDifference, VerdictCounts
 from app.services.upload_service import UploadRejectedError, UploadResult, UploadService
+from app.verification.decision import IndexLevel, index_level
 
 BATCHES_PAGE_SIZE = 20
 MAX_WORKS_PER_BATCH = 40  # HU-08 CA02
@@ -39,12 +40,11 @@ FAILED = "error"
 CONTRADICTION = "contradiccion"
 DISCREPANCY = "discrepancia"
 
-# Índices que separan el riesgo de un trabajo (RF20-CA02).
-HIGH_RISK_BELOW = 60.0
-LOW_RISK_FROM = 85.0
+# Riesgo de un trabajo (RF20-CA02): el inverso del nivel de su índice.
 HIGH = "alto"
 MEDIUM = "medio"
 LOW = "bajo"
+RISK_BY_LEVEL = {IndexLevel.LOW: HIGH, IndexLevel.MEDIUM: MEDIUM, IndexLevel.HIGH: LOW}
 
 BATCH_FULL = f"El lote ya tiene el máximo de {MAX_WORKS_PER_BATCH} trabajos."
 
@@ -57,11 +57,8 @@ def risk_of(index: float | None, contradictions: int) -> str | None:
     """Riesgo de un trabajo; None si aún no hay referencias que permitan calcularlo."""
     if contradictions > 0:
         return HIGH
-    if index is None:
-        return None
-    if index < HIGH_RISK_BELOW:
-        return HIGH
-    return LOW if index >= LOW_RISK_FROM else MEDIUM
+    level = index_level(index)
+    return RISK_BY_LEVEL[level] if level else None
 
 
 class BatchService:

@@ -180,6 +180,39 @@ def test_referencia_que_continua_en_la_pagina_siguiente() -> None:
     assert [entry.page for entry in entries] == [3, 3, 4]
 
 
+def test_pagina_que_solo_trae_el_final_de_una_referencia() -> None:
+    # En la última página todas las líneas llevan sangría: su margen es el de la anterior.
+    lines = [
+        line(APA_1, page=3),
+        line("Revista Andina, 8(1), 10-25.", HANGING, page=3),
+        line("Rivas, A. (2020). Aprendizaje automático aplicado. Congreso Internacional", page=3),
+        line("de Tecnología (CIT), 30-36.", HANGING, page=4),
+        line("https://doi.org/10.1234/cit.2020.1", HANGING, page=4),
+    ]
+
+    assert texts(lines) == [
+        f"{APA_1} Revista Andina, 8(1), 10-25.",
+        "Rivas, A. (2020). Aprendizaje automático aplicado. Congreso Internacional "
+        "de Tecnología (CIT), 30-36. https://doi.org/10.1234/cit.2020.1",
+    ]
+
+
+def test_iniciales_de_un_autor_partidas_entre_dos_lineas() -> None:
+    lines = [
+        line(APA_1),
+        line("Moreira Vélez, K. D., Mora Vera, J."),
+        line("A., & Rivas Loor, J. A. (2025). Refuerzo pedagógico. Revista, 6(3).", HANGING),
+        line(APA_2),
+    ]
+
+    assert texts(lines) == [
+        APA_1,
+        "Moreira Vélez, K. D., Mora Vera, J. "
+        "A., & Rivas Loor, J. A. (2025). Refuerzo pedagógico. Revista, 6(3).",
+        APA_2,
+    ]
+
+
 def test_documento_a_dos_columnas() -> None:
     right = 320.0
     lines = [

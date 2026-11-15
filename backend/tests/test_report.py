@@ -241,6 +241,7 @@ def test_informe_cuenta_veredictos_y_errores_de_consulta() -> None:
     assert report.counts.verificada == 1
     assert report.counts.error_consulta == 1
     assert report.index == 50.0
+    assert report.index_level == "bajo"  # el frontend solo muestra el nivel
 
 
 def test_informe_compara_cada_campo_con_su_valor_oficial() -> None:
@@ -321,6 +322,7 @@ def test_historial_pagina_de_20_en_20() -> None:
     assert reports.listed == [(OWNER, 40, 20, "")]
     assert (page.page, page.page_size, page.total, page.total_pages) == (3, 20, 41, 3)
     assert page.items[0].file_name == "Avance_cap2.pdf"
+    assert page.items[0].index_level == "bajo"
 
 
 def test_historial_vacio_tiene_una_pagina() -> None:

@@ -2,8 +2,9 @@
 
 1. Con DOI: búsqueda directa, primero en la caché, luego en Crossref y, si no
    la tiene, en OpenAlex.
-2. Sin DOI, o con un DOI que ninguna fuente tiene: búsqueda por título y autor,
-   con el mismo orden de fuentes.
+2. Sin DOI, o con un DOI que ninguna fuente tiene como obra: búsqueda por título
+   y autor, con el mismo orden de fuentes. Un DOI puede estar registrado sin ser
+   una obra: el del número de una revista no tiene título ni autores.
 3. Sin DOI ni título: no se consulta.
 
 Solo se habla de "no encontrada" cuando todas las fuentes respondieron. Si
@@ -57,6 +58,13 @@ class RecordCache(Protocol):
     def put(self, records: list[SourceRecord]) -> None: ...
 
 
+def is_work(record: SourceRecord) -> bool:
+    """Un registro con título o autores describe una obra. Sin ninguno de los dos
+    (el DOI del número de una revista, no el de su artículo) no hay con qué
+    confirmar que sea la obra citada."""
+    return bool(record.title or record.authors)
+
+
 class ReferenceLookup:
     def __init__(self, sources: list[BibliographicSource], cache: RecordCache) -> None:
         self._sources = sources  # en orden de preferencia: Crossref y luego OpenAlex
@@ -70,7 +78,7 @@ class ReferenceLookup:
             result = await self._by_doi(doi)
             if result.candidates or result.query_failed or not fields.title:
                 return result
-            # Un DOI que nadie tiene puede estar mal escrito: se intenta por título.
+            # Un DOI que nadie tiene puede estar mal escrito o recortado: se intenta por título.
         if fields.title:
             author = fields.authors[0].family if fields.authors else None
             return await self._search(fields.title, author)
@@ -78,7 +86,7 @@ class ReferenceLookup:
 
     async def _by_doi(self, doi: str) -> LookupResult:
         cached = await asyncio.to_thread(self._cache.get, doi)
-        if cached:
+        if cached and is_work(cached):
             return LookupResult(Strategy.DIRECT_DOI, (cached,))
         failed = False
         for source in self._sources:
@@ -88,7 +96,7 @@ class ReferenceLookup:
                 logger.warning("%s no respondió al buscar el DOI %s: %s", source.name, doi, error)
                 failed = True
                 continue
-            if record:
+            if record and is_work(record):
                 await asyncio.to_thread(self._cache.put, [record])
                 return LookupResult(Strategy.DIRECT_DOI, (record,))
         return LookupResult(Strategy.DIRECT_DOI, (), query_failed=failed)

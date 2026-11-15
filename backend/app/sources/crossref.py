@@ -12,7 +12,7 @@ import httpx
 
 from app.extraction.base import Author
 from app.sources.http import SourceHttp
-from app.sources.records import Source, SourceRecord, normalize_doi
+from app.sources.records import Source, SourceRecord, normalize_doi, plain_text
 
 BASE_URL = "https://api.crossref.org"
 MAX_CONCURRENT = 3
@@ -78,7 +78,7 @@ def _record(item: dict[str, Any]) -> SourceRecord:
         year=years[0] if years else None,
         other_years=tuple(sorted(set(years[1:]) - set(years[:1]))),
         container=_first(item.get("container-title")),
-        publisher=item.get("publisher") or None,
+        publisher=plain_text(item.get("publisher")),
         volume=item.get("volume") or None,
         issue=item.get("issue") or None,
         pages=item.get("page") or None,
@@ -103,4 +103,4 @@ def _title(item: dict[str, Any]) -> str | None:
 
 
 def _first(values: list[str] | None) -> str | None:
-    return " ".join(values[0].split()) if values else None
+    return plain_text(values[0]) if values else None

@@ -38,3 +38,25 @@ def test_en_desarrollo_la_documentacion_sigue_disponible() -> None:
 
     assert client.get("/docs").status_code == 200
     assert client.get("/openapi.json").status_code == 200
+
+
+def test_toda_respuesta_lleva_las_cabeceras_de_seguridad() -> None:
+    response = TestClient(create_app(Settings(_env_file=None, environment="development"))).get(
+        "/health"
+    )
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert "Content-Security-Policy" not in response.headers  # /docs la necesita libre
+
+
+def test_en_produccion_se_prohibe_el_contenido_activo_y_se_exige_https() -> None:
+    response = TestClient(create_app(Settings(_env_file=None, environment="production"))).get(
+        "/health"
+    )
+
+    assert (
+        response.headers["Content-Security-Policy"] == "default-src 'none'; frame-ancestors 'none'"
+    )
+    assert response.headers["Strict-Transport-Security"].startswith("max-age=")

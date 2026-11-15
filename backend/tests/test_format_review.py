@@ -93,6 +93,18 @@ def test_apa_doi_faltante_no_se_dispara_si_el_registro_no_es_seguro() -> None:
     assert "APA_DOI_FALTANTE" not in codes(text, Norm.APA, ARTICLE, None)
 
 
+def test_apa_doi_faltante_no_sugiere_el_doi_de_una_traduccion() -> None:
+    # Crossref registra cada idioma de un informe con su propio DOI.
+    translation = replace(RECORD, title=f"{ARTICLE.title} [Russian]", doi="10.1234/ru")
+    search = Verification(Verdict.VERIFIED, Strategy.BIBLIOGRAPHIC_SEARCH, record=translation)
+    text = "Pérez, M. (2021). Redes neuronales en la educación. Revista Andina, 12(3), 10-20."
+
+    assert "APA_DOI_FALTANTE" not in codes(text, Norm.APA, ARTICLE, search)
+    # La versión citada en ese idioma sí es la obra.
+    cited_in_russian = replace(ARTICLE, title=f"{ARTICLE.title} [Russian]")
+    assert "APA_DOI_FALTANTE" in codes(text, Norm.APA, cited_in_russian, search)
+
+
 @pytest.mark.parametrize(
     ("written", "given"),
     [

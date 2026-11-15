@@ -152,8 +152,10 @@ def batch_service(
     ("index", "contradictions", "risk"),
     [
         (59.9, 0, "alto"),
+        (59.96, 0, "medio"),  # se muestra como 60,0: cuenta el valor que se ve
         (60.0, 0, "medio"),
         (84.9, 0, "medio"),
+        (84.96, 0, "bajo"),
         (85.0, 0, "bajo"),
         (100.0, 0, "bajo"),
         (100.0, 1, "alto"),  # una Contradicción basta, aunque el índice sea alto
@@ -241,7 +243,7 @@ def test_sin_respaldo_no_es_una_alerta() -> None:
 # --- Solo lo propio -------------------------------------------------------------------------
 
 
-def test_el_lote_de_otro_docente_no_existe_para_el() -> None:
+def test_no_se_ve_ni_se_sube_al_lote_de_otro_docente() -> None:
     service, _, documents = batch_service()
 
     with pytest.raises(BatchNotFoundError):

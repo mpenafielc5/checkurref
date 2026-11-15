@@ -35,8 +35,9 @@ AUTHOR_YEAR_START = re.compile(rf"^[{UPPER}][^()]{{0,250}}?{YEAR_IN_PARENS}")
 # "Apellido, I." al inicio: en una lista de autores larga, el año queda más abajo.
 AUTHOR_START = re.compile(rf"^{SURNAME_FIRST}")
 URL_START = re.compile(r"^(?:https?://|www\.|doi:|10\.\d{4,9}/)", re.IGNORECASE)
-# Una línea que termina así sigue en la siguiente: lista de autores o apellido partidos.
-OPEN_ENDING = re.compile(r"(?:[,;:&-]|\s(?:y|e|and))$")
+# Una línea que termina así sigue en la siguiente: lista de autores o apellido partidos,
+# también entre las iniciales de un autor ("Mora Vera, J." y "A., Rivas...").
+OPEN_ENDING = re.compile(rf"(?:[,;:&-]|\s(?:y|e|and)|,\s(?:[{UPPER}]\.\s?)+)$")
 # Una línea que termina así cierra una referencia: en punto o en su DOI o URL.
 CLOSED_ENDING = re.compile(r"(?:\.|(?:https?://|doi:)\S*)$", re.IGNORECASE)
 # Otra referencia pegada dentro de la entrada, después de un punto o de un DOI o URL.
@@ -48,6 +49,8 @@ GLUED_START = re.compile(
 # Sangría francesa, en puntos (Word usa 1,27 cm = 36 pt).
 MIN_INDENT = 10.0
 MAX_INDENT = 90.0
+# Dos líneas a menos de esta distancia empiezan a la misma altura del renglón.
+SAME_X0 = 1.0
 # A partir de esta distancia, dos líneas están en columnas distintas.
 COLUMN_GAP = 150.0
 # Una referencia rara vez pasa de este largo: más suele ser dos unidas.
@@ -151,10 +154,30 @@ def _indents(lines: list[TextLine]) -> list[float]:
     page_x0: dict[int, list[float]] = {}
     for line in lines:
         page_x0.setdefault(line.page, []).append(line.x0)
+    _inherit_margins(lines, page_x0)
     return [
         line.x0 - min(x0 for x0 in page_x0[line.page] if line.x0 - COLUMN_GAP < x0 <= line.x0)
         for line in lines
     ]
+
+
+def _inherit_margins(lines: list[TextLine], page_x0: dict[int, list[float]]) -> None:
+    """Una página que solo trae el final de una referencia no tiene líneas en el margen:
+    todas llevan la sangría francesa. Esa página toma el margen de la anterior, para que
+    su primera línea no parezca el inicio de otra referencia."""
+    pages_with_starts = {
+        line.page for line in lines if _looks_like_start(line.text) or AUTHOR_START.match(line.text)
+    }
+    pages = list(page_x0)  # en orden de lectura
+    for previous, page in zip(pages, pages[1:], strict=False):
+        if page in pages_with_starts:
+            continue
+        margin, start = min(page_x0[previous]), min(page_x0[page])
+        # Solo si sus líneas están justo en la sangría francesa de la página anterior:
+        # un texto centrado o una carta después de la lista no la continúan.
+        same_indent = any(abs(x0 - start) <= SAME_X0 for x0 in page_x0[previous])
+        if same_indent and MIN_INDENT <= start - margin <= MAX_INDENT:
+            page_x0[page].append(margin)
 
 
 def _layout(lines: list[TextLine], indents: list[float]) -> Layout:

@@ -165,7 +165,9 @@ def _corrected(
     if fields is None or verification is None:
         return None
     try:
-        return corrected_reference(reference.text, reference.norm, fields, verification)
+        return corrected_reference(
+            reference.text, reference.norm, _cited(fields, verification), verification
+        )
     except Exception:  # una referencia nunca detiene el análisis (RNF09)
         logger.exception("Falló la referencia corregida de la referencia %d", reference.order)
         return None
@@ -186,7 +188,8 @@ def _format_findings(
     ):
         ids_by_order[reference.order] = reference_id
         try:
-            items = review_reference(reference, segmentation.norm, extracted, verification)
+            cited = _cited(extracted, verification) if extracted else None
+            items = review_reference(reference, segmentation.norm, cited, verification)
         except Exception:  # una referencia nunca detiene el análisis (RNF09)
             logger.exception("Falló la revisión de formato de la referencia %d", reference.order)
             continue
@@ -198,6 +201,12 @@ def _format_findings(
     except Exception:  # la lista completa tampoco detiene el análisis (RNF09)
         logger.exception("Falló la revisión de formato de la lista")
     return found
+
+
+def _cited(fields: ExtractedFields, verification: Verification | None) -> ExtractedFields:
+    """Campos con los que se verificó la referencia: el motor de decisión puede devolver
+    al título un subtítulo que el extractor dejó en el contenedor."""
+    return verification.cited if verification and verification.cited else fields
 
 
 async def _verify_one(
