@@ -87,6 +87,12 @@ describe("BatchDashboardView", () => {
     expect(fields.textContent).toContain("3 referencias");
   });
 
+  it("explica qué cuenta como alerta, para que un riesgo alto sin alertas se entienda", () => {
+    render(<BatchDashboardView batch={BATCH} />);
+
+    expect(screen.getByText(/Las sin respaldo no son alertas/)).toBeTruthy();
+  });
+
   it("ordena por riesgo de mayor a menor y cada encabezado cambia el orden", () => {
     render(<BatchDashboardView batch={BATCH} />);
 

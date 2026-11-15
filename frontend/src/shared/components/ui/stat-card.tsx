@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { SkeletonText } from "./skeleton";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 type StatTone = "default" | "success" | "danger" | "warning";
 
@@ -11,8 +12,7 @@ const VALUE_TONES: Record<StatTone, string> = {
 };
 
 /** Caja compartida por la tarjeta y su esqueleto, para que midan lo mismo. */
-const CARD_CLASSES =
-  "flex w-stat-half grow flex-col gap-0.5 rounded-card border border-hairline bg-canvas px-3 py-3 sm:px-4 md:px-5";
+const CARD_CLASSES = `flex w-stat-half grow flex-col gap-0.5 ${cardStyles()} px-3 py-3 sm:px-4 md:px-5`;
 /** En escritorio: todas en una fila, o de tres en tres cuando son seis. */
 const DESKTOP_ROW = "lg:w-auto lg:flex-1 lg:basis-0";
 const DESKTOP_THIRDS = "lg:w-stat-third lg:grow-0";

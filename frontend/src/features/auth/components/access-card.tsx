@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { GoogleSignInButton } from "./google-sign-in-button";
 import { LoginError } from "./login-error";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 type AccessCardProps = {
   headingLevel?: "h1" | "h2";
@@ -14,7 +15,7 @@ export function AccessCard({ headingLevel = "h2" }: AccessCardProps) {
     <section
       id="ingresar"
       aria-labelledby="titulo-ingresar"
-      className="flex w-full flex-col gap-4 rounded-panel border border-hairline bg-canvas p-6 md:max-w-sm"
+      className={`flex w-full flex-col gap-4 ${cardStyles({ size: "panel" })} p-6 md:max-w-sm`}
     >
       <Heading id="titulo-ingresar" className="text-title font-semibold tracking-normal">
         Ingresar

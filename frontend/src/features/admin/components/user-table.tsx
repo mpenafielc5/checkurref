@@ -151,7 +151,8 @@ function UserRows({ users, onChoose }: UserRowsProps) {
             <th scope="col" className={thClass}>
               Estado
             </th>
-            <th scope="col" className={thClass}>
+            {/* w-px: la columna mide lo que sus botones; el espacio sobrante va a Usuario. */}
+            <th scope="col" className={`${thClass} w-px whitespace-nowrap`}>
               Acciones
             </th>
           </tr>
@@ -169,7 +170,7 @@ function UserRows({ users, onChoose }: UserRowsProps) {
               <td className={tdClass}>
                 <AccountStatus user={user} />
               </td>
-              <td className={tdClass}>
+              <td className={`${tdClass} w-px whitespace-nowrap`}>
                 <UserActions user={user} onChoose={onChoose} />
               </td>
             </tr>

@@ -1,3 +1,5 @@
+import type { IndexLevel } from "@/shared/lib/truthfulness";
+
 /** listo: terminó con informe; en_proceso: en cola o analizándose; error: terminó sin informe. */
 export type AnalysisStatus = "listo" | "en_proceso" | "error";
 
@@ -12,6 +14,8 @@ export type Work = {
   references: number;
   /** Índice de veracidad de 0 a 100; null mientras se analiza. */
   index: number | null;
+  /** Nivel del índice que calcula el backend (RF20-CA02); null sin índice. */
+  indexLevel: IndexLevel | null;
   status: AnalysisStatus;
   /** Avance del análisis de 0 a 100. */
   progress: number;

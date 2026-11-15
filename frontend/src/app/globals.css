@@ -101,6 +101,16 @@
   --spacing-avatar: var(--cr-avatar-size);
   --spacing-stat-half: var(--cr-stat-half);
   --spacing-stat-third: var(--cr-stat-third);
+
+  /* El anillo del índice se llena al abrir el informe (animate-ring-fill). */
+  --animate-ring-fill: cr-ring-fill var(--cr-duration-slow) ease-out;
+
+  /* Sin "to": termina en el valor del propio anillo. 100 es su largo (pathLength). */
+  @keyframes cr-ring-fill {
+    from {
+      stroke-dasharray: 0 100;
+    }
+  }
 }
 
 /*
@@ -151,6 +161,22 @@
     cursor: pointer;
   }
 
+  /* La X para borrar una búsqueda: la del navegador es azul; esta usa el color del
+     texto y el mismo ícono X del resto de la interfaz, y conserva su función. */
+  input[type="search"]::-webkit-search-cancel-button {
+    appearance: none;
+    width: 1em;
+    height: 1em;
+    cursor: pointer;
+    background-color: var(--cr-body);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+
+  input[type="search"]::-webkit-search-cancel-button:hover {
+    background-color: var(--cr-ink);
+  }
+
   body {
     background-color: var(--cr-canvas);
     color: var(--cr-body);
@@ -175,8 +201,8 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--cr-primary);
-    outline-offset: 2px;
+    outline: var(--cr-focus-ring-width) solid var(--cr-primary);
+    outline-offset: var(--cr-focus-ring-offset);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -191,4 +217,10 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+/* El informe impreso (Exportar PDF) sale siempre en A4 vertical, como un
+   documento académico, sin depender de la configuración del navegador. */
+@page {
+  size: A4 portrait;
 }

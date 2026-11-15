@@ -1,6 +1,7 @@
 import { formatDecimal } from "@/shared/lib/format";
 import { fieldLabel } from "@/shared/lib/reference-fields";
 import { ENGINE_NAMES, type EngineId, type EngineScores } from "../types";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 /** El color sigue al motor: el mismo en la leyenda y en todas las filas. */
 const ENGINE_DOTS: Record<EngineId, string> = {
@@ -46,7 +47,7 @@ export function BenchmarkChart({
   const percent = (value: number) => `${value.toFixed(2)}%`;
 
   return (
-    <figure className="flex flex-col gap-3 rounded-card border border-hairline bg-canvas px-5 py-4">
+    <figure className={`flex flex-col gap-3 ${cardStyles()} px-5 py-4`}>
       <figcaption className="flex flex-col gap-2">
         <span className="text-small font-semibold text-ink">F1 por campo de cada motor</span>
         <span className="text-caption text-body">

@@ -39,3 +39,8 @@ export function canCopyCorrected(reference: ReferenceResult): boolean {
 export function referenceText(reference: ReferenceResult): string {
   return reference.segments.map((segment) => segment.text).join("");
 }
+
+/** Título de la pestaña al imprimir, que el navegador usa como nombre del PDF. */
+export function printTitle(fileName: string): string {
+  return `Informe CheckUrRef - ${fileName.replace(/\.pdf$/i, "")}`;
+}

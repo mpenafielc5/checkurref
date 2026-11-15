@@ -5,6 +5,7 @@ import { homePathForRole, ROLE_LABELS } from "../rules";
 import { AccessCard } from "./access-card";
 import { GoogleSignInButton } from "./google-sign-in-button";
 import { SignOutButton } from "./user-badge";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 /**
  * Tarjeta de acceso de la página pública. Si ya hay sesión, muestra la cuenta
@@ -18,7 +19,7 @@ export async function LandingAccessCard() {
     <section
       id="ingresar"
       aria-labelledby="titulo-cuenta"
-      className="flex w-full flex-col gap-4 rounded-panel border border-hairline bg-canvas p-6 md:max-w-sm"
+      className={`flex w-full flex-col gap-4 ${cardStyles({ size: "panel" })} p-6 md:max-w-sm`}
     >
       <h2 id="titulo-cuenta" className="text-title font-semibold tracking-normal">
         Sesión iniciada

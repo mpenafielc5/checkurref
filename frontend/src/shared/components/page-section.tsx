@@ -22,14 +22,17 @@ type PageSectionProps = {
   children?: ReactNode;
 };
 
+// Al imprimir, sin márgenes propios: los pone la hoja, y un relleno al final puede
+// pasar solo a una página en blanco.
 const SECTION_CLASSES =
-  "mx-auto flex w-full max-w-content flex-col gap-6 px-4 py-6 md:px-8 md:py-10";
-const HEADER_CLASSES = "flex w-full flex-col gap-4";
+  "mx-auto flex w-full max-w-content flex-col gap-6 px-4 py-6 md:px-8 md:py-10 print:gap-0 print:p-0";
+// Al imprimir no sale: el informe impreso trae su propio encabezado.
+const HEADER_CLASSES = "flex w-full flex-col gap-4 print:hidden";
 /** Título y acciones lado a lado; con varias acciones, solo desde lg para que el título no se apriete. */
 const HEADER_ROW = "md:flex-row md:items-center md:justify-between";
 const HEADER_ROW_WIDE = "lg:flex-row lg:items-center lg:justify-between";
 const TITLE_TEXT = "text-display-sm text-balance break-words md:text-display-md";
-const BACK_CLASSES = "mb-2 flex items-center gap-1.5 self-start text-small";
+const BACK_CLASSES = "mb-2 flex items-center gap-1.5 self-start text-small print:hidden";
 
 /** Encabezado y contenedor estándar de una pantalla interna. */
 export function PageSection({

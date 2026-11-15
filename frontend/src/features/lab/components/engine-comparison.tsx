@@ -7,6 +7,7 @@ import { compareEngines } from "../api";
 import { comparedFieldsOf } from "../comparison-mapper";
 import { ENGINE_LABELS, type EngineOutput, type LabComparison } from "../types";
 import { Notice, WakingNotice } from "@/shared/components/ui/notice";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 /** Los mismos límites del backend: fuera de ellos ya no es una referencia. */
 const MIN_REFERENCE_LENGTH = 10;
@@ -25,7 +26,7 @@ function EngineCard({ output, fields, different }: EngineCardProps) {
   return (
     <section
       aria-label={ENGINE_LABELS[output.engine]}
-      className="flex flex-1 flex-col gap-3 rounded-card border border-hairline bg-canvas px-5 py-4"
+      className={`flex flex-1 flex-col gap-3 ${cardStyles()} px-5 py-4`}
     >
       <header className="flex items-center justify-between gap-2">
         <h2 className="text-small font-semibold tracking-normal text-ink">

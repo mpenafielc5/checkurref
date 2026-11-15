@@ -11,6 +11,7 @@ import { VERDICT_ORDER, VERDICTS } from "@/shared/lib/verdicts";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { Eyebrow } from "@/shared/components/ui/eyebrow";
 import { Wordmark } from "@/shared/components/ui/wordmark";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 const STEPS = [
   {
@@ -28,7 +29,7 @@ const STEPS = [
     icon: CircleCheck,
     title: "Recibe tu informe",
     description:
-      "Cada referencia incluye su veredicto, el dato registrado y sus errores de formato, para que puedas corregirla.",
+      "Cada referencia incluye su veredicto, el dato registrado, sus errores de formato y la referencia corregida para copiar. Puedes exportar el informe en PDF.",
   },
 ];
 
@@ -130,7 +131,7 @@ export default function HomePage() {
               {STEPS.map(({ icon: Icon, title, description }, index) => (
                 <li
                   key={title}
-                  className="flex flex-1 flex-col gap-2 rounded-card border border-hairline bg-surface p-6 transition-colors hover:border-hairline-strong"
+                  className={`flex flex-1 flex-col gap-2 ${cardStyles({ tone: "surface" })} p-6 transition-colors hover:border-hairline-strong`}
                 >
                   <div className="flex items-center justify-between gap-4">
                     <Icon aria-hidden="true" className="size-6 text-primary" />
@@ -148,7 +149,7 @@ export default function HomePage() {
               {VERDICT_ORDER.map((verdict) => (
                 <li
                   key={verdict}
-                  className="flex flex-col gap-2 rounded-card border border-hairline bg-surface px-5 py-3 md:flex-row md:items-center md:gap-6"
+                  className={`flex flex-col gap-2 ${cardStyles({ tone: "surface" })} px-5 py-3 md:flex-row md:items-center md:gap-6`}
                 >
                   <span className="flex md:w-48 md:shrink-0">
                     <VerdictBadge verdict={verdict} />
@@ -169,6 +170,12 @@ export default function HomePage() {
               errores de formato según APA 7 o IEEE, como la ausencia del DOI. Estos errores no
               modifican el veredicto: una referencia puede existir y, aun así, estar mal escrita.
             </p>
+            {/* Lo mismo que responde la Ayuda en "¿Quién puede ver mis trabajos?". */}
+            <p className="text-small">
+              <strong className="text-ink">Tus trabajos son privados.</strong> Solo los ves tú y, si
+              forman parte de un lote, el docente que lo creó. CheckUrRef revisa las referencias; no
+              detecta plagio.
+            </p>
           </div>
         </section>
 
@@ -177,7 +184,7 @@ export default function HomePage() {
           aria-labelledby="titulo-para-docentes"
           className="border-t border-hairline"
         >
-          <div className="mx-auto flex w-full max-w-content flex-col gap-6 px-4 py-12 md:flex-row md:items-center md:px-8 md:py-20">
+          <div className="mx-auto flex w-full max-w-content flex-col gap-10 px-4 py-12 md:flex-row md:items-center md:gap-16 md:px-8 md:py-20">
             <div className="flex flex-1 flex-col gap-2">
               <Eyebrow>Para docentes</Eyebrow>
               <h2 id="titulo-para-docentes" className="text-display-sm md:text-display-md">
@@ -188,7 +195,10 @@ export default function HomePage() {
                 problemas. Especialmente útil para acompañar los trabajos de titulación.
               </p>
             </div>
-            <ul className="flex flex-1 flex-col gap-3 text-small">
+            {/* En tarjeta, como la de acceso del inicio: la sección llega al mismo borde derecho. */}
+            <ul
+              className={`flex flex-1 flex-col gap-4 ${cardStyles({ size: "panel" })} p-6 text-small`}
+            >
               <li className="flex items-center gap-3">
                 <Users aria-hidden="true" className="size-5 text-primary" />
                 Lotes por curso y periodo académico

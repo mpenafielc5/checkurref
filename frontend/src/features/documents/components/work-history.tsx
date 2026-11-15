@@ -20,6 +20,7 @@ import { workHref } from "../history";
 import type { Work } from "../types";
 import { WorkStatusChip } from "./work-status-chip";
 import { formatIndex } from "@/shared/lib/format";
+import { INDEX_LEVELS } from "@/shared/lib/truthfulness";
 
 const SEARCH_CLASSES =
   "flex h-input w-full items-center gap-2 rounded-control border border-hairline-strong bg-canvas px-4 md:max-w-xs";
@@ -169,7 +170,11 @@ export function WorkHistory({ works, searching, onDeleted }: WorkHistoryProps) {
                 </Link>
               </td>
               <td className={tdClass}>{work.date}</td>
-              <td className={`${tdClass} ${numericClass}`}>
+              <td
+                className={`${tdClass} ${numericClass} ${
+                  work.indexLevel ? `font-semibold ${INDEX_LEVELS[work.indexLevel].textClass}` : ""
+                }`}
+              >
                 {work.index === null ? "—" : formatIndex(work.index)}
               </td>
               <td className={`${tdClass} ${STATUS_LABELS[work.status].className}`}>

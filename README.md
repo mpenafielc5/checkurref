@@ -70,6 +70,23 @@ npm run dev                           # http://localhost:3000
 
 En Linux o macOS, cambiar `./.venv/Scripts/` por `./.venv/bin/`.
 
+## Seguridad
+
+- **Acceso:** solo con cuentas institucionales de Google; la base de datos
+  rechaza el registro de otros dominios.
+- **Autorización en el servidor:** la API valida el token de sesión en cada
+  solicitud y revisa el rol (estudiante, docente o administrador).
+- **Datos:** Row Level Security en todas las tablas; cada usuario solo ve sus
+  trabajos y cada docente, sus lotes. El usuario solo puede editar su nombre y
+  carrera.
+- **Claves:** el frontend usa solo la clave pública de Supabase; la clave de
+  servicio vive en el servidor, fuera del repositorio.
+- **Archivos:** solo PDF (se comprueba su firma), hasta 10 MB, en un
+  almacenamiento privado.
+- **Entradas y respuestas:** validación con Pydantic, consultas sin SQL escrito a
+  mano y respuestas con solo los campos necesarios.
+- **Navegador:** cabeceras de seguridad en todas las respuestas y HTTPS.
+
 ## Pruebas
 
 ```bash
@@ -78,7 +95,7 @@ cd frontend && npm run test
 ```
 
 Cada cambio pasa por integración continua (GitHub Actions): lint, formato,
-tipos, pruebas y compilación del frontend y del backend.
+tipos, pruebas, compilación y escaneo de dependencias del frontend y del backend.
 
 ## Créditos
 
