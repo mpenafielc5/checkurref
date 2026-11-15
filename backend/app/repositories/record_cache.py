@@ -13,6 +13,7 @@ import httpx
 
 from app.extraction.base import Author
 from app.repositories.supabase_http import SupabaseUnavailableError, send
+from app.sources import crossref, openalex
 from app.sources.records import Source, SourceRecord
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,18 @@ def _to_row(record: SourceRecord) -> dict[str, Any]:
     }
 
 
+# Cómo traduce cada fuente su respuesta al formato común.
+TRANSLATORS = {Source.CROSSREF: crossref.record_from, Source.OPENALEX: openalex.record_from}
+
+
 def _from_row(metadata: dict[str, Any]) -> SourceRecord:
+    """Rearma la obra traduciendo otra vez la respuesta original con el adaptador
+    actual: un registro guardado antes de una corrección del adaptador (un título con
+    "&amp;", un repositorio tomado como revista) llega corregido, sin volver a
+    consultar la fuente. Sin respuesta original, usa los campos ya traducidos."""
+    original = metadata.get("original")
+    if original:
+        return TRANSLATORS[Source(metadata["fuente"])](original)
     fields = dict(metadata["campos"])
     fields["source"] = Source(fields["source"])
     fields["authors"] = tuple(Author(**author) for author in fields["authors"])
