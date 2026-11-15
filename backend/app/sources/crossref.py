@@ -49,7 +49,7 @@ class CrossrefClient:
         body = await self._http.get_json(
             f"{BASE_URL}/works/{quote(doi, safe='/')}", params=self._mailto or None
         )
-        return _record(body["message"]) if body else None
+        return record_from(body["message"]) if body else None
 
     async def search(self, title: str, author: str | None = None) -> list[SourceRecord]:
         params = {"query.bibliographic": title, "rows": str(CANDIDATES), "select": SELECT}
@@ -57,10 +57,10 @@ class CrossrefClient:
             params["query.author"] = author
         body = await self._http.get_json(f"{BASE_URL}/works", params={**params, **self._mailto})
         items = body["message"]["items"] if body else []
-        return [_record(item) for item in items]
+        return [record_from(item) for item in items]
 
 
-def _record(item: dict[str, Any]) -> SourceRecord:
+def record_from(item: dict[str, Any]) -> SourceRecord:
     journal_issue = item.get("journal-issue") or {}
     dates = [item.get(key) for key in DATE_FIELDS] + [journal_issue.get(key) for key in DATE_FIELDS]
     years = [year for date in dates if (year := _year(date))]

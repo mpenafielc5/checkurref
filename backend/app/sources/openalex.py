@@ -33,16 +33,16 @@ class OpenAlexClient:
         body = await self._http.get_json(
             f"{BASE_URL}/works/https://doi.org/{doi}", params={"select": SELECT, **self._key}
         )
-        return _record(body) if body else None
+        return record_from(body) if body else None
 
     async def search(self, title: str, author: str | None = None) -> list[SourceRecord]:
         # La búsqueda de OpenAlex no incluye a los autores: se busca solo por título.
         params = {"search": title, "per-page": str(CANDIDATES), "select": SELECT, **self._key}
         body = await self._http.get_json(f"{BASE_URL}/works", params=params)
-        return [_record(item) for item in (body or {}).get("results", [])]
+        return [record_from(item) for item in (body or {}).get("results", [])]
 
 
-def _record(item: dict[str, Any]) -> SourceRecord:
+def record_from(item: dict[str, Any]) -> SourceRecord:
     biblio = item.get("biblio") or {}
     location = (item.get("primary_location") or {}).get("source") or {}
     first_page, last_page = biblio.get("first_page"), biblio.get("last_page")

@@ -4,6 +4,7 @@ import asyncio
 import json
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import asdict
 from typing import Any
 
 import httpx
@@ -11,7 +12,7 @@ import pytest
 
 from app.extraction.base import Author, ExtractedFields
 from app.repositories.record_cache import SupabaseRecordCache
-from app.sources.crossref import CrossrefClient, user_agent
+from app.sources.crossref import CrossrefClient, record_from, user_agent
 from app.sources.http import ATTEMPTS, QueryFailedError, RateLimiter, SourceHttp
 from app.sources.lookup import ReferenceLookup, Strategy
 from app.sources.openalex import OpenAlexClient
@@ -462,6 +463,27 @@ def test_la_cache_guarda_y_rearma_la_obra() -> None:
     assert table[DOI]["anio"] == 2021
     assert table[DOI]["metadatos"]["fuente"] == "crossref"
     assert cache.get("10.9999/no-esta") is None
+
+
+def test_la_cache_vuelve_a_traducir_la_respuesta_original_con_el_adaptador_actual() -> None:
+    # Caso real: guardado antes de limpiar las entidades HTML, el título decía "Cif &amp; Par".
+    original = {**CROSSREF_WORK, "title": ["Control de Moniliophthora roreri Cif &amp; Par"]}
+    stale = {
+        **asdict(record_from(CROSSREF_WORK)),
+        "title": "Control de Moniliophthora roreri Cif &amp; Par",
+    }
+    stale.pop("raw")
+    stale["source"] = "crossref"
+    row = {"metadatos": {"fuente": "crossref", "campos": stale, "original": original}}
+
+    cache = SupabaseRecordCache(
+        REST_URL,
+        httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, json=[row]))),
+    )
+    record = cache.get(DOI)
+
+    assert record is not None
+    assert record.title == "Control de Moniliophthora roreri Cif & Par"
 
 
 def test_si_la_cache_falla_el_analisis_sigue() -> None:
