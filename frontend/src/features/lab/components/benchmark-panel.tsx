@@ -25,6 +25,7 @@ import { BenchmarkChart } from "./benchmark-chart";
 import { Notice, WakingNotice } from "@/shared/components/ui/notice";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { FlaskConical } from "lucide-react";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 function points(difference: number): string {
   return formatDecimal(difference * 100, 1);
@@ -43,7 +44,7 @@ function DecisionRule({
   return (
     <section
       aria-labelledby="titulo-regla"
-      className="flex flex-col gap-1 rounded-card border border-hairline bg-canvas px-5 py-4 text-small"
+      className={`flex flex-col gap-1 ${cardStyles()} px-5 py-4 text-small`}
     >
       <h2 id="titulo-regla" className="text-small font-semibold tracking-normal text-ink">
         Regla de decisión
@@ -259,7 +260,9 @@ export function BenchmarkView({ overview, running, slow, runError, onRun }: Benc
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-hairline bg-canvas px-5 py-3">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 ${cardStyles()} px-5 py-3`}
+      >
         <p className="flex flex-col text-small">
           <span className="font-semibold text-ink">
             Estándar de oro: {goldSet.total} referencias

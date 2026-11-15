@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import type { ProgressStep } from "../types";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 type AnalysisProgressProps = {
   steps: ProgressStep[];
@@ -56,7 +57,11 @@ export function AnalysisProgress({ steps, percent, details }: AnalysisProgressPr
                   aria-label="Avance de la verificación"
                   className="mt-1 flex h-3 overflow-hidden rounded-pill bg-hairline-soft"
                 >
-                  <span className="bg-primary" style={{ width: `${percent}%` }} />
+                  {/* Avanza suave en lugar de a saltos; se apaga con "reducir movimiento". */}
+                  <span
+                    className="bg-primary transition-all duration-(--cr-duration-slow) ease-out"
+                    style={{ width: `${percent}%` }}
+                  />
                 </div>
               ) : null}
             </div>
@@ -72,7 +77,7 @@ export function AnalysisProgress({ steps, percent, details }: AnalysisProgressPr
           {details.map((item) => (
             <div
               key={item.label}
-              className="flex flex-col gap-1 rounded-card border border-hairline px-4 py-3 text-small"
+              className={`flex flex-col gap-1 ${cardStyles({ tone: "none" })} px-4 py-3 text-small`}
             >
               <dt>{item.label}</dt>
               <dd className="font-semibold wrap-anywhere text-ink">{item.value}</dd>

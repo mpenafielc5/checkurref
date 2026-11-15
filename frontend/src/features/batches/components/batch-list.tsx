@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SkeletonText } from "@/shared/components/ui/skeleton";
 import { StatusChip } from "@/shared/components/ui/status-chip";
 import type { BatchStatus, BatchSummary } from "../types";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 function BatchStatusChip({ status, works }: { status: BatchStatus; works: number }) {
   if (status.kind === "empty") return <StatusChip tone="neutral">Sin trabajos</StatusChip>;
@@ -24,8 +25,7 @@ function detailLine(batch: BatchSummary): string[] {
   return parts;
 }
 
-const ROW_CLASSES =
-  "flex w-full flex-wrap items-center gap-x-5 gap-y-2 rounded-card border border-hairline bg-canvas px-5 py-3";
+const ROW_CLASSES = `flex w-full flex-wrap items-center gap-x-5 gap-y-2 ${cardStyles()} px-5 py-3`;
 
 /** Lista de lotes del docente (maqueta 14). Cada lote abre su tablero. */
 export function BatchList({ batches }: { batches: BatchSummary[] }) {

@@ -52,6 +52,7 @@ export function ReportResults({ report }: { report: Report }) {
     <>
       <ReportSummary
         index={report.index}
+        level={report.indexLevel}
         counts={report.counts}
         queryErrors={report.queryErrors}
         active={verdict}

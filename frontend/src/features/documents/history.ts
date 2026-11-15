@@ -4,6 +4,7 @@
  */
 import { formatDate } from "@/shared/lib/format";
 import type { PageSlice } from "@/shared/lib/pagination";
+import { toIndexLevel } from "@/shared/lib/truthfulness";
 import type { AnalysisStatus, Work } from "./types";
 
 type AnalysisItemDto = {
@@ -14,6 +15,7 @@ type AnalysisItemDto = {
   progress: number;
   total_references: number | null;
   index: number | null;
+  index_level?: string | null;
 };
 
 export type HistoryDto = {
@@ -45,7 +47,8 @@ export function toWork(item: AnalysisItemDto): Work {
     fileName: item.file_name,
     date: formatDate(item.created_at),
     references: item.total_references ?? 0,
-    index: item.index === null ? null : Math.round(item.index),
+    index: item.index,
+    indexLevel: toIndexLevel(item.index_level),
     status: statusOf(item.status),
     progress: item.progress,
   };

@@ -5,6 +5,7 @@ import { getCurrentProfile } from "../api";
 import { displayFullName, homePathForRole, ROLE_LABELS } from "../rules";
 import { LeaveOnDesktopNav } from "./leave-on-desktop-nav";
 import { Avatar } from "./user-badge";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 /**
  * Pantalla Mi cuenta (HU-17), para el celular: la abre la pestaña Cuenta de la
@@ -21,7 +22,7 @@ export async function AccountView() {
     <PageSection eyebrow={ROLE_LABELS[profile.role]} title="Mi cuenta">
       <LeaveOnDesktopNav href={homePathForRole(profile.role)} />
       <div className="flex w-full flex-col gap-4 md:max-w-lg">
-        <div className="flex items-center gap-4 rounded-card border border-hairline bg-canvas p-5">
+        <div className={`flex items-center gap-4 ${cardStyles()} p-5`}>
           <Avatar profile={profile} />
           <p className="flex min-w-0 flex-col">
             <span className="truncate text-title font-semibold text-ink">

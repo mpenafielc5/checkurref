@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { buttonStyles } from "./button-styles";
 import { Notice } from "./notice";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 /** El botón de confirmar anticipa el efecto: quitar acceso en rojo, devolverlo en verde. */
 export type ConfirmTone = "default" | "danger" | "restore";
@@ -65,7 +66,7 @@ export function ConfirmDialog({
         event.preventDefault();
         if (!busy) onCancel();
       }}
-      className="m-auto w-11/12 max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-panel border border-hairline bg-canvas p-6 text-left text-ink backdrop:bg-ink/40 open:flex"
+      className={`m-auto w-11/12 max-w-md flex-col gap-4 overflow-y-auto overscroll-contain ${cardStyles({ size: "panel" })} p-6 text-left text-ink backdrop:bg-ink/40 open:flex`}
     >
       <h2 id="titulo-confirmacion" className="text-title font-semibold tracking-normal">
         {title}

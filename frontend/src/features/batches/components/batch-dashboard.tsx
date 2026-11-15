@@ -18,6 +18,11 @@ import { BatchExportButton } from "./batch-export-button";
 import { DeleteBatchButton } from "./delete-batch-button";
 import { EditBatchButton } from "./edit-batch-button";
 import { BatchRiskTable } from "./batch-risk-table";
+import { cardStyles } from "@/shared/components/ui/card-styles";
+
+/** Qué cuenta como alerta: un riesgo alto con 0 alertas se explica por las sin respaldo. */
+const ALERTS_NOTE =
+  "Alertas: referencias con discrepancias o contradicciones. Las sin respaldo no son alertas, pero bajan el índice y pueden subir el riesgo.";
 
 const BACK_LINK = { href: "/docente/lotes", label: "Lotes" };
 const EYEBROW = "Tablero del lote";
@@ -41,7 +46,7 @@ function BatchBreakdown({ batch }: { batch: BatchDetail }) {
   const fields = batch.mostDifferentFields.slice(0, TOP_FIELDS);
 
   return (
-    <div className="flex flex-col gap-6 rounded-panel border border-hairline bg-canvas px-6 py-4 md:flex-row">
+    <div className={`flex flex-col gap-6 ${cardStyles({ size: "panel" })} px-6 py-4 md:flex-row`}>
       <section aria-labelledby="titulo-veredictos" className="flex flex-1 flex-col gap-3">
         <h2 id="titulo-veredictos" className="text-small font-semibold tracking-normal text-ink">
           Veredictos del lote
@@ -164,6 +169,7 @@ export function BatchDashboardView({ batch, onChanged }: BatchDashboardViewProps
               Trabajos ordenados por riesgo
             </h2>
             <BatchRiskTable batchId={batch.id} works={batch.works} onDeleted={onChanged} />
+            {hasReferences ? <Notice>{ALERTS_NOTE}</Notice> : null}
           </section>
         </>
       )}

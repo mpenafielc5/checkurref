@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 type EmptyStateProps = {
   icon: LucideIcon;
@@ -15,7 +16,7 @@ type EmptyStateProps = {
  */
 export function EmptyState({ icon: Icon, title, description, children }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-card border border-hairline bg-canvas px-6 py-10 text-center">
+    <div className={`flex flex-col items-center gap-3 ${cardStyles()} px-6 py-10 text-center`}>
       <span className="flex size-12 items-center justify-center rounded-pill bg-accent-soft text-primary">
         <Icon aria-hidden="true" className="size-6" />
       </span>

@@ -183,9 +183,11 @@ function countVerdicts(references: ReferenceResult[]): Record<Verdict, number> {
 export const SAMPLE_REPORT: Report = {
   analysisId: "a7f3",
   fileName: "Avance_cap2.pdf",
+  finishedAt: "2026-11-12T15:30:00Z",
   standard: "APA",
   standardNotice: null,
   index: 82,
+  indexLevel: "medio",
   counts: countVerdicts(REFERENCES),
   queryErrors: 0,
   references: REFERENCES,

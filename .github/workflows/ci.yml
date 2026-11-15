@@ -24,6 +24,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      # Vulnerabilidades graves en las dependencias que llegan a producción.
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
@@ -53,3 +55,8 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
+      # Vulnerabilidades conocidas en las dependencias de la API. Es un aviso, no
+      # bloquea: si una no tiene versión corregida publicada, no hay nada que actualizar.
+      - name: Escaneo de dependencias (pip-audit)
+        continue-on-error: true
+        run: pip install pip-audit && pip-audit -r requirements.txt

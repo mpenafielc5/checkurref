@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Skeleton, SkeletonText } from "./skeleton";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 /*
  * Tabla de datos con el estilo de las maquetas: encabezado con fondo crema y
@@ -24,7 +25,7 @@ export function DataTable({
 }: DataTableProps) {
   const visibility = cardsOnTablet ? "hidden lg:flex" : cardsOnMobile ? "hidden md:flex" : "flex";
   return (
-    <div className={`${visibility} w-full overflow-x-auto rounded-card border border-hairline`}>
+    <div className={`${visibility} w-full overflow-x-auto ${cardStyles({ tone: "none" })}`}>
       <table className="w-full min-w-xl border-collapse text-small">
         <caption className="sr-only">{caption}</caption>
         {children}
@@ -42,8 +43,7 @@ export const numericClass = "text-right tabular-nums";
 export const cardListClass = "flex flex-col gap-2 md:hidden";
 /** Igual, pero también en la tableta: para tablas con botones que no caben en ese ancho. */
 export const tabletCardListClass = "flex flex-col gap-2 lg:hidden";
-export const cardClass =
-  "flex w-full flex-col gap-2 rounded-card border border-hairline bg-canvas px-4 py-3";
+export const cardClass = `flex w-full flex-col gap-2 ${cardStyles()} px-4 py-3`;
 
 type DataTableSkeletonProps = {
   columns: number;
@@ -87,7 +87,7 @@ export function DataTableSkeleton({
         </div>
       ) : null}
       <div
-        className={`${tableVisibility} w-full flex-col overflow-hidden rounded-card border border-hairline`}
+        className={`${tableVisibility} w-full flex-col overflow-hidden ${cardStyles({ tone: "none" })}`}
       >
         <div className="flex gap-4 bg-canvas px-4 py-2">
           {cells.map((cell) => (

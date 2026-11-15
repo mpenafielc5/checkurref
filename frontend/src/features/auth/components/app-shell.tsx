@@ -19,14 +19,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         Saltar al contenido
       </a>
-      <Suspense fallback={<AppSidebarSkeleton />}>
-        <AppSidebar />
-      </Suspense>
+      {/* Los menús no se imprimen (HU-15). */}
+      <div className="contents print:hidden">
+        <Suspense fallback={<AppSidebarSkeleton />}>
+          <AppSidebar />
+        </Suspense>
+      </div>
       {/* pb-nav: con la barra inferior (celular, tableta), el final del contenido no queda tapado */}
       <main
         id="contenido"
         tabIndex={-1}
-        className="flex min-w-0 flex-1 flex-col bg-surface pb-nav short-screen:pb-nav-compact desktop-nav:pb-0"
+        className="flex min-w-0 flex-1 flex-col bg-surface pb-nav short-screen:pb-nav-compact desktop-nav:pb-0 print:pb-0"
       >
         {children}
       </main>

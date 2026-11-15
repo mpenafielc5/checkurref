@@ -55,8 +55,10 @@ const REFERENCE: ReportDto["references"][number] = {
 const DTO: ReportDto = {
   analysis_id: "a7f3",
   file_name: "Avance_cap2.pdf",
+  finished_at: "2026-11-12T15:30:00Z",
   norm: "MIXTA",
   index: 88.89,
+  index_level: "alto",
   counts: {
     verificada: 8,
     discrepancia: 1,
@@ -74,7 +76,9 @@ describe("toReport", () => {
 
     expect(report.fileName).toBe("Avance_cap2.pdf");
     expect(report.standard).toBe("APA e IEEE");
-    expect(report.index).toBe(89);
+    // Sin redondear: se muestra con un decimal, igual que en el tablero del lote.
+    expect(report.index).toBe(88.89);
+    expect(report.indexLevel).toBe("alto");
     expect(report.counts.verificada).toBe(8);
     expect(report.queryErrors).toBe(1);
   });

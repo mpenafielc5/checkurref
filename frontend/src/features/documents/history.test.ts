@@ -9,6 +9,7 @@ const ITEM: HistoryDto["items"][number] = {
   progress: 100,
   total_references: 9,
   index: 88.89,
+  index_level: "alto",
 };
 
 const PAGE: HistoryDto = { items: [ITEM, ITEM], page: 2, page_size: 20, total: 22, total_pages: 2 };
@@ -20,7 +21,8 @@ describe("toWork", () => {
       fileName: "Avance_cap2.pdf",
       date: "02/11/2026",
       references: 9,
-      index: 89,
+      index: 88.89,
+      indexLevel: "alto",
       status: "listo",
       progress: 100,
     });

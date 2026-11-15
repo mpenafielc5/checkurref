@@ -11,6 +11,7 @@ import type {
   ReferenceResult,
 } from "../types";
 import { CorrectedReferencePanel } from "./corrected-reference";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 /** Color de cada campo extraído en el texto original (maqueta 12). */
 const FIELD_CLASSES: Record<ExtractedField, string> = {
@@ -121,7 +122,9 @@ function NliBox({ nli }: { nli: NliResult }) {
  */
 export function ReferenceCard({ reference }: { reference: ReferenceResult }) {
   return (
-    <article className="flex rounded-panel border border-hairline-strong bg-surface px-4 py-4 md:px-6">
+    <article
+      className={`flex ${cardStyles({ size: "panel", tone: "surface", strong: true })} px-4 py-4 md:px-6`}
+    >
       <details open={!startsCollapsed(reference)} className="group flex w-full flex-col">
         <summary className="flex list-none items-center gap-x-4 gap-y-2 group-open:flex-wrap [&::-webkit-details-marker]:hidden">
           <span className="font-mono text-small text-body">[{reference.order}]</span>

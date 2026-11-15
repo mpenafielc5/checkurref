@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { formatIndex } from "@/shared/lib/format";
+import { INDEX_LEVELS, type IndexLevel, indexExplanation } from "@/shared/lib/truthfulness";
 import { VERDICT_ORDER, VERDICTS, type Verdict } from "@/shared/lib/verdicts";
 import { Notice } from "@/shared/components/ui/notice";
+import { StatusChip } from "@/shared/components/ui/status-chip";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 const RING_RADIUS = 40;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+// Largo del trazo del anillo en las mismas unidades que el índice: 40 es 40 de 100.
+const RING_LENGTH = 100;
 
 /** Cada filtro con su cantidad, que concuerda en número: [una, varias o ninguna]. */
 const LEGEND_LABELS: Record<Verdict, [string, string]> = {
@@ -15,9 +19,13 @@ const LEGEND_LABELS: Record<Verdict, [string, string]> = {
   no_verificable: ["no verificable", "no verificables"],
 };
 
-/** Anillo con el índice de veracidad de 0 a 100; sin índice, vacío y con una raya. */
-function IndexRing({ index }: { index: number | null }) {
-  const filled = ((index ?? 0) / 100) * RING_CIRCUMFERENCE;
+/**
+ * Anillo con el índice de veracidad de 0 a 100, del color de su nivel: verde,
+ * ámbar o rojo. Sin índice, vacío y con una raya.
+ */
+function IndexRing({ index, level }: { index: number | null; level: IndexLevel | null }) {
+  // Sin nivel (un informe anterior a que la API lo enviara), un trazo neutro.
+  const strokeClass = level ? INDEX_LEVELS[level].strokeClass : "stroke-hairline-strong";
   return (
     <div className="relative flex size-24 shrink-0 items-center justify-center">
       <svg
@@ -45,9 +53,10 @@ function IndexRing({ index }: { index: number | null }) {
           fill="none"
           strokeWidth="10"
           strokeLinecap="round"
-          strokeDasharray={`${filled} ${RING_CIRCUMFERENCE}`}
+          pathLength={RING_LENGTH}
+          strokeDasharray={`${index ?? 0} ${RING_LENGTH}`}
           transform="rotate(-90 48 48)"
-          className="stroke-verdict-verified"
+          className={`${strokeClass} animate-ring-fill`}
         />
       </svg>
       <span aria-hidden="true" className="text-display-sm font-bold tracking-normal text-ink">
@@ -73,6 +82,19 @@ type FilterChipProps = {
   empty?: boolean;
   swatchClass?: string;
 };
+
+/** Qué significa el número: nivel, cuántas verificadas sobre cuántas y qué hacer. */
+function IndexMeaning({ level, counts }: { level: IndexLevel; counts: Record<Verdict, number> }) {
+  const info = INDEX_LEVELS[level];
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-small">
+      <StatusChip tone={info.tone}>{info.label}</StatusChip>
+      <span>
+        {indexExplanation(counts)} {info.advice}
+      </span>
+    </p>
+  );
+}
 
 /** Un filtro de la leyenda: enlace que cambia ?veredicto= sin mover la pantalla. */
 function FilterChip({ label, href, selected, empty = false, swatchClass }: FilterChipProps) {
@@ -103,6 +125,8 @@ function FilterChip({ label, href, selected, empty = false, swatchClass }: Filte
 
 type ReportSummaryProps = {
   index: number | null;
+  /** Nivel del índice que calcula el backend. */
+  level: IndexLevel | null;
   counts: Record<Verdict, number>;
   /** Referencias sin veredicto por un error de consulta: están en la lista, no en el índice. */
   queryErrors?: number;
@@ -118,6 +142,7 @@ type ReportSummaryProps = {
  */
 export function ReportSummary({
   index,
+  level,
   counts,
   queryErrors = 0,
   active,
@@ -128,10 +153,11 @@ export function ReportSummary({
   return (
     <section
       aria-label="Resumen del informe"
-      className="flex flex-col items-start gap-6 rounded-panel border border-hairline bg-canvas px-6 py-4 sm:flex-row sm:items-center"
+      className={`flex flex-col items-start gap-6 ${cardStyles({ size: "panel" })} px-6 py-4 sm:flex-row sm:items-center`}
     >
-      <IndexRing index={index} />
+      <IndexRing index={index} level={level} />
       <div className="flex w-full flex-1 flex-col gap-3">
+        {level ? <IndexMeaning level={level} counts={counts} /> : null}
         <div aria-hidden="true" className="flex h-4 overflow-hidden rounded-control">
           {VERDICT_ORDER.map((verdict) => (
             <span

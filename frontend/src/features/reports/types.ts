@@ -1,3 +1,4 @@
+import type { IndexLevel } from "@/shared/lib/truthfulness";
 import type { Verdict } from "@/shared/lib/verdicts";
 
 /** Campo extraído de una referencia; define su color en el texto original. */
@@ -57,12 +58,16 @@ export type ReferenceResult = {
 export type Report = {
   analysisId: string;
   fileName: string;
+  /** Fin del análisis (ISO 8601); null si no se registró. */
+  finishedAt: string | null;
   /** Norma detectada, como se muestra: "APA", "IEEE", "APA e IEEE" o "Norma no identificada". */
   standard: string;
   /** Explicación cuando la norma no se identificó y el formato no se revisó (HU-21 CA03). */
   standardNotice: string | null;
   /** Índice de veracidad de 0 a 100; null si ninguna referencia se pudo contar. */
   index: number | null;
+  /** Nivel del índice que calcula el backend (RF20-CA02); null sin índice. */
+  indexLevel: IndexLevel | null;
   counts: Record<Verdict, number>;
   /** Referencias sin veredicto por un error de consulta. */
   queryErrors: number;

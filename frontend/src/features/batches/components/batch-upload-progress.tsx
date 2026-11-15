@@ -7,6 +7,7 @@ import type { BatchUpload, CreatedBatch, UploadState } from "../types";
 import { analyzedCount, failedUploads, isAnalyzing, sendProgress } from "../upload-progress";
 import { AnalysisStatusChip } from "./analysis-status-chip";
 import { Notice, WakingNotice } from "@/shared/components/ui/notice";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 function UploadStateChip({ state }: { state: UploadState }) {
   switch (state.kind) {
@@ -102,7 +103,9 @@ export function BatchUploadProgress({
         ) : null}
       </div>
 
-      <ul className="flex flex-col divide-y divide-hairline rounded-card border border-hairline bg-surface px-4">
+      <ul
+        className={`flex flex-col divide-y divide-hairline ${cardStyles({ tone: "surface" })} px-4`}
+      >
         {uploads.map((upload) => {
           const reason = reasonOf(upload.state);
           const isError = upload.state.kind !== "repetido" && reason !== null;

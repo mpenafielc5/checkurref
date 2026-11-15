@@ -5,6 +5,7 @@
  */
 import { fieldLabel } from "@/shared/lib/reference-fields";
 import { standardLabel } from "@/shared/lib/standards";
+import { toIndexLevel } from "@/shared/lib/truthfulness";
 import { VERDICT_ORDER, type Verdict } from "@/shared/lib/verdicts";
 import type { ExtractedField, FieldComparison, NliResult, ReferenceResult, Report } from "./types";
 
@@ -42,8 +43,10 @@ type ReferenceDto = {
 export type ReportDto = {
   analysis_id: string;
   file_name: string;
+  finished_at: string | null;
   norm: string | null;
   index: number | null;
+  index_level?: string | null;
   counts: Record<Verdict | "error_consulta", number>;
   references: ReferenceDto[];
 };
@@ -151,9 +154,11 @@ export function toReport(dto: ReportDto): Report {
   return {
     analysisId: dto.analysis_id,
     fileName: dto.file_name,
+    finishedAt: dto.finished_at ?? null,
     standard: standardLabel(dto.norm) ?? "Norma no identificada",
     standardNotice: dto.norm === "DESCONOCIDA" ? UNKNOWN_STANDARD_NOTICE : null,
-    index: dto.index === null ? null : Math.round(dto.index),
+    index: dto.index,
+    indexLevel: toIndexLevel(dto.index_level),
     counts: {
       verificada: dto.counts.verificada,
       discrepancia: dto.counts.discrepancia,

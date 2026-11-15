@@ -128,6 +128,10 @@
   --cr-radius-xl: 1rem; /* 16px, paneles grandes */
   --cr-radius-pill: 9999px; /* botones, etiquetas y veredictos */
 
+  /* Contorno de foco al navegar con el teclado */
+  --cr-focus-ring-width: 2px;
+  --cr-focus-ring-offset: 2px;
+
   /* Medidas de la interfaz */
   --cr-content-max: 75rem; /* 1200px */
   --cr-sidebar-width: 14rem; /* 224px, barra lateral de las pantallas internas */
@@ -135,6 +139,7 @@
   --cr-sidebar-rail-width: 4.75rem;
   --cr-sidebar-expand-delay: 200ms; /* espera antes de desplegarla al pasar el mouse */
   --cr-duration-fast: 150ms; /* transiciones breves */
+  --cr-duration-slow: 600ms; /* movimiento que comunica: el índice al llenarse, el avance del análisis */
   --cr-z-sidebar: 40; /* la barra desplegada queda encima del contenido */
   --cr-avatar-size: 2.5rem; /* 40px */
   /* Indicador a media fila: mitad del ancho menos la mitad del espacio entre tarjetas */

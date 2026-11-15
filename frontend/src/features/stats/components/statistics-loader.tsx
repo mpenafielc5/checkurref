@@ -9,6 +9,7 @@ import { fieldLabel } from "@/shared/lib/reference-fields";
 import { fetchStatistics, type StatisticsOutcome } from "../api";
 import type { AdminStatistics, Statistics, StudentStatistics, TeacherStatistics } from "../types";
 import { Notice, WakingNotice } from "@/shared/components/ui/notice";
+import { cardStyles } from "@/shared/components/ui/card-styles";
 
 const NO_VALUE = "—";
 const NO_ANALYSES = "Las estadísticas aparecerán cuando termine el primer análisis.";
@@ -81,7 +82,7 @@ export function StatisticsView({ statistics }: { statistics: Statistics }) {
       {statistics.references > 0 ? (
         <section
           aria-labelledby="titulo-veredictos-rol"
-          className="flex flex-col gap-3 rounded-panel border border-hairline bg-canvas px-5 py-4"
+          className={`flex flex-col gap-3 ${cardStyles({ size: "panel" })} px-5 py-4`}
         >
           <h2
             id="titulo-veredictos-rol"
