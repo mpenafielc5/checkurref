@@ -9,11 +9,22 @@ eso le corresponde a la revisión de formato (T25).
 El texto se devuelve en segmentos: cada uno dice a qué campo pertenece, si va en
 cursiva y si cambió.
 
-Fuentes de los formatos: normas-apa.org (artículo, libro, capítulo, autores) y
-la guía de referencias de IEEE de 2025 (artículo, libro, capítulo, actas, "et
-al." con más de seis autores, "doi: ..."). Criterio de la herramienta: las actas
-en APA siguen el formato del capítulo, y los libros en IEEE van sin ciudad
-porque las fuentes no la traen.
+Fuentes de los formatos:
+- normas-apa.org: artículo, revista sin volumen, número de artículo, libro, libro
+  con editor, capítulo con sus editores, informe, edición, autores.
+- "Manual de estilo APA (7.ª ed.): ejemplos", Revista SOBRE (2020), hecho con los
+  ejemplos de apastyle.apa.org: libro con editor, edición, capítulo, "y" sin coma.
+- apastyle.apa.org, Manual de APA 7: actas (sección 10.5: en una revista, formato
+  de artículo; como libro, de capítulo) y preprints (sección 10.8: "_Título_.
+  arXiv. DOI").
+- IEEE Reference Guide (2025): artículo, libro, capítulo, actas, preprint de arXiv
+  ("“Title,” year, arXiv number"), "et al." con más de seis autores, "doi: ...".
+- Guía IEEE de la Biblioteca de la Universidade da Coruña (2026): en un trabajo en
+  español, los conectores van en español ("y", "en").
+Criterio de la herramienta: las actas en APA van como capítulo salvo que el
+estudiante las cite como revista (Crossref no distingue los dos casos); en IEEE,
+un preprint que no es de arXiv queda sin referencia corregida (la guía no da su
+formato), y los libros van sin ciudad porque las fuentes no la traen.
 """
 
 import re
@@ -34,8 +45,10 @@ from app.verification.decision import (
     FieldCheck,
     Verdict,
     Verification,
+    record_lacks_subtitle,
     same_person,
     title_identity,
+    without_title_note,
 )
 
 # Con más autores, APA lista los primeros 19, "..." y el último; IEEE, el primero y "et al.".
@@ -44,6 +57,30 @@ IEEE_MAX_AUTHORS = 6
 
 LEADING_NUMBER = re.compile(rf"^\s*{IEEE_NUMBER}")
 PAGE_PREFIX = re.compile(r"^\s*pp?\.\s*", re.IGNORECASE)
+# Espacios alrededor del guion del rango: "120– 143" (un salto de línea del PDF).
+PAGE_DASH = re.compile(r"\s*([-‐‑–—])\s*")
+# Datos que, junto con las páginas o el volumen, identifican la publicación.
+PUBLICATION_FIELDS = (CheckedField.AUTHORS, CheckedField.YEAR, CheckedField.CONTAINER)
+# Número de artículo en lugar de páginas: con letra ("e289") o un solo número largo. La
+# guía IEEE lo advierte así: "there is only one long number" (Periodical With Article ID).
+ARTICLE_NUMBER = re.compile(r"^(?:[a-z]\d+|\d{5,})$", re.IGNORECASE)
+PAGE_RANGE_DASH = re.compile(r"\d\s*[-‐‑–—]\s*\w")
+# Número de arXiv: nuevo (2101.00001) o antiguo (cond-mat/0101001), con versión.
+ARXIV_NUMBER = re.compile(r"arxiv[.:]\s*((?:[a-z.\-]+/)?\d{4}\.?\d{3,5}(?:v\d+)?)", re.IGNORECASE)
+# Obra citada por sus editores: "Salas, D. (Ed.). (2012)".
+EDITED_WORK = re.compile(
+    r"\((?P<role>(?:eds?|coords?|comps?|dirs?)\.?)\)\.?\s*\((?:\d{4}|s\.\s?f\.)",
+    re.IGNORECASE,
+)
+# Nota entre paréntesis al final del título: "(Informe n.° 12)", "(3.ª ed.)".
+APA_TITLE_NOTE = re.compile(r"\s\([^()]+\)$")
+# Los editores del libro en un capítulo APA: "En C. Ruiz y B. Torres (Eds.),".
+# "En" con mayúscula y tras un punto: el "en" de un título ("educación en línea") no
+# empieza los editores.
+APA_EDITORS = re.compile(
+    r"\.\s+En\s+(?P<names>(?:(?!\.\s+En\s)[^()])+?)\s*"
+    r"\((?P<role>(?i:eds?|coords?|comps?|dirs?)\.?)\)\s*,"
+)
 
 
 @dataclass(frozen=True)
@@ -85,7 +122,12 @@ def corrected_reference(
     if norm is Norm.APA:
         return CorrectedReference(tuple(_apa(_merge(fields, record, verification, text), text)))
     if norm is Norm.IEEE:
-        return CorrectedReference(tuple(_ieee(_merge(fields, record, verification, text), text)))
+        values = _merge(fields, record, verification, text)
+        # La guía IEEE solo da el formato del preprint de arXiv: sin su número, mejor
+        # ninguna referencia corregida que una armada como artículo de revista.
+        if values.kind is _Kind.PREPRINT and _arxiv_number(values, text) is None:
+            return None
+        return CorrectedReference(tuple(_ieee(values, text)))
     return None
 
 
@@ -105,11 +147,30 @@ def trusted_record(fields: ExtractedFields, verification: Verification) -> Sourc
         return None
     if verification.strategy is not Strategy.DIRECT_DOI:
         title = title_identity(fields.title, record.title)
-        if title is None or title < THRESHOLDS.title_match:
+        if title is None:
+            return None
+        if title < THRESHOLDS.title_match and not _same_publication(verification):
             return None
         if is_translation(fields.title, record.title):
             return None
     return record
+
+
+def _same_publication(verification: Verification) -> bool:
+    """Mismos autores, año y revista o libro, y mismas páginas o volumen: es la obra
+    citada aunque su título se haya copiado distinto (criterio de la herramienta).
+    Con un título solo parecido, la búsqueda pudo hallar otra obra de los mismos
+    autores, pero no en la misma publicación y las mismas páginas."""
+    checks = {check.field: check for check in verification.checks}
+    required = [checks.get(field) for field in PUBLICATION_FIELDS]
+    locators = [
+        checks[field] for field in (CheckedField.PAGES, CheckedField.VOLUME) if field in checks
+    ]
+    return (
+        all(check is not None and check.matches for check in required)
+        and bool(locators)
+        and all(check.matches for check in locators)
+    )
 
 
 def is_translation(cited_title: str | None, record_title: str | None) -> bool:
@@ -131,6 +192,7 @@ class _Kind(Enum):
     BOOK = "libro"
     CHAPTER = "capitulo"
     PROCEEDINGS = "actas"
+    PREPRINT = "preprint"
     OTHER = "otro"
 
 
@@ -147,6 +209,8 @@ KINDS = {
     "book-part": _Kind.CHAPTER,
     "reference-entry": _Kind.CHAPTER,
     "proceedings-article": _Kind.PROCEEDINGS,
+    "preprint": _Kind.PREPRINT,  # OpenAlex (arXiv, medRxiv, ...)
+    "posted-content": _Kind.PREPRINT,  # Crossref
 }
 
 
@@ -196,7 +260,19 @@ def _merge(
     }
     present = {field: value for field, value in values.items() if value is not None}
     people, removed = _people(cited.authors, record)
-    return _Values(_kind(record, present, text), people, removed, present)
+    kind = _kind(record, present, text)
+    if kind is _Kind.PREPRINT and (repository := _repository(record)):
+        present[CheckedField.CONTAINER] = _Value(
+            repository, repository.casefold() not in text.casefold()
+        )
+    return _Values(kind, people, removed, present)
+
+
+def _repository(record: SourceRecord) -> str | None:
+    """El repositorio del preprint sin la institución que OpenAlex le agrega:
+    "arXiv (Cornell University)" -> "arXiv"."""
+    name = record.container or record.publisher
+    return re.sub(r"\s*\([^()]*\)$", "", name).strip() or None if name else None
 
 
 # "En _Libro_" (APA) o ', in _Libro_' / ', en _Libro_' (IEEE) en el texto citado.
@@ -208,6 +284,14 @@ def _kind(record: SourceRecord, present: dict[CheckedField, _Value], text: str) 
     muchos capítulos como "other"), se deduce de los datos y de cómo la citó el
     estudiante (criterio de la herramienta)."""
     kind = KINDS.get(record.work_type or "", _Kind.OTHER)
+    if kind is _Kind.PROCEEDINGS and _cited_like_a_journal(present, text):
+        # APA 7 (Manual, sección 10.5; apastyle.apa.org, "Conference proceeding
+        # references"): las actas publicadas en una revista o con periodicidad siguen
+        # el formato de artículo; las publicadas como libro, el de capítulo. Crossref
+        # no distingue los dos casos ("proceedings-article"), así que si el estudiante
+        # las citó como revista, con volumen (NeurIPS: "Advances in Neural Information
+        # Processing Systems, 36, 68539-68551"), se respeta ese formato.
+        return _Kind.ARTICLE
     if kind is not _Kind.OTHER:
         return kind
     if CheckedField.VOLUME in present and CheckedField.CONTAINER in present:
@@ -215,6 +299,12 @@ def _kind(record: SourceRecord, present: dict[CheckedField, _Value], text: str) 
     if CheckedField.CONTAINER in present and IN_A_BOOK.search(text):
         return _Kind.CHAPTER
     return _Kind.OTHER
+
+
+def _cited_like_a_journal(present: dict[CheckedField, _Value], text: str) -> bool:
+    """Con volumen y contenedor, y sin el "En" o "in" de un libro."""
+    has_volume = CheckedField.VOLUME in present and CheckedField.CONTAINER in present
+    return has_volume and not IN_A_BOOK.search(text)
 
 
 def _pick(
@@ -238,8 +328,15 @@ def _pick(
 
 
 def _title(given: str | None, official: str | None) -> _Value | None:
-    """El título citado si solo difiere del registro en mayúsculas o en signos al final."""
-    if given and (not official or _same_text(given, official)):
+    """El título citado si solo difiere del registro en mayúsculas o en signos al final,
+    si el registro lo trae sin su subtítulo, o si solo le suma la nota del final
+    ("(Informe n.° 12)", "(3.ª ed.)"), que las fuentes no registran."""
+    if given and (
+        not official
+        or _same_text(given, official)
+        or record_lacks_subtitle(given, official)
+        or _same_text(without_title_note(given, official), official)
+    ):
         return _Value(given, False)
     return _Value(official, True) if official else None
 
@@ -335,8 +432,9 @@ def _split_full_name(author: Author) -> Author:
 
 
 def _initials(given: str) -> str:
-    """ "María José" -> "M. J."; "Jean-Marc" -> "J.-M." (normas-apa.org); las
-    partículas en minúscula ("de los") se omiten."""
+    """ "María José" -> "M. J." (normas-apa.org, SOBRE: "Apellidos, N."). Con guion,
+    "Jean-Marc" -> "J.-M.", y sin las partículas en minúscula ("de los"): criterio de la
+    herramienta, ninguna de las fuentes revisadas trata esos casos."""
     parts = []
     for word in re.split(r"\s+|(?<=\.)(?=\w)", given.strip()):
         if word and not word[0].islower():
@@ -350,25 +448,37 @@ def _initials(given: str) -> str:
 def _apa(values: _Values, text: str) -> list[Segment]:
     out: list[Segment] = []
     title = values.get(CheckedField.TITLE)
-    title_italic = values.kind in (_Kind.BOOK, _Kind.OTHER)
+    # Libro, preprint u otra obra completa: título en cursiva. Preprint (APA 7, sección
+    # 10.8; apastyle.apa.org, "Preprint article references"): "_Título_. arXiv. DOI".
+    title_italic = values.kind in (_Kind.BOOK, _Kind.PREPRINT, _Kind.OTHER)
     year = values.get(CheckedField.YEAR)
+    # Sin fecha, "s.f." como en la guía de normas-apa.org ("(s.f.)"); la de la Revista
+    # SOBRE escribe "s. f.": las fuentes no coinciden.
     date = _seg(year, CheckedField.YEAR) if year else Segment("s.f.")
 
     if values.people:
-        out += [_apa_authors(values, _apa_connector(text)), Segment(" ("), date, Segment("). ")]
+        role = _apa_role(text)
+        out += [_apa_authors(values, _apa_connector(text)), Segment(f"{role} ("), date]
+        out.append(Segment("). "))
         if title:
-            out += [_seg(title, CheckedField.TITLE, title_italic), Segment(_end(title.text))]
+            out += [*_apa_title(title, title_italic), Segment(_end(title.text))]
     elif title:  # sin autor, el título pasa al lugar del autor (normas-apa.org)
-        out += [_seg(title, CheckedField.TITLE, title_italic), Segment(" ("), date]
+        out += [*_apa_title(title, title_italic), Segment(" ("), date]
         out.append(Segment("). "))
 
     container = values.get(CheckedField.CONTAINER)
     pages = values.get(CheckedField.PAGES)
     publisher = values.get(CheckedField.PUBLISHER)
-    if values.kind is _Kind.ARTICLE:
+    if values.kind is _Kind.PREPRINT:
+        if container:
+            out += [_seg(container, CheckedField.CONTAINER), Segment(". ")]
+    elif values.kind is _Kind.ARTICLE:
         out += _apa_journal(values)
     elif values.kind in (_Kind.CHAPTER, _Kind.PROCEEDINGS) and container:
-        out += [Segment("En "), _seg(container, CheckedField.CONTAINER, italic=True)]
+        out += [
+            Segment(f"En {_apa_editors(text)}"),
+            _seg(container, CheckedField.CONTAINER, italic=True),
+        ]
         if pages:
             out += [Segment(" (pp. "), _pages(pages), Segment(")")]
         out.append(Segment(". "))
@@ -386,7 +496,10 @@ def _apa(values: _Values, text: str) -> list[Segment]:
 
 
 def _apa_journal(values: _Values) -> list[Segment]:
-    """ "_Revista, volumen_(número), páginas. " (normas-apa.org, artículo de revista)."""
+    """ "_Revista, volumen_(número), páginas. " (normas-apa.org, citar revista). Sin
+    volumen, el número va tras una coma: "_Revista Internacional Magisterio_, (54),
+    10-17." (normas-apa.org, citar revista; Revista SOBRE, artículo de revista). El
+    número de artículo va en lugar de las páginas (normas-apa.org, citar revista)."""
     container, volume = values.get(CheckedField.CONTAINER), values.get(CheckedField.VOLUME)
     issue, pages = values.get(CheckedField.ISSUE), values.get(CheckedField.PAGES)
     out: list[Segment] = []
@@ -395,7 +508,8 @@ def _apa_journal(values: _Values) -> list[Segment]:
     if volume:
         out += [Segment(", ", italic=True), _seg(volume, CheckedField.VOLUME, italic=True)]
     if issue:
-        out += [Segment("("), _seg(issue, CheckedField.ISSUE), Segment(")")]
+        opening = "(" if volume or not container else ", ("
+        out += [Segment(opening), _seg(issue, CheckedField.ISSUE), Segment(")")]
     if pages:
         out += [Segment(", "), _pages(pages)]
     return out + [Segment(". ")] if out else []
@@ -408,6 +522,38 @@ def _apa_connector(text: str) -> str:
     if ", &" in authors:
         return ", &"
     return " &" if "&" in authors else " y"
+
+
+def _apa_role(text: str) -> str:
+    """ " (Ed.)." si la obra se cita por sus editores: "Apellido, N. (Ed.). (año)."
+    (normas-apa.org, libro con editor); si no, nada."""
+    match = EDITED_WORK.search(text)
+    return f" ({match.group('role')})." if match else ""
+
+
+def _apa_title(value: _Value, italic: bool) -> list[Segment]:
+    """El título; en cursiva, la nota del final queda fuera: "_Título_ (Informe n.° 3)"
+    o "_Título_ (3.ª ed.)" (normas-apa.org, informes y libros)."""
+    title = _seg(value, CheckedField.TITLE, italic)
+    note = APA_TITLE_NOTE.search(title.text) if italic else None
+    if note is None or note.start() == 0:
+        return [title]
+    main = Segment(title.text[: note.start()], title.field, True, title.changed)
+    return [main, Segment(title.text[note.start() :], title.field, False, title.changed)]
+
+
+def _apa_editors(text: str) -> str:
+    """Los editores del libro como los citó el estudiante, con su rol y la coma
+    ("C. Ruiz y B. Torres (Eds.), "), como piden normas-apa.org y la guía de la Revista
+    SOBRE para el capítulo: "En N. Apellidos (Ed.), _Título del libro_ (pp. x-x)". Antes
+    del último va " y" sin coma, como entre los autores (Revista SOBRE, ejemplo de capítulo
+    con tres editores). Las fuentes casi nunca
+    registran a los editores, así que no se comprueban: solo se evita perderlos."""
+    match = APA_EDITORS.search(text)
+    if match is None:
+        return ""
+    names = re.sub(r",\s+y\s+", " y ", " ".join(match.group("names").split()))
+    return f"{names} ({match.group('role')}), "
 
 
 def _apa_authors(values: _Values, connector: str) -> Segment:
@@ -436,7 +582,12 @@ def _end(title: str) -> str:
 
 
 def _ieee(values: _Values, text: str) -> list[Segment]:
-    """Conserva el número [n] original y los conectores del estudiante ("y"/"en" o "and"/"in")."""
+    """Conserva el número [n] original y los conectores del estudiante ("y"/"en" o "and"/"in").
+
+    Las dos formas tienen fuente: la IEEE Reference Guide usa "and" e "in"; la guía IEEE
+    de la Biblioteca de la Universidade da Coruña (2026) traduce esos elementos al idioma
+    del trabajo ("y", "En línea"). Como las dos son válidas, no se cambia la elegida.
+    """
     number = LEADING_NUMBER.match(text)
     spanish = " y " in re.split(r"[\"“«]", text, maxsplit=1)[0]
     out: list[Segment] = [Segment(f"[{number.group(1)}] ")] if number else []
@@ -444,6 +595,8 @@ def _ieee(values: _Values, text: str) -> list[Segment]:
         out += [_ieee_authors(values, "y" if spanish else "and"), Segment(", ")]
 
     title, container = values.get(CheckedField.TITLE), values.get(CheckedField.CONTAINER)
+    if values.kind is _Kind.PREPRINT:
+        return out + _ieee_preprint(values, text)
     if values.kind is _Kind.BOOK and title:
         out += [_seg(title, CheckedField.TITLE, italic=True), Segment(". ")]
     elif title:
@@ -464,13 +617,17 @@ def _ieee(values: _Values, text: str) -> list[Segment]:
         details.append([Segment("no. "), _seg(issue, CheckedField.ISSUE)])
     if values.kind in (_Kind.BOOK, _Kind.CHAPTER) and publisher:
         details.append([_seg(publisher, CheckedField.PUBLISHER)])
-    # En el artículo las páginas van antes del año; en libros, capítulos y actas, después.
-    if article and pages:
-        details.append([Segment("pp. "), _pages(pages)])
+    # En el artículo las páginas van antes del año; en libros, capítulos y actas, y el
+    # número de artículo ("Art. no. 061103"), después (IEEE Reference Guide, Periodicals).
+    article_number = pages is not None and ARTICLE_NUMBER.match(_pages(pages).text)
+    if article and pages and not article_number:
+        details.append(_ieee_pages(pages))
     if year:
         details.append([_seg(year, CheckedField.YEAR)])
-    if not article and pages:
-        details.append([Segment("pp. "), _pages(pages)])
+    if pages and article_number:
+        details.append([Segment("Art. no. "), _pages(pages)])
+    elif not article and pages:
+        details.append(_ieee_pages(pages))
     if doi:
         details.append([Segment("doi: "), _seg(doi, CheckedField.DOI)])
 
@@ -478,6 +635,37 @@ def _ieee(values: _Values, text: str) -> list[Segment]:
         out += ([Segment(", ")] if position else []) + detail
     # Todas las referencias terminan en punto, también las que llevan DOI (guía IEEE).
     return _without_trailing_space(out, separators=" ,") + [Segment(".")]
+
+
+def _ieee_pages(pages: _Value) -> list[Segment]:
+    """ "pp. 2787–2793" o, con una sola página, "p. 475" (IEEE Reference Guide)."""
+    segment = _pages(pages)
+    return [Segment("pp. " if PAGE_RANGE_DASH.search(segment.text) else "p. "), segment]
+
+
+def _ieee_preprint(values: _Values, text: str) -> list[Segment]:
+    """ "“Título,” año, arXiv:número." (IEEE Reference Guide, Unpublished, Preprint
+    arXiv: J. K. Author, “Title of paper,” year, arXiv number)."""
+    out: list[Segment] = []
+    title, year = values.get(CheckedField.TITLE), values.get(CheckedField.YEAR)
+    if title:
+        out += [Segment("“"), _seg(title, CheckedField.TITLE), Segment(",” ")]
+    if year:
+        out += [_seg(year, CheckedField.YEAR), Segment(", ")]
+    number = _arxiv_number(values, text)
+    if number:
+        changed = number.casefold() not in text.replace(" ", "").casefold()
+        out.append(Segment(number, CheckedField.DOI, changed=changed))
+    return _without_trailing_space(out, separators=" ,") + [Segment(".")]
+
+
+def _arxiv_number(values: _Values, text: str) -> str | None:
+    """ "arXiv:2101.00001", del DOI de arXiv (10.48550/arXiv.2101.00001) o del texto."""
+    doi = values.get(CheckedField.DOI)
+    for source in (doi.text if doi else "", text):
+        if match := ARXIV_NUMBER.search(source):
+            return f"arXiv:{match.group(1)}"
+    return None
 
 
 def _ieee_authors(values: _Values, connector: str) -> Segment:
@@ -516,7 +704,7 @@ def _seg(value: _Value, field: CheckedField, italic: bool = False) -> Segment:
 def _pages(value: _Value) -> Segment:
     """Páginas sin "pp." ni "p.": el formato ya lo pone donde corresponde."""
     pages = PAGE_PREFIX.sub("", value.text).strip().rstrip(" ,;.")
-    return Segment(pages, CheckedField.PAGES, changed=value.changed)
+    return Segment(PAGE_DASH.sub(r"\1", pages), CheckedField.PAGES, changed=value.changed)
 
 
 def _without_trailing_space(segments: list[Segment], separators: str = " ") -> list[Segment]:

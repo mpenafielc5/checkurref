@@ -8,8 +8,10 @@ Laboratorio puede compararlos, sin saber cómo trabaja cada uno.
 import logging
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
+
+from app.extraction.editors import drop_editors
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +87,26 @@ class ReferenceExtractor(ABC):
         except Exception:  # cualquier fallo afecta solo a esta referencia
             logger.exception("%s no pudo extraer la referencia %d", self.engine.value, position)
             return Extraction(None, elapsed_ms(start), EXTRACTION_FAILED)
-        return Extraction(fields, elapsed_ms(start))
+        return Extraction(tidy_fields(reference, fields), elapsed_ms(start))
+
+
+def tidy_fields(reference: str, fields: ExtractedFields) -> ExtractedFields:
+    """Arreglos comunes a los dos motores, antes de guardar los campos."""
+    return close_title_parenthesis(reference, drop_editors(reference, fields))
+
+
+def close_title_parenthesis(reference: str, fields: ExtractedFields) -> ExtractedFields:
+    """Devuelve al título el paréntesis de cierre que el extractor dejó fuera.
+
+    El número de informe va entre paréntesis tras el título ("Marco de
+    autorización (Informe n.° 12)") y el extractor a veces corta el título antes
+    del cierre. Solo se cierra si la referencia trae el título con su paréntesis.
+    """
+    title = fields.title
+    if not title or title.count("(") <= title.count(")"):
+        return fields
+    closed = f"{title.rstrip()})"
+    return replace(fields, title=closed) if closed in reference else fields
 
 
 def elapsed_ms(start: float) -> int:

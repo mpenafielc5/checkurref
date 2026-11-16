@@ -226,6 +226,16 @@ def test_anystyle_procesa_el_documento_en_una_sola_llamada() -> None:
     ]
 
 
+def test_anystyle_en_lote_no_toma_a_los_editores_como_autores() -> None:
+    # La salida simulada trae a Pérez y a UNEMI; aquí UNEMI es el editor del libro.
+    text = "Pérez, M. (2021). Redes neuronales. En UNEMI (Eds.), Libro de actas (pp. 1-9)."
+
+    [result] = anystyle(FakeAnyStyle()).extract_all([text])
+
+    assert result.fields is not None
+    assert [author.family for author in result.fields.authors] == ["Pérez"]
+
+
 def test_anystyle_si_el_lote_falla_aisla_la_referencia_que_lo_causa() -> None:
     fake = FakeAnyStyle(fail_on="Rota")
 

@@ -25,24 +25,17 @@ function useGeneratedAt(): string {
 }
 
 /**
- * El navegador guarda el PDF con el título de la pestaña: mientras se imprime pasa
- * a "Informe CheckUrRef - <trabajo>" y luego vuelve al de siempre.
+ * El navegador guarda el PDF con el título de la pestaña. Mientras se ve el informe,
+ * la pestaña se llama "Informe CheckUrRef - <trabajo>"; no se espera al aviso de
+ * impresión (beforeprint), porque Safari en el iPhone imprime desde Compartir y no
+ * siempre lo da a tiempo. Al salir del informe vuelve el título anterior.
  */
-function usePrintTitle(fileName: string): void {
+function useReportTitle(fileName: string): void {
   useEffect(() => {
-    let previous = document.title;
-    const set = () => {
-      previous = document.title;
-      document.title = printTitle(fileName);
-    };
-    const restore = () => {
-      document.title = previous;
-    };
-    window.addEventListener("beforeprint", set);
-    window.addEventListener("afterprint", restore);
+    const previous = document.title;
+    document.title = printTitle(fileName);
     return () => {
-      window.removeEventListener("beforeprint", set);
-      window.removeEventListener("afterprint", restore);
+      document.title = previous;
     };
   }, [fileName]);
 }
@@ -111,7 +104,7 @@ function PrintedReference({ reference }: { reference: ReferenceResult }) {
  */
 export function PrintableReport({ report }: { report: Report }) {
   const generatedAt = useGeneratedAt();
-  usePrintTitle(report.fileName);
+  useReportTitle(report.fileName);
   const counted = VERDICT_ORDER.filter((verdict) => report.counts[verdict] > 0);
 
   return (

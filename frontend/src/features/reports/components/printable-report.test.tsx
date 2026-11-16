@@ -17,15 +17,14 @@ function printedReferences(): HTMLElement[] {
 }
 
 describe("PrintableReport", () => {
-  it("al imprimir, el PDF toma el nombre del trabajo y luego vuelve el título", () => {
+  it("mientras se ve el informe, la pestaña (y el PDF) lleva el nombre del trabajo", () => {
     document.title = "CheckUrRef";
-    render(<PrintableReport report={SAMPLE_REPORT} />);
+    const { unmount } = render(<PrintableReport report={SAMPLE_REPORT} />);
 
-    fireEvent(window, new Event("beforeprint"));
-    const printing = document.title;
-    fireEvent(window, new Event("afterprint"));
-
-    expect(printing).toBe(`Informe CheckUrRef - ${SAMPLE_REPORT.fileName.replace(/\.pdf$/i, "")}`);
+    expect(document.title).toBe(
+      `Informe CheckUrRef - ${SAMPLE_REPORT.fileName.replace(/\.pdf$/i, "")}`,
+    );
+    unmount();
     expect(document.title).toBe("CheckUrRef");
   });
 

@@ -26,6 +26,31 @@ def test_portada_con_varios_autores_en_lineas_distintas() -> None:
     assert authors_in(COVER) == ("Ana Lucía Vera Torres", "Carlos Andrés Mendoza Ríos")
 
 
+def test_portada_sin_llenar_no_da_autores() -> None:
+    # Caso real: la plantilla de la portada quedó sin los nombres de los estudiantes.
+    lines = [
+        "Estudiante(s):",
+        "Apellidos y nombres completos",
+        "Apellidos y nombres completos",
+        "Tutor:",
+        "Apellidos y nombres completos",
+    ]
+
+    assert authors_in(lines) == ()
+
+
+@pytest.mark.parametrize(
+    "placeholder", ["Nombres y apellidos del estudiante", "Nombre del estudiante", ""]
+)
+def test_otras_plantillas_sin_llenar_o_en_blanco_no_dan_autores(placeholder: str) -> None:
+    assert authors_in(["Estudiante:", placeholder, "Docente:", "Ing. Pablo Salas"]) == ()
+
+
+@pytest.mark.parametrize("name", ["Ana Vera", "Vera Torres Ana Lucía", "VERA TORRES ANA LUCIA"])
+def test_el_nombre_sale_en_el_orden_en_que_se_escribio(name: str) -> None:
+    assert authors_in(["Estudiante:", name, "Docente:", "Ing. Pablo Salas"]) == (name,)
+
+
 @pytest.mark.parametrize(
     "label",
     [

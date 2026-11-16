@@ -6,6 +6,7 @@ guarda también su posición horizontal: la separación de referencias APA la
 usa para reconocer la sangría francesa.
 """
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,6 +20,10 @@ TEXT_BLOCK = 0
 TEXT_ONLY = pymupdf.TEXTFLAGS_DICT & ~pymupdf.TEXT_PRESERVE_IMAGES
 # Por debajo de este promedio de caracteres por página se considera escaneado.
 MIN_CHARS_PER_PAGE = 25
+# Caracteres de control que no son espacios. Algunos PDF exportados desde Word traen
+# un carácter nulo (\x00) al final del texto: AnyStyle no lo lee y PostgreSQL no lo
+# guarda, así que el análisis completo fallaba al guardar las referencias.
+CONTROL_CHARS = re.compile(r"[\x00-\x08\x0e-\x1f\x7f]")
 
 
 @dataclass(frozen=True)
@@ -63,10 +68,15 @@ def _page_lines(page: pymupdf.Page, number: int) -> list[TextLine]:
             continue
         for row in _rows(block["lines"]):
             row.sort(key=lambda piece: piece[0])
-            text = " ".join(" ".join(piece[1] for piece in row).split())
+            text = clean_line(" ".join(piece[1] for piece in row))
             if text:
                 lines.append(TextLine(page=number, x0=round(row[0][0], 1), text=text))
     return lines
+
+
+def clean_line(text: str) -> str:
+    """Texto de un renglón sin caracteres de control y con los espacios normalizados."""
+    return " ".join(CONTROL_CHARS.sub("", text).split())
 
 
 def _rows(block_lines: list[dict[str, Any]]) -> list[list[tuple[float, str]]]:

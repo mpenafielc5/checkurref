@@ -91,6 +91,16 @@ def test_apa_con_datos_erroneos() -> None:
     assert corrected.changed_fields == (CheckedField.YEAR, CheckedField.VOLUME, CheckedField.DOI)
 
 
+def test_revista_sin_volumen_pone_coma_antes_del_numero() -> None:
+    # normas-apa.org: "Revista Internacional Magisterio, (54), 10-17."
+    text = APA_WRONG.replace("9(1)", "(1)")
+    fields = replace(APA_WRONG_FIELDS, volume=None, year=2021)
+
+    corrected = correct(text, fields, record=replace(ARTICLE, volume=None))
+
+    assert "Revista Andina, (1), 10-25." in corrected.text
+
+
 def test_ieee_con_datos_erroneos_conserva_el_numero() -> None:
     corrected = correct(IEEE_WRONG, IEEE_WRONG_FIELDS, norm=Norm.IEEE)
 
@@ -293,6 +303,214 @@ def test_capitulo_en_apa() -> None:
         "Rivas, A. (2020). Redes. En Manual de IA (pp. 10-20). Editorial UNEMI. "
         "https://doi.org/10.5555/libro"
     )
+
+
+def test_capitulo_conserva_editores_subtitulo_que_la_fuente_omite_y_paginas_limpias() -> None:
+    # Caso real (datos cambiados): la fuente registra el capítulo sin su subtítulo.
+    text = (
+        "Mora, L. A., y Vera, P. (2018). Tutor virtual: Un asistente para la educación "
+        "en línea. En C. Ruiz, J. Salas, y B. Torres (Eds.), Ingeniería del aprendizaje "
+        "en línea (pp. 120– 143). Editorial Andina."
+    )
+    fields = ExtractedFields(
+        authors=(Author("Mora", "L. A."), Author("Vera", "P.")),
+        year=2018,
+        title="Tutor virtual: Un asistente para la educación en línea",
+        container="Ingeniería del aprendizaje en línea",
+        pages="120– 143",
+        publisher="Editorial Andina",
+    )
+    record = SourceRecord(
+        source=Source.CROSSREF,
+        doi="10.5555/capitulo-7",
+        title="Tutor virtual",
+        authors=(Author("Mora", "Luis A."), Author("Vera", "Pablo")),
+        year=2018,
+        container="Ingeniería del Aprendizaje en Línea",
+        pages="120-143",
+        work_type="book-chapter",
+    )
+
+    corrected = correct(text, fields, record)
+
+    assert corrected.text == (
+        "Mora, L. A. y Vera, P. (2018). Tutor virtual: Un asistente para la educación en "
+        "línea. En C. Ruiz, J. Salas y B. Torres (Eds.), Ingeniería del aprendizaje en "
+        "línea (pp. 120–143). Editorial Andina. "
+        "https://doi.org/10.5555/capitulo-7"
+    )
+    assert CheckedField.TITLE not in corrected.changed_fields
+
+
+def test_informe_citado_por_su_editor_conserva_el_numero_sin_cursiva() -> None:
+    text = (
+        "Salas, D. (Ed.). (2021). Marco de autorización para servicios web (RFC 9999). "
+        "Editorial Técnica. https://doi.org/10.5555/RFC9999"
+    )
+    fields = ExtractedFields(
+        authors=(Author("Salas", "D."),),
+        year=2021,  # el registro dice 2012: así hay referencia corregida
+        title="Marco de autorización para servicios web (RFC 9999)",
+        publisher="Editorial Técnica",
+        doi="10.5555/RFC9999",
+    )
+    record = SourceRecord(
+        source=Source.CROSSREF,
+        doi="10.5555/rfc9999",
+        title="Marco de Autorización para Servicios Web",
+        authors=(Author("Salas", "D."),),
+        year=2012,
+        publisher="Editorial Técnica",
+        work_type="report",
+    )
+
+    corrected = correct(text, fields, record, by="doi")
+
+    assert corrected.text == (
+        "Salas, D. (Ed.). (2012). Marco de autorización para servicios web (RFC 9999). "
+        "Editorial Técnica. https://doi.org/10.5555/rfc9999"
+    )
+    titles = [s for s in corrected.segments if s.field is CheckedField.TITLE]
+    assert [(s.text, s.italic) for s in titles] == [
+        ("Marco de autorización para servicios web", True),
+        (" (RFC 9999)", False),
+    ]
+
+
+def test_actas_citadas_como_revista_conservan_el_formato_y_el_volumen() -> None:
+    # Caso real (datos cambiados): Crossref pone el volumen en el nombre de las actas.
+    text = (
+        "Rivas, T. (2023). Herramientas que los modelos de lenguaje aprenden solos. "
+        "Avances en Sistemas de Computación Neuronal, 36, 68539–68551. "
+        "https://actas.ejemplo.org/articulo.pdf"
+    )
+    fields = ExtractedFields(
+        authors=(Author("Rivas", "T."),),
+        year=2023,
+        title="Herramientas que los modelos de lenguaje aprenden solos",
+        container="Avances en Sistemas de Computación Neuronal",
+        volume="36",
+        pages="68539–68551",
+    )
+    record = SourceRecord(
+        source=Source.CROSSREF,
+        doi="10.5555/actas-2997",
+        title="Herramientas que los Modelos de Lenguaje Aprenden Solos",
+        authors=(Author("Rivas", "Tomás"),),
+        year=2023,
+        container="Avances en Sistemas de Computación Neuronal 36",
+        pages="68539-68551",
+        publisher="Fundación de Computación Neuronal",
+        work_type="proceedings-article",
+    )
+
+    corrected = correct(text, fields, record)
+
+    assert corrected.text == (
+        "Rivas, T. (2023). Herramientas que los modelos de lenguaje aprenden solos. "
+        "Avances en Sistemas de Computación Neuronal, 36, 68539–68551. "
+        "https://doi.org/10.5555/actas-2997"
+    )
+
+
+def test_titulo_copiado_distinto_en_la_misma_publicacion_y_numero_de_articulo() -> None:
+    # Caso real: el título está reescrito, falta el volumen y el extractor tomó el
+    # número de artículo por volumen. Autores, año, revista y número coinciden.
+    text = (
+        "Paz, S. (2022). Cincuenta años de investigación sobre la familia y el logro "
+        "académico: Un metaanálisis de segundo orden. Revista de Educación, 100463."
+    )
+    fields = ExtractedFields(
+        authors=(Author("Paz", "S."),),
+        year=2022,
+        title=(
+            "Cincuenta años de investigación sobre la familia y el logro académico: "
+            "Un metaanálisis de segundo orden"
+        ),
+        container="Revista de Educación",
+        volume="100463",
+    )
+    record = SourceRecord(
+        source=Source.CROSSREF,
+        doi="10.5555/re.2022.100463",
+        title=(
+            "Cincuenta años de familia y logro académico en la investigación: "
+            "Un metaanálisis de segundo orden"
+        ),
+        authors=(Author("Paz", "Sonia"),),
+        year=2022,
+        container="Revista de Educación",
+        volume="37",
+        pages="100463",
+        work_type="journal-article",
+    )
+    verification = decide(text, fields, by_search(record), FakeNli())
+    assert verification.cited is not None
+
+    corrected = corrected_reference(text, Norm.APA, verification.cited, verification)
+
+    assert [check.field for check in verification.mismatches] == [CheckedField.TITLE]
+    assert corrected is not None
+    assert corrected.text == (
+        "Paz, S. (2022). Cincuenta años de familia y logro académico en la investigación: "
+        "Un metaanálisis de segundo orden. Revista de Educación, 37, 100463. "
+        "https://doi.org/10.5555/re.2022.100463"
+    )
+
+
+def test_preprint_de_arxiv_en_apa_y_en_ieee() -> None:
+    # Caso real: OpenAlex registra el preprint en "arXiv (Cornell University)" y le
+    # agrega el volumen y las páginas de la versión publicada en el congreso.
+    text = (
+        "Vera, A. (2017). Atención para traducir textos. arXiv. "
+        "https://doi.org/10.48550/arXiv.2101.00001"
+    )
+    fields = ExtractedFields(
+        authors=(Author("Vera", "A."),),
+        year=2017,
+        title="Atención para traducir textos",
+        doi="10.48550/arXiv.2101.00001",
+    )
+    record = SourceRecord(
+        source=Source.OPENALEX,
+        doi="10.48550/arxiv.2101.00001",
+        title="Atención para traducir textos",
+        authors=(Author("Andrea Vera"),),
+        year=2017,
+        container="arXiv (Cornell University)",
+        publisher="Cornell University",
+        volume="30",
+        pages="5998-6008",
+        work_type="preprint",
+    )
+
+    apa = correct(text, fields, record, by="doi")
+
+    assert apa.text == (
+        "Vera, A. (2017). Atención para traducir textos. arXiv. "
+        "https://doi.org/10.48550/arxiv.2101.00001"
+    )
+    title = next(s for s in apa.segments if s.field is CheckedField.TITLE)
+    assert title.italic is True
+    ieee = correct("[4] A. Vera, " + text, fields, record, norm=Norm.IEEE, by="doi")
+    assert ieee.text == "[4] A. Vera, “Atención para traducir textos,” 2017, arXiv:2101.00001."
+    # Otro repositorio sin número de arXiv: la guía IEEE no da su formato.
+    other = replace(record, doi="10.1101/2020.01.01.123456", container="medRxiv")
+    fields = replace(fields, doi=other.doi)
+    verification = decide("[4] x", fields, by_doi(other), FakeNli())
+    assert corrected_reference("[4] x", Norm.IEEE, fields, verification) is None
+
+
+def test_ieee_numero_de_articulo_despues_del_anio_y_una_sola_pagina_con_p() -> None:
+    # IEEE Reference Guide: "vol. 5, no. 2, Apr. 2013, Art. no. 2600111" y "p. 475".
+    text = IEEE_WRONG.replace("pp. 30–45", "pp. 100463")
+    fields = replace(IEEE_WRONG_FIELDS, pages="100463")
+    with_number = correct(text, fields, record=replace(ARTICLE, pages="100463"), norm=Norm.IEEE)
+    assert "vol. 8, no. 1, 2021, Art. no. 100463, doi:" in with_number.text
+
+    fields = replace(IEEE_WRONG_FIELDS, pages="475")
+    one_page = correct(text, fields, record=replace(ARTICLE, pages="475"), norm=Norm.IEEE)
+    assert "no. 1, p. 475, 2021" in one_page.text
 
 
 def test_actas_en_ieee() -> None:
