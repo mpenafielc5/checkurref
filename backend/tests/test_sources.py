@@ -134,6 +134,16 @@ def test_crossref_quita_las_entidades_y_etiquetas_html_del_titulo_y_la_revista()
     assert record.container == "Ciencia & Tecnología"
 
 
+def test_crossref_usa_los_editores_de_una_obra_sin_autores() -> None:
+    # Caso real (datos cambiados): Crossref registra el informe con su editor y sin autores.
+    editor = [{"family": "Salas", "given": "D."}]
+    report = {"DOI": "10.5555/RFC9999", "type": "report", "editor": editor}
+    chapter = {**report, "type": "book-chapter"}
+
+    assert record_from(report).authors == (Author("Salas", "D."),)
+    assert record_from(chapter).authors == ()
+
+
 def test_crossref_busca_por_titulo_y_autor() -> None:
     seen: list[httpx.Request] = []
 

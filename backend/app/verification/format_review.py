@@ -9,8 +9,11 @@ El formato nunca cambia el veredicto, el índice de veracidad ni el riesgo en el
 lote. Cada referencia se revisa contra su propia norma; si no se reconoció, contra
 la de la lista. Si tampoco la lista tiene una, no se revisa y el informe lo explica.
 
-Fuentes: normas-apa.org (DOI y URL, autores, fecha, orden de la lista) y la guía de
-referencias de IEEE de 2025. Criterio de la herramienta: las tildes y la ñ no
+Fuentes: normas-apa.org y la guía "Manual de estilo APA (7.ª ed.): ejemplos" de la
+Revista SOBRE (DOI como enlace, autores, año entre paréntesis, hasta 20 autores, orden
+de la lista, fecha de recuperación solo en páginas que cambian); IEEE Reference Guide
+(iniciales antes del apellido, título entre comillas, vol./no./pp., año al final,
+numeración [1], [2]…, DOI cuando se conoce). Criterio de la herramienta: las tildes y la ñ no
 cuentan para el orden alfabético, porque esas fuentes no lo definen.
 """
 
@@ -466,7 +469,9 @@ IEEE_RULES = (
     ),
     FormatRule(
         "IEEE_DOI_FALTANTE",
-        "La obra tiene un DOI registrado y la referencia no lo incluye.",
+        # IEEE Reference Guide, Periodicals: "DOIs are included, when provided by the
+        # author". Se sugiere, sin presentarlo como un error de la norma.
+        "La obra tiene un DOI registrado: en IEEE se incluye cuando se conoce.",
         CheckedField.DOI,
         check=_ieee_missing_doi,
     ),

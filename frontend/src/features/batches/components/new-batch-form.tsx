@@ -7,9 +7,7 @@ import { MAX_NAME_LENGTH, MAX_PERIOD_LENGTH } from "../rules";
 import { useBatchUpload } from "../use-batch-upload";
 import { BatchUploadProgress } from "./batch-upload-progress";
 import { Notice, WakingNotice } from "@/shared/components/ui/notice";
-
-const INPUT_CLASSES =
-  "h-input w-full rounded-control border border-hairline-strong bg-surface px-4 text-small text-ink outline-none placeholder:text-muted focus:border-ink";
+import { fieldStyles } from "@/shared/components/ui/field-styles";
 
 function filesLabel(count: number): string {
   return `${count} ${count === 1 ? "archivo" : "archivos"}`;
@@ -88,7 +86,7 @@ export function NewBatchForm() {
             onChange={(event) => setName(event.target.value)}
             disabled={creating}
             placeholder="Ej.: Metodología 5B · Ensayo final"
-            className={INPUT_CLASSES}
+            className={fieldStyles}
           />
         </label>
         <label className="flex flex-1 flex-col gap-1.5 text-small">
@@ -102,7 +100,7 @@ export function NewBatchForm() {
             onChange={(event) => setPeriod(event.target.value)}
             disabled={creating}
             placeholder="Ej.: 2026-2S"
-            className={INPUT_CLASSES}
+            className={fieldStyles}
           />
         </label>
       </div>

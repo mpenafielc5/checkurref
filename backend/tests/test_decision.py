@@ -167,6 +167,64 @@ def test_titulo_sin_subtitulo_es_la_misma_obra_con_discrepancia() -> None:
     assert [check.field for check in verification.mismatches] == [CheckedField.TITLE]
 
 
+def test_registro_sin_el_subtitulo_citado_coincide() -> None:
+    # Algunas editoriales registran el capítulo sin su subtítulo: la cita completa no
+    # es una discrepancia.
+    fields = replace(WITHOUT_DOI, title=f"{RECORD.title}: un estudio en Ecuador")
+
+    verification = decide(TEXT, fields, by_search(RECORD), FakeNli())
+
+    assert verification.verdict is Verdict.VERIFIED
+    title = verification.check(CheckedField.TITLE)
+    assert title is not None and title.matches
+
+
+def test_numero_de_informe_tras_el_titulo_no_es_discrepancia() -> None:
+    # Caso real (datos cambiados): APA pone el número tras el título y la fuente no lo registra;
+    # el extractor además dejó el paréntesis sin cerrar.
+    fields = replace(FIELDS, title=f"{RECORD.title} (Informe n.° 12")
+
+    verification = decide(TEXT, fields, by_doi(RECORD), FakeNli())
+
+    assert verification.verdict is Verdict.VERIFIED
+
+
+def test_otra_obra_del_autor_con_el_mismo_titulo_principal_y_otro_anio_no_es_la_citada() -> None:
+    # Caso real (datos cambiados): un libro de 2016 y un artículo de 1994 del mismo
+    # autor, con el mismo título principal.
+    fields = replace(WITHOUT_DOI, title="Redes neuronales", year=2016)
+    record = replace(RECORD, title="Redes neuronales: principios y práctica", year=1994)
+
+    verification = decide(TEXT, fields, by_search(record), FakeNli())
+
+    assert verification.verdict is Verdict.UNSUPPORTED
+
+
+def test_titulo_sin_subtitulo_con_el_mismo_anio_sigue_siendo_la_obra() -> None:
+    fields = replace(WITHOUT_DOI, title="Redes neuronales")
+    record = replace(RECORD, title="Redes neuronales: principios y práctica")
+
+    verification = decide(TEXT, fields, by_search(record), FakeNli())
+
+    assert verification.verdict is Verdict.DISCREPANCY
+
+
+def test_pagina_web_sin_autores_con_titulo_dudoso_no_se_confirma_solo_con_el_nli() -> None:
+    # Caso real: la página "Telegram Bot API" y el paquete de R "telegram: R Wrapper
+    # Around the Telegram Bot API"; el NLI implica el título, pero es otra obra.
+    text = "Telegram. (s. f.). Telegram Bot API. https://core.telegram.org/bots/api"
+    fields = ExtractedFields(title="Telegram Bot API")
+    record = SourceRecord(
+        source=Source.CROSSREF,
+        doi="10.32614/cran.package.telegram",
+        title="telegram: R Wrapper Around the Telegram Bot API",
+    )
+
+    verification = decide(text, fields, by_search(record), FixedNli(ENTAILS))
+
+    assert verification.verdict is Verdict.NOT_VERIFIABLE
+
+
 def test_titulo_igual_con_otros_autores_es_discrepancia_y_no_contradiccion() -> None:
     # Puede ser un error del extractor en los autores: la obra es la misma.
     fields = replace(FIELDS, authors=(Author("Castro", "L."),))
@@ -283,6 +341,23 @@ def test_revista_abreviada_o_sin_subtitulo_coincide(given: str, official: str) -
     record = replace(RECORD, container=official)
 
     assert verdict_of(record, fields) is Verdict.VERIFIED
+
+
+def test_el_libro_de_un_capitulo_coincide_aunque_crossref_ponga_antes_la_coleccion() -> None:
+    # Caso real (datos cambiados): ["Notas de Computación", "Teoría y Práctica de
+    # Bibliotecas Digitales"]; la referencia cita el libro.
+    fields = replace(FIELDS, container="Teoría y práctica de bibliotecas digitales")
+    record = replace(
+        RECORD,
+        container="Notas de Computación",
+        other_containers=("Teoría y Práctica de Bibliotecas Digitales",),
+    )
+
+    verification = decide(TEXT, fields, by_doi(record), FakeNli())
+
+    assert verification.verdict is Verdict.VERIFIED
+    container = next(c for c in verification.checks if c.field is CheckedField.CONTAINER)
+    assert container.official == "Teoría y Práctica de Bibliotecas Digitales"
 
 
 @pytest.mark.parametrize(

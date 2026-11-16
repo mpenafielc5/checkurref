@@ -55,8 +55,11 @@ PERSON_TITLE = re.compile(
 )
 AROUND_NAME = " []().,;"
 # Lo que no puede ser el nombre de una persona: la lista de autores ya terminó. Al pie
-# de muchas portadas va el lugar: "Guayaquil - Ecuador", "MILAGRO-ECUADOR".
-NOT_A_NAME = re.compile(r"[\d:@/]|\s[-–—]\s|\b(?:ecuador|universidad|escuela)\b", re.IGNORECASE)
+# de muchas portadas va el lugar: "Guayaquil - Ecuador", "MILAGRO-ECUADOR". Y una
+# portada sin llenar trae el texto de la plantilla: "Apellidos y nombres completos".
+NOT_A_NAME = re.compile(
+    r"[\d:@/]|\s[-–—]\s|\b(?:ecuador|universidad|escuela|apellidos?|nombres?)\b", re.IGNORECASE
+)
 
 MAX_WORDS_IN_NAME = 8
 MAX_NAME_LENGTH = 120

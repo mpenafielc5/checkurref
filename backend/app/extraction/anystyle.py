@@ -26,6 +26,7 @@ from app.extraction.base import (
     ExtractionError,
     ReferenceExtractor,
     elapsed_ms,
+    tidy_fields,
 )
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,10 @@ class AnyStyleExtractor(ReferenceExtractor):
             return super().extract_all(references)
         # Tiempo de cada referencia: el de la llamada repartido entre todas.
         each_ms = elapsed_ms(start) // len(references)
-        return [Extraction(fields, each_ms) for fields in parsed]
+        return [
+            Extraction(tidy_fields(text, fields), each_ms)
+            for text, fields in zip(references, parsed, strict=True)
+        ]
 
     def _parse(self, references: list[str]) -> list[ExtractedFields]:
         executable = shutil.which(self._command)

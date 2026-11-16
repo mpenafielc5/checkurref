@@ -219,6 +219,17 @@
   }
 }
 
+/* En pantallas táctiles, los campos usan el tamaño del texto (16 px): con letra más
+   chica, el iPhone hace zoom al tocar un campo y no vuelve solo. Va fuera de las capas
+   para ganarle a la clase text-small de cada campo. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: var(--cr-text-body);
+  }
+}
+
 /* El informe impreso (Exportar PDF) sale siempre en A4 vertical, como un
    documento académico, sin depender de la configuración del navegador. */
 @page {

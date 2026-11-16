@@ -34,6 +34,9 @@ class SourceRecord:
     # verificación acepta cualquiera, porque APA cita el año del número impreso.
     other_years: tuple[int, ...] = ()
     container: str | None = None  # revista, libro o congreso
+    # Otros títulos del contenedor: de un capítulo, Crossref da la colección ("Lecture
+    # Notes in Computer Science") y el libro; la referencia puede citar cualquiera.
+    other_containers: tuple[str, ...] = ()
     publisher: str | None = None
     volume: str | None = None
     issue: str | None = None

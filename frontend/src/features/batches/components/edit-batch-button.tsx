@@ -7,9 +7,7 @@ import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { updateBatch } from "../api";
 import { MAX_NAME_LENGTH, MAX_PERIOD_LENGTH } from "../rules";
 import type { BatchDetail } from "../types";
-
-const INPUT_CLASSES =
-  "h-input w-full rounded-control border border-hairline-strong bg-surface px-4 text-small text-ink outline-none focus:border-ink";
+import { fieldStyles } from "@/shared/components/ui/field-styles";
 
 type EditBatchButtonProps = {
   batch: Pick<BatchDetail, "id" | "name" | "period">;
@@ -82,7 +80,7 @@ export function EditBatchButton({ batch, onSaved, className = "" }: EditBatchBut
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 disabled={busy}
-                className={INPUT_CLASSES}
+                className={fieldStyles}
               />
             </label>
             <label className="flex flex-col gap-1.5">
@@ -95,7 +93,7 @@ export function EditBatchButton({ batch, onSaved, className = "" }: EditBatchBut
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
                 disabled={busy}
-                className={INPUT_CLASSES}
+                className={fieldStyles}
               />
             </label>
           </div>

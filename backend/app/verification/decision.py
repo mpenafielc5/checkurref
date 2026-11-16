@@ -267,6 +267,8 @@ class _Evidence:
     """Lo que dice cada señal sobre si el registro es la obra citada."""
 
     title: float | None  # similitud del título (None: no hay dos títulos que comparar)
+    # Similitud con los dos títulos completos: menor si solo coinciden sin el subtítulo.
+    whole_title: float | None
     authors: FieldCheck | None  # None: no hay autores que comparar
     # Autores que coinciden sobre la lista más corta (la citada o la del registro):
     # el registro puede traer solo algunos autores, y eso no la vuelve otra obra.
@@ -284,13 +286,16 @@ def _assess(
     thresholds: Thresholds,
     uncovered_work: bool,
 ) -> _Assessment:
-    fields = rejoin_subtitle(fields, record)
+    fields = article_number_as_pages(rejoin_subtitle(fields, record), record)
     checks = _compare(fields, record, strategy, thresholds)
     nli_checks = _infer(fields, record, nli)
     by_field = {check.field: check for check in checks}
     title_nli = next((c.scores for c in nli_checks if c.field is CheckedField.TITLE), None)
     evidence = _Evidence(
         title=title_identity(fields.title, record.title),
+        whole_title=title_ratio(fields.title, record.title)
+        if fields.title and record.title
+        else None,
         authors=by_field.get(CheckedField.AUTHORS),
         author_overlap=_author_overlap(fields.authors, record.authors, thresholds),
         year=by_field.get(CheckedField.YEAR),
@@ -336,9 +341,14 @@ def _search_found_the_work(evidence: _Evidence, thresholds: Thresholds) -> bool:
     confirme, porque un título genérico se repite en obras distintas.
 
     - Título igual: sí, salvo que ninguno de los autores coincida, o que sea una
-      tesis, norma o página web sin autores que lo confirmen.
+      tesis, norma o página web sin autores que lo confirmen. Si el título solo es
+      igual sin el subtítulo, el año también debe coincidir: un autor repite títulos
+      cortos (el libro "Ingeniería de software", de 2016, y el artículo "Ingeniería de
+      software: principios y práctica", de 1994).
     - Título dudoso: sí, si el año no lo contradice y lo confirman todos los
-      autores, o el NLI junto con alguno de ellos (o solo el NLI, sin autores).
+      autores, o el NLI junto con alguno de ellos (o solo el NLI, sin autores,
+      salvo en una tesis, norma o página web: "Telegram Bot API", la página de la
+      documentación, no es "telegram: R Wrapper Around the Telegram Bot API").
     """
     title, authors, year = evidence.title, evidence.authors, evidence.year
     if title is None or title < thresholds.title_candidate:
@@ -346,12 +356,33 @@ def _search_found_the_work(evidence: _Evidence, thresholds: Thresholds) -> bool:
     if authors is not None and authors.similarity == 0:
         return False
     if title >= thresholds.title_match:
+        whole = evidence.whole_title
+        if whole is not None and whole < thresholds.title_match and year and not year.matches:
+            return False
         return authors is not None or not evidence.uncovered_work
     if year is not None and not year.matches:
         return False
     if authors is None:
-        return evidence.nli_confirms_title
+        return evidence.nli_confirms_title and not evidence.uncovered_work
     return authors.matches or evidence.nli_confirms_title
+
+
+def article_number_as_pages(fields: ExtractedFields, record: SourceRecord) -> ExtractedFields:
+    """Devuelve a las páginas el número de artículo que el extractor tomó por volumen.
+
+    Algunas revistas numeran cada artículo en lugar de darle páginas, y ese número va
+    en el lugar de las páginas (normas-apa.org, citar revista). Si la referencia omite
+    el volumen ("Revista de Educación, 100463."), el extractor lee el número
+    como volumen. Se corrige solo si el registro trae ese número como página y otro
+    volumen: así, lo que falta es el volumen, no un volumen equivocado.
+    """
+    if not fields.volume or fields.pages or not record.pages:
+        return fields
+    if record.volume and _volume(fields.volume) == _volume(record.volume):
+        return fields
+    if _normalize(fields.volume) != _normalize(record.pages):
+        return fields
+    return replace(fields, volume=None, pages=fields.volume)
 
 
 def rejoin_subtitle(fields: ExtractedFields, record: SourceRecord) -> ExtractedFields:
@@ -378,6 +409,37 @@ def rejoin_subtitle(fields: ExtractedFields, record: SourceRecord) -> ExtractedF
     return fields
 
 
+def without_title_note(given: str, official: str) -> str:
+    """El título citado sin la nota entre paréntesis del final, si el registro no la trae.
+
+    APA pone tras el título el número de informe o la edición: "Marco de
+    autorización (Informe n.° 12)", "Redes neuronales (3.ª ed.)". No es parte del
+    título, y las fuentes no la registran. El paréntesis puede venir sin cerrar.
+    """
+    if official.rstrip(" .").endswith(")"):
+        return given
+    return TITLE_NOTE.sub("", given) or given
+
+
+def title_ratio(given: str, official: str) -> float:
+    """Similitud de los títulos, con la nota del final o sin ella."""
+    return max(_ratio(given, official), _ratio(without_title_note(given, official), official))
+
+
+def record_lacks_subtitle(given: str, official: str) -> bool:
+    """El registro trae solo la parte del título antes de los dos puntos.
+
+    Algunas editoriales registran el capítulo sin su subtítulo (la fuente
+    tiene "Tutor virtual" para "Tutor virtual: un asistente para la educación en
+    línea"). El título citado es el completo; no hay discrepancia. Al revés, una
+    referencia que omite el subtítulo del registro sí la tiene.
+    """
+    if ":" not in given or ":" in official:
+        return False
+    main = _normalize(given.split(":", 1)[0])
+    return bool(main) and main == _normalize(official)
+
+
 def title_identity(given: str | None, official: str | None) -> float | None:
     """Similitud de los títulos para reconocer la obra.
 
@@ -386,7 +448,7 @@ def title_identity(given: str | None, official: str | None) -> float | None:
     """
     if not given or not official:
         return None
-    similarity = _ratio(given, official)
+    similarity = title_ratio(given, official)
     if ":" in given and ":" not in official:
         similarity = max(similarity, _ratio(given.split(":")[0], official))
     if ":" in official and ":" not in given:
@@ -402,14 +464,15 @@ def _compare(
 ) -> tuple[FieldCheck, ...]:
     checks: list[FieldCheck] = []
     if fields.title and record.title:
-        similarity = _ratio(fields.title, record.title)
+        similarity = title_ratio(fields.title, record.title)
         checks.append(
             FieldCheck(
                 CheckedField.TITLE,
                 fields.title,
                 record.title,
                 similarity,
-                similarity >= thresholds.title_match,
+                similarity >= thresholds.title_match
+                or record_lacks_subtitle(fields.title, record.title),
             )
         )
     given_authors, official_authors = _named(fields.authors), _named(record.authors)
@@ -438,12 +501,17 @@ def _compare(
             # la preimpresión de arXiv con el artículo publicado): el citado es válido.
             checks.append(_direct(CheckedField.DOI, doi, doi, True))
     if fields.container and record.container:
-        similarity = _container_similarity(fields.container, record.container)
+        # Se compara con el título del contenedor que más se parezca: el libro de un
+        # capítulo puede venir después de su colección.
+        similarity, official = max(
+            (_container_similarity(fields.container, title), title)
+            for title in (record.container, *record.other_containers)
+        )
         checks.append(
             FieldCheck(
                 CheckedField.CONTAINER,
                 fields.container,
-                record.container,
+                official,
                 similarity,
                 similarity >= thresholds.container_match,
             )
@@ -635,7 +703,7 @@ def _infer(fields: ExtractedFields, record: SourceRecord, nli: NliScorer) -> tup
     hypotheses = [
         (field, sentence)
         for field, sentence in _sentences(
-            _lower(fields.title),
+            _lower(fields.title and without_title_note(fields.title, record.title or "")),
             [author.family for author in _named(fields.authors)],
             fields.year,
             fields.container,
@@ -691,6 +759,8 @@ UNCOVERED_WORK = re.compile(
     r"decreto|constitucion de la republica|registro oficial|acuerdo ministerial|codigo organico)\b"
 )
 URL = re.compile(r"https?://|www\.")
+# Nota entre paréntesis al final del título, cerrada o no: "(Informe n.° 12)", "(3.ª ed.)".
+TITLE_NOTE = re.compile(r"\s*\([^()]*\)?[\s.]*$")
 
 
 def is_uncovered_work(text: str, fields: ExtractedFields) -> bool:
