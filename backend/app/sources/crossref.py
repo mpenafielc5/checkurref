@@ -5,6 +5,7 @@ polite pool. Sus límites desde diciembre de 2025: 3 consultas simultáneas,
 10 por segundo de un solo registro y 3 por segundo de búsquedas.
 """
 
+import re
 from typing import Any
 from urllib.parse import quote
 
@@ -29,6 +30,13 @@ SELECT = (
 # artículo); la referencia puede citar con razón el año del número de la
 # revista, que llega después y viene en "journal-issue".
 DATE_FIELDS = ("issued", "published-print", "published-online")
+# Lo que delata una afiliación registrada como autor: una coma (departamento, ciudad,
+# país) o una palabra de institución.
+AFFILIATION = re.compile(
+    r",|(?:universi\w*|institut\w*|department|departamento|faculty|facultad|school|"
+    r"escuela|college|colegio|hospital)",
+    re.IGNORECASE,
+)
 # Partes de una obra mayor: sus editores son los de esa obra, no autores de la parte.
 PART_TYPES = frozenset(
     {
@@ -113,10 +121,27 @@ def _people(item: dict[str, Any]) -> list[dict[str, Any]]:
     guarda aparte. En una parte de la obra (capítulo, artículo) los editores son los
     del libro o las actas, no los autores citados: ahí no se usan.
     """
-    authors = item.get("author") or []
+    authors = _without_affiliations(item.get("author") or [])
     if authors or item.get("type") in PART_TYPES:
         return authors
     return item.get("editor") or []
+
+
+def _without_affiliations(people: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sin las afiliaciones que algunas editoriales registran como si fueran autores.
+
+    Entre autores con apellido aparecen entradas solo con nombre como "MS in Management
+    Information System, Lamar University, Texas, USA". Se descartan si parecen una
+    afiliación (con coma o con palabras de institución); un autor institucional ("Grupo
+    UNEMI") o una lista solo de instituciones se conservan.
+    """
+    if not any(person.get("family") for person in people):
+        return people
+    return [
+        person
+        for person in people
+        if person.get("family") or not AFFILIATION.search(str(person.get("name") or ""))
+    ]
 
 
 def _year(date: dict[str, Any] | None) -> int | None:

@@ -1,12 +1,15 @@
 import { StatusChip } from "@/shared/components/ui/status-chip";
 import type { Report } from "../types";
+import { OriginalPdfButton } from "./original-pdf";
 import { PrintButton } from "./print-button";
 import { PrintableReport } from "./printable-report";
 import { ReportResults } from "./report-results";
 
 /**
  * Informe del documento: el diagnóstico de veracidad (maqueta 12). En pantalla se
- * ve la versión interactiva; al imprimir, la versión de impresión (HU-15).
+ * ve la versión interactiva; al imprimir, la versión de impresión (HU-15). El PDF
+ * original se puede abrir para revisar lo que el informe no muestra (la portada);
+ * su enlace lo pide ReportLoader, junto con el informe.
  */
 export function ReportView({ report }: { report: Report }) {
   return (
@@ -18,7 +21,11 @@ export function ReportView({ report }: { report: Report }) {
           </h2>
           <StatusChip tone="neutral">{report.standard}</StatusChip>
           <span className="flex-1" />
-          <PrintButton />
+          {/* En el celular, los dos botones comparten una fila; en pantallas anchas, a la derecha. */}
+          <div className="flex w-full gap-3 *:flex-1 md:w-auto md:*:flex-none">
+            <OriginalPdfButton />
+            <PrintButton />
+          </div>
         </div>
 
         {report.standardNotice ? <p className="text-small">{report.standardNotice}</p> : null}

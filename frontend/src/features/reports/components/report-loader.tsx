@@ -8,6 +8,7 @@ import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { fetchReport, type ReportOutcome } from "../api";
+import { OriginalPdfProvider } from "./original-pdf";
 import { ReportView } from "./report-view";
 import { WakingNotice } from "@/shared/components/ui/notice";
 
@@ -56,47 +57,58 @@ export function ReportLoader({
     if (redirecting) router.replace(`${listHref}/${analysisId}/progreso`);
   }, [redirecting, router, listHref, analysisId]);
 
-  if (state.kind === "ready") return <ReportView report={state.report} />;
-
   const backLink = (
     <Link href={listHref} className={buttonStyles({ variant: "secondary" })}>
       {backLabel}
     </Link>
   );
 
+  // El enlace al PDF original se pide a la vez que el informe, no después: así su
+  // botón aparece junto con el informe. La raíz es siempre el mismo componente, para
+  // que la petición no se repita al pasar de la carga al informe.
   return (
-    <div aria-live="polite" className="flex flex-col gap-4">
-      {state.kind === "loading" || redirecting ? (
-        <>
-          <p className="sr-only">
-            {redirecting
-              ? "El análisis aún no termina; abriendo su progreso…"
-              : "Cargando el informe…"}
-          </p>
-          {state.kind === "loading" && state.slow ? <WakingNotice /> : null}
-          <Skeleton className="h-8 w-2/3 rounded-control" />
-          <Skeleton className="h-32 w-full rounded-panel" />
-          <Skeleton className="h-24 w-full rounded-panel" />
-        </>
-      ) : null}
+    <OriginalPdfProvider analysisId={analysisId}>
+      {state.kind === "ready" ? (
+        <ReportView report={state.report} />
+      ) : (
+        <div aria-live="polite" className="flex flex-col gap-4">
+          {state.kind === "loading" || redirecting ? (
+            <>
+              <p className="sr-only">
+                {redirecting
+                  ? "El análisis aún no termina; abriendo su progreso…"
+                  : "Cargando el informe…"}
+              </p>
+              {state.kind === "loading" && state.slow ? <WakingNotice /> : null}
+              <Skeleton className="h-8 w-2/3 rounded-control" />
+              <Skeleton className="h-32 w-full rounded-panel" />
+              <Skeleton className="h-24 w-full rounded-panel" />
+            </>
+          ) : null}
 
-      {state.kind === "in_progress" && !hasProgressPage ? (
-        <EmptyState
-          icon={Hourglass}
-          title="El análisis aún no termina"
-          description="El informe estará disponible cuando se complete."
-        >
-          {backLink}
-        </EmptyState>
-      ) : null}
+          {state.kind === "in_progress" && !hasProgressPage ? (
+            <EmptyState
+              icon={Hourglass}
+              title="El análisis aún no termina"
+              description="El informe estará disponible cuando se complete."
+            >
+              {backLink}
+            </EmptyState>
+          ) : null}
 
-      {state.kind === "error" ? (
-        <div role="alert">
-          <EmptyState icon={FileX} title="No se pudo abrir el informe" description={state.message}>
-            {backLink}
-          </EmptyState>
+          {state.kind === "error" ? (
+            <div role="alert">
+              <EmptyState
+                icon={FileX}
+                title="No se pudo abrir el informe"
+                description={state.message}
+              >
+                {backLink}
+              </EmptyState>
+            </div>
+          ) : null}
         </div>
-      ) : null}
-    </div>
+      )}
+    </OriginalPdfProvider>
   );
 }

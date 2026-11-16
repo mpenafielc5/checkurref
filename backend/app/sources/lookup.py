@@ -7,6 +7,10 @@
    una obra: el del número de una revista no tiene título ni autores.
 3. Sin DOI ni título: no se consulta.
 
+La búsqueda por título se detiene en la primera fuente que devuelve candidatos. Si
+ninguno es la obra con su título, el verificador pide `lookup_everywhere`: los
+candidatos de todas las fuentes juntos, porque la otra puede tener la obra.
+
 Solo se habla de "no encontrada" cuando todas las fuentes respondieron. Si
 alguna no respondió y la obra no apareció, el resultado es un error de consulta:
 no se sabe si existe, así que no se marca como No verificable.
@@ -69,8 +73,9 @@ class ReferenceLookup:
     def __init__(self, sources: list[BibliographicSource], cache: RecordCache) -> None:
         self._sources = sources  # en orden de preferencia: Crossref y luego OpenAlex
         self._cache = cache
-        # Las búsquedas sin DOI se recuerdan mientras vive el proceso (un lote repite obras).
-        self._searches: dict[tuple[str, str], tuple[SourceRecord, ...]] = {}
+        # Las búsquedas sin DOI se recuerdan, por fuente, mientras vive el proceso (un
+        # lote repite obras). La de una fuente que no respondió no se recuerda.
+        self._searches: dict[tuple[int, str, str], tuple[SourceRecord, ...]] = {}
 
     async def lookup(self, fields: ExtractedFields) -> LookupResult:
         doi = normalize_doi(fields.doi)
@@ -101,28 +106,45 @@ class ReferenceLookup:
                 return LookupResult(Strategy.DIRECT_DOI, (record,))
         return LookupResult(Strategy.DIRECT_DOI, (), query_failed=failed)
 
-    async def _search(self, title: str, author: str | None) -> LookupResult:
-        key = (" ".join(title.lower().split()), (author or "").lower())
-        if key in self._searches:
-            return LookupResult(Strategy.BIBLIOGRAPHIC_SEARCH, self._searches[key])
+    async def lookup_everywhere(self, fields: ExtractedFields) -> LookupResult:
+        """Busca por título en todas las fuentes y junta sus candidatos."""
+        if not fields.title:
+            return LookupResult(Strategy.NO_QUERY, ())
+        author = fields.authors[0].family if fields.authors else None
+        candidates: list[SourceRecord] = []
         failed = False
-        for source in self._sources:
-            try:
-                candidates = tuple(await source.search(title, author))
-            except QueryFailedError as error:
-                logger.warning("%s no respondió al buscar %r: %s", source.name, title, error)
-                failed = True
-                continue
+        for position in range(len(self._sources)):
+            found, source_failed = await self._search_in(position, fields.title, author)
+            candidates.extend(found)
+            failed = failed or source_failed
+        return LookupResult(Strategy.BIBLIOGRAPHIC_SEARCH, tuple(candidates), query_failed=failed)
+
+    async def _search(self, title: str, author: str | None) -> LookupResult:
+        failed = False
+        for position in range(len(self._sources)):
+            candidates, source_failed = await self._search_in(position, title, author)
+            failed = failed or source_failed
             if candidates:
-                # Si una fuente anterior falló, los candidatos pueden no ser la obra y
-                # la que no respondió quizá la tenía: no se recuerda la búsqueda.
-                if not failed:
-                    self._searches[key] = candidates
-                # Se guardan para que la verificación pueda enlazar el registro elegido.
-                await asyncio.to_thread(
-                    self._cache.put, [record for record in candidates if record.doi]
-                )
                 return LookupResult(Strategy.BIBLIOGRAPHIC_SEARCH, candidates, query_failed=failed)
-        if not failed:
-            self._searches[key] = ()
         return LookupResult(Strategy.BIBLIOGRAPHIC_SEARCH, (), query_failed=failed)
+
+    async def _search_in(
+        self, position: int, title: str, author: str | None
+    ) -> tuple[tuple[SourceRecord, ...], bool]:
+        """Candidatos de una fuente y si no respondió."""
+        key = (position, " ".join(title.lower().split()), (author or "").lower())
+        if key in self._searches:
+            return self._searches[key], False
+        source = self._sources[position]
+        try:
+            candidates = tuple(await source.search(title, author))
+        except QueryFailedError as error:
+            logger.warning("%s no respondió al buscar %r: %s", source.name, title, error)
+            return (), True
+        self._searches[key] = candidates
+        if candidates:
+            # Se guardan para que la verificación pueda enlazar el registro elegido.
+            await asyncio.to_thread(
+                self._cache.put, [record for record in candidates if record.doi]
+            )
+        return candidates, False

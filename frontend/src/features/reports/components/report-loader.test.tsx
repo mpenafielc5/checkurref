@@ -1,11 +1,14 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchReport } from "../api";
+import { fetchOriginalPdfUrl, fetchReport } from "../api";
 import { ReportLoader } from "./report-loader";
 
 const replace = vi.fn();
 
-vi.mock("../api", () => ({ fetchReport: vi.fn() }));
+vi.mock("../api", () => ({
+  fetchReport: vi.fn(),
+  fetchOriginalPdfUrl: vi.fn(() => Promise.resolve(null)),
+}));
 vi.mock("next/navigation", () => ({
   useParams: () => ({ analisisId: "a1" }),
   useRouter: () => ({ replace }),
@@ -17,6 +20,13 @@ describe("ReportLoader", () => {
   beforeEach(() => {
     replace.mockReset();
     fetchMock.mockReset();
+  });
+
+  it("pide el enlace al PDF original a la vez que el informe, sin esperarlo", () => {
+    fetchMock.mockReturnValue(new Promise(() => undefined));
+    render(<ReportLoader listHref="/estudiante/trabajos" />);
+
+    expect(vi.mocked(fetchOriginalPdfUrl)).toHaveBeenCalledWith("a1");
   });
 
   it("un análisis en curso lleva solo a su progreso, sin aviso ni botón", async () => {

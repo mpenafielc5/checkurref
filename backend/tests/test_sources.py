@@ -144,6 +144,27 @@ def test_crossref_usa_los_editores_de_una_obra_sin_autores() -> None:
     assert record_from(chapter).authors == ()
 
 
+def test_crossref_descarta_afiliaciones_registradas_como_autores() -> None:
+    # Caso real (datos cambiados): la editorial cargó la afiliación de cada autor como
+    # otro autor, solo con nombre.
+    affiliation = {"name": "MS in Information Systems, Universidad del Norte, Quito, Ecuador"}
+    item = {
+        "DOI": "10.5555/afiliaciones",
+        "type": "journal-article",
+        "author": [
+            affiliation,
+            {"family": "Vera", "given": "Ana"},
+            {"family": "Mora", "given": "Luis"},
+            affiliation,
+            {"name": "Grupo UNEMI"},
+        ],
+    }
+    only_groups = {**item, "author": [affiliation]}
+
+    assert [a.family for a in record_from(item).authors] == ["Vera", "Mora", "Grupo UNEMI"]
+    assert len(record_from(only_groups).authors) == 1
+
+
 def test_crossref_busca_por_titulo_y_autor() -> None:
     seen: list[httpx.Request] = []
 
@@ -377,7 +398,22 @@ def test_candidatos_de_otra_fuente_tras_un_fallo_avisan_el_error_de_consulta() -
 
     assert first.candidates == (work(Source.OPENALEX),)
     assert first.query_failed is True  # quizá Crossref tenía la obra
-    assert len(openalex.calls) == 2  # una búsqueda con fallo no se recuerda
+    # Se recuerda por fuente: la que falló se vuelve a consultar; la otra, no.
+    assert (len(crossref.calls), len(openalex.calls)) == (2, 1)
+
+
+def test_buscar_en_todas_las_fuentes_junta_sus_candidatos_y_recuerda_cada_una() -> None:
+    crossref = FakeSource(Source.CROSSREF, found=[work(Source.CROSSREF, doi="10.5555/a")])
+    openalex = FakeSource(Source.OPENALEX, found=[work(Source.OPENALEX, doi="10.5555/b")])
+    sources = lookup(crossref, openalex)
+    without_doi = ExtractedFields(authors=REFERENCE.authors, title=REFERENCE.title)
+
+    first = asyncio.run(sources.lookup(without_doi))
+    everywhere = asyncio.run(sources.lookup_everywhere(without_doi))
+
+    assert [record.doi for record in first.candidates] == ["10.5555/a"]
+    assert [record.doi for record in everywhere.candidates] == ["10.5555/a", "10.5555/b"]
+    assert (len(crossref.calls), len(openalex.calls)) == (1, 1)  # Crossref no se repite
 
 
 def test_doi_que_nadie_tiene_se_intenta_por_titulo_y_autor() -> None:

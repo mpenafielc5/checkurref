@@ -55,6 +55,9 @@ class FakeLookup:
         self.calls += 1
         return self.result
 
+    async def lookup_everywhere(self, fields: ExtractedFields) -> LookupResult:
+        return self.result
+
 
 # --- Medidas --------------------------------------------------------------------------------
 

@@ -80,15 +80,6 @@ export function BatchUploadProgress({
             {batch.period ? ` · ${batch.period}` : ""}
           </p>
         </div>
-        {/* Salir de la pantalla mientras se envía dejaría archivos sin subir. */}
-        {sending ? null : (
-          <Link
-            href={`/docente/lotes/${batch.id}`}
-            className="text-small font-medium text-accent-text hover:underline"
-          >
-            Ir al tablero del lote →
-          </Link>
-        )}
       </div>
 
       <div aria-live="polite" className="flex flex-col gap-2">
@@ -128,18 +119,25 @@ export function BatchUploadProgress({
         })}
       </ul>
 
-      {failed > 0 && !sending ? (
-        <div className="flex">
-          <button
-            type="button"
-            onClick={onRetry}
-            className={buttonStyles({ variant: "secondary" })}
-          >
-            Reintentar{" "}
-            {failed === 1 ? "el archivo no enviado" : `los ${failed} archivos no enviados`}
-          </button>
+      {/* La salida aparece al terminar el envío (salir antes dejaría archivos sin subir),
+          al final de la lista: se sale después de leer el resultado de cada archivo. */}
+      {sending ? null : (
+        <div className="flex flex-col gap-3 md:flex-row md:justify-end">
+          {failed > 0 ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className={buttonStyles({ variant: "secondary" })}
+            >
+              Reintentar{" "}
+              {failed === 1 ? "el archivo no enviado" : `los ${failed} archivos no enviados`}
+            </button>
+          ) : null}
+          <Link href={`/docente/lotes/${batch.id}`} className={buttonStyles()}>
+            Ir al tablero del lote
+          </Link>
         </div>
-      ) : null}
+      )}
     </section>
   );
 }

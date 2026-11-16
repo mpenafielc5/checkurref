@@ -15,6 +15,7 @@ from app.api.routes.analyses import get_report_service
 from app.extraction.base import Author, ExtractedFields
 from app.main import create_app
 from app.reports.highlight import highlight
+from app.repositories.pdf_storage import SupabasePdfStorage
 from app.repositories.reports import (
     AnalysisPage,
     AnalysisRecord,
@@ -26,6 +27,7 @@ from app.repositories.reports import (
 )
 from app.repositories.supabase_http import SupabaseUnavailableError
 from app.services.report_service import (
+    ORIGINAL_PDF_SECONDS,
     AnalysisNotFinishedError,
     AnalysisNotFoundError,
     ReportService,
@@ -574,3 +576,73 @@ def test_ruta_del_historial_pasa_la_busqueda(
     get(client, "/analisis?pagina=2&buscar=avance")
 
     assert reports.listed == [(OWNER, 20, 20, "avance")]
+
+
+# --- PDF original -----------------------------------------------------------------------------
+
+STORAGE_URL = "https://proyecto.supabase.co/storage/v1"
+
+
+class FakeStorage:
+    def __init__(self) -> None:
+        self.signed: list[tuple[str, int]] = []
+
+    def signed_url(self, path: str, seconds: int) -> str:
+        self.signed.append((path, seconds))
+        return f"{STORAGE_URL}/object/sign/documentos/{path}?token=t"
+
+
+def with_pdf(owner: UUID = OWNER) -> AnalysisRecord:
+    return replace(analysis(owner=owner), storage_path=f"{owner}/documento.pdf")
+
+
+def test_el_dueno_recibe_un_enlace_temporal_a_su_pdf() -> None:
+    storage = FakeStorage()
+    service = ReportService(FakeReports(with_pdf()), storage)
+
+    pdf = service.original_pdf(OWNER, ANALYSIS_ID)
+
+    assert storage.signed == [(f"{OWNER}/documento.pdf", ORIGINAL_PDF_SECONDS)]
+    assert pdf.url.startswith(f"{STORAGE_URL}/object/sign/")
+    assert pdf.expires_in == ORIGINAL_PDF_SECONDS
+
+
+@pytest.mark.parametrize(
+    "record", [None, with_pdf(owner=uuid4()), analysis()], ids=["no existe", "ajeno", "sin ruta"]
+)
+def test_sin_enlace_al_pdf_ajeno_o_sin_archivo(record: AnalysisRecord | None) -> None:
+    storage = FakeStorage()
+    service = ReportService(FakeReports(record), storage)
+
+    with pytest.raises(AnalysisNotFoundError):
+        service.original_pdf(OWNER, ANALYSIS_ID)
+    assert storage.signed == []
+
+
+def test_storage_firma_el_enlace_del_pdf() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"signedURL": "/object/sign/documentos/u/d.pdf?token=t"})
+
+    storage = SupabasePdfStorage(
+        STORAGE_URL, "documentos", httpx.Client(transport=httpx.MockTransport(handler))
+    )
+
+    url = storage.signed_url("u/d.pdf", 3600)
+
+    assert str(seen[0].url) == f"{STORAGE_URL}/object/sign/documentos/u/d.pdf"
+    assert json.loads(seen[0].content) == {"expiresIn": 3600}
+    assert url == f"{STORAGE_URL}/object/sign/documentos/u/d.pdf?token=t"
+
+
+def test_ruta_del_pdf_original(client: TestClient, services: dict[str, ReportService]) -> None:
+    services["actual"] = ReportService(FakeReports(with_pdf()), FakeStorage())
+
+    response = get(client, f"/analisis/{ANALYSIS_ID}/pdf")
+
+    assert response.status_code == 200
+    assert response.json()["expires_in"] == ORIGINAL_PDF_SECONDS
+    services["actual"] = ReportService(FakeReports(with_pdf(owner=uuid4())), FakeStorage())
+    assert get(client, f"/analisis/{ANALYSIS_ID}/pdf").status_code == 404

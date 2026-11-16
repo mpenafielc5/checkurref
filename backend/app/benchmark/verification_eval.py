@@ -45,6 +45,8 @@ GRID = tuple(round(0.30 + 0.05 * step, 2) for step in range(14))
 class Lookup(Protocol):
     async def lookup(self, fields: ExtractedFields) -> LookupResult: ...
 
+    async def lookup_everywhere(self, fields: ExtractedFields) -> LookupResult: ...
+
 
 @dataclass(frozen=True)
 class Case:
@@ -221,6 +223,16 @@ class RecordingLookup:
         if stored is not None and _still_valid(stored):
             return stored
         result = await self._inner.lookup(fields)
+        if not result.query_failed:
+            self.store[key] = result
+        return result
+
+    async def lookup_everywhere(self, fields: ExtractedFields) -> LookupResult:
+        key = f"todas las fuentes: {fields!r}"
+        stored = self.store.get(key)
+        if stored is not None:
+            return stored
+        result = await self._inner.lookup_everywhere(fields)
         if not result.query_failed:
             self.store[key] = result
         return result

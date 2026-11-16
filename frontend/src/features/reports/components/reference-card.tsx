@@ -11,6 +11,7 @@ import type {
   ReferenceResult,
 } from "../types";
 import { CorrectedReferencePanel } from "./corrected-reference";
+import { PageLink } from "./original-pdf";
 import { cardStyles } from "@/shared/components/ui/card-styles";
 
 /** Color de cada campo extraído en el texto original (maqueta 12). */
@@ -139,9 +140,7 @@ export function ReferenceCard({ reference }: { reference: ReferenceResult }) {
           </span>
           <span className="hidden flex-1 group-open:block" />
           <span className="hidden text-small group-open:inline">
-            {reference.page !== null ? (
-              <span className="text-accent-text underline">Página {reference.page}</span>
-            ) : null}
+            {reference.page !== null ? <PageLink page={reference.page} /> : null}
             {reference.page !== null && reference.formatFindings.length > 0 ? " · " : null}
             {reference.formatFindings.length > 0
               ? findingsLabel(reference.formatFindings.length)
