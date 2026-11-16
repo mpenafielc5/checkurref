@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBatch, fetchBatchProgress, submitBatchWork } from "../api";
 import type { BatchDetail } from "../types";
+import { MAX_FILES_PER_BATCH } from "@/shared/lib/pdf-rules";
 import { AddWorksForm } from "./add-works-form";
 
 const push = vi.fn();
@@ -64,7 +65,7 @@ describe("AddWorksForm", () => {
     submitMock.mockResolvedValue({ kind: "created", analysisId: "a9" });
     render(<AddWorksForm batch={batchWith(2)} />);
 
-    expect(screen.getByText(/Hasta 38 PDF más en este lote/)).toBeTruthy();
+    expect(screen.getByText(/Hasta 48 PDF más en este lote/)).toBeTruthy();
     choose([pdf("Olvidado.pdf")]);
     fireEvent.click(screen.getByRole("button", { name: "Agregar al lote (1 archivo)" }));
 
@@ -88,7 +89,7 @@ describe("AddWorksForm", () => {
   });
 
   it("no acepta más archivos de los que caben en el lote", () => {
-    render(<AddWorksForm batch={batchWith(39)} />);
+    render(<AddWorksForm batch={batchWith(MAX_FILES_PER_BATCH - 1)} />);
 
     choose([pdf("Uno.pdf"), pdf("Dos.pdf")]);
 
@@ -97,9 +98,13 @@ describe("AddWorksForm", () => {
   });
 
   it("con el lote lleno lo explica en lugar de mostrar la subida", () => {
-    render(<AddWorksForm batch={batchWith(40)} />);
+    render(<AddWorksForm batch={batchWith(MAX_FILES_PER_BATCH)} />);
 
-    expect(screen.getByText(/El lote está completo: tiene 40 trabajos/)).toBeTruthy();
+    expect(
+      screen.getByText(`El lote está completo: tiene ${MAX_FILES_PER_BATCH} trabajos`, {
+        exact: false,
+      }),
+    ).toBeTruthy();
     expect(document.querySelector('input[type="file"]')).toBeNull();
   });
 });

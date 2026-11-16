@@ -221,7 +221,11 @@ def truthfulness_index(verdicts: Iterable[Verdict | None]) -> float | None:
 
 # Cortes del nivel del índice de veracidad (RF20-CA02). El riesgo de un trabajo en un
 # lote es su inverso: índice bajo, riesgo alto. Están solo aquí; el frontend recibe el
-# nivel ya calculado.
+# nivel ya calculado. Base: en la literatura publicada el 32,7 % de las referencias
+# tiene algún error (Logan et al., 2024, doi:10.1177/09610006231177715), y en listas
+# de ChatGPT sin revisar solo son reales y correctas entre el 26 y el 62 % (Walters y
+# Wilder, 2023, doi:10.1038/s41598-023-41032-5). Alto: menos de la mitad de ese 32,7 %
+# con problemas; bajo: más del 40 %, al nivel de una lista generada sin revisar.
 LOW_INDEX_BELOW = 60.0
 HIGH_INDEX_FROM = 85.0
 

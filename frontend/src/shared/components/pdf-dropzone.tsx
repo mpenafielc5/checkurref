@@ -47,7 +47,7 @@ function keyOf(file: File): string {
  *   principal. Para reemplazarlo: quitarlo o soltar otro encima.
  * - Varios (docente): una lista limpia con una ✕ por archivo; los inválidos
  *   se muestran en rojo con su motivo y no se envían. "Agregar más" suma
- *   archivos sin perder los anteriores, hasta 40.
+ *   archivos sin perder los anteriores, hasta MAX_FILES_PER_BATCH.
  */
 export function PdfDropzone({
   multiple = false,
