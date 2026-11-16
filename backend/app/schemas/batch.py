@@ -70,7 +70,7 @@ class BatchWork(BaseModel):
 
 
 class BatchDetail(BatchSummary):
-    """El tablero completo: el navegador ordena y pagina, porque un lote tiene 40 trabajos."""
+    """El tablero completo: el navegador ordena y pagina, porque un lote tiene hasta 50 trabajos."""
 
     references: int
     counts: VerdictCounts

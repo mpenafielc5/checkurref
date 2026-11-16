@@ -1,7 +1,8 @@
 /** Reglas de los archivos que se pueden subir (las mismas que aplica Storage). */
 
 export const MAX_PDF_BYTES = 10 * 1024 * 1024;
-export const MAX_FILES_PER_BATCH = 40;
+/** HU-08 CA02: el mismo tope que el backend (MAX_WORKS_PER_BATCH). */
+export const MAX_FILES_PER_BATCH = 50;
 
 type FileLike = { name: string; type: string; size: number };
 

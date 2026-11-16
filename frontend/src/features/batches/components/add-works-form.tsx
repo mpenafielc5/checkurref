@@ -21,7 +21,7 @@ function filesLabel(count: number): string {
 
 /**
  * Agrega PDF a un lote que ya existe (por ejemplo, un trabajo olvidado), con la
- * misma subida y el mismo avance que al crear el lote. El lote admite 40 trabajos.
+ * misma subida y el mismo avance que al crear el lote. El lote admite hasta MAX_FILES_PER_BATCH trabajos.
  */
 export function AddWorksForm({ batch }: { batch: BatchDetail }) {
   const { uploads, sending, slow, addTo, retry, reset, batch: uploading } = useBatchUpload();

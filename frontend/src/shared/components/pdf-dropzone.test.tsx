@@ -60,7 +60,7 @@ describe("PdfDropzone de varios archivos (lote)", () => {
 
   it("lista los archivos, marca los inválidos y solo envía los válidos", () => {
     const onChange = vi.fn();
-    render(<PdfDropzone multiple title="Arrastra aquí" hint="hasta 40" onChange={onChange} />);
+    render(<PdfDropzone multiple title="Arrastra aquí" hint="hasta 50" onChange={onChange} />);
 
     chooseMany([PDF, new File(["hola"], "notas.txt", { type: "text/plain" })]);
 
@@ -71,7 +71,7 @@ describe("PdfDropzone de varios archivos (lote)", () => {
 
   it("agregar más suma archivos sin repetir los que ya estaban", () => {
     const onChange = vi.fn();
-    render(<PdfDropzone multiple title="Arrastra aquí" hint="hasta 40" onChange={onChange} />);
+    render(<PdfDropzone multiple title="Arrastra aquí" hint="hasta 50" onChange={onChange} />);
 
     chooseMany([PDF]);
     chooseMany([PDF, OTRO]);
@@ -94,7 +94,7 @@ describe("PdfDropzone de varios archivos (lote)", () => {
 
   it("la ✕ quita solo ese archivo del lote", () => {
     const onChange = vi.fn();
-    render(<PdfDropzone multiple title="Arrastra aquí" hint="hasta 40" onChange={onChange} />);
+    render(<PdfDropzone multiple title="Arrastra aquí" hint="hasta 50" onChange={onChange} />);
 
     chooseMany([PDF, OTRO]);
     fireEvent.click(screen.getByRole("button", { name: "Quitar Trabajo_final.pdf" }));

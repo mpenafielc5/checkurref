@@ -34,7 +34,10 @@ from app.services.upload_service import UploadRejectedError, UploadResult, Uploa
 from app.verification.decision import IndexLevel, index_level
 
 BATCHES_PAGE_SIZE = 20
-MAX_WORKS_PER_BATCH = 40  # HU-08 CA02
+# HU-08 CA02: un lote es un curso. Reglamento de la UNEMI para modalidades en línea,
+# a distancia y semipresencial (2019), art. 43: hasta 50 estudiantes por tutor en cada
+# aula virtual. El frontend repite el valor en MAX_FILES_PER_BATCH.
+MAX_WORKS_PER_BATCH = 50
 COMPLETED = "completado"
 FAILED = "error"
 CONTRADICTION = "contradiccion"

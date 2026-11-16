@@ -296,12 +296,12 @@ def test_un_archivo_invalido_se_rechaza_con_su_motivo() -> None:
     assert documents.created == []
 
 
-def test_el_lote_admite_hasta_40_trabajos() -> None:
+def test_el_lote_admite_hasta_50_trabajos() -> None:
     service, batches, documents = batch_service(FakeBatches(count=MAX_WORKS_PER_BATCH - 1))
 
     service.submit_work(TEACHER, BATCH_ID, "ultimo.pdf", PDF)
     batches.total_works = MAX_WORKS_PER_BATCH
-    with pytest.raises(UploadRejectedError, match="máximo de 40"):
+    with pytest.raises(UploadRejectedError, match="máximo de 50"):
         service.submit_work(TEACHER, BATCH_ID, "otro.pdf", PDF)
 
     assert len(documents.created) == 1

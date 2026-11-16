@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { PdfDropzone, type RejectedPdf } from "@/shared/components/pdf-dropzone";
+import { MAX_FILES_PER_BATCH } from "@/shared/lib/pdf-rules";
 import { buttonStyles } from "@/shared/components/ui/button-styles";
 import { MAX_NAME_LENGTH, MAX_PERIOD_LENGTH } from "../rules";
 import { useBatchUpload } from "../use-batch-upload";
@@ -109,7 +110,7 @@ export function NewBatchForm() {
         key={dropzoneKey}
         multiple
         title="Arrastra aquí los PDF del curso"
-        hint="Hasta 40 archivos de 10 MB cada uno · APA o IEEE (detección automática)"
+        hint={`Hasta ${MAX_FILES_PER_BATCH} archivos de 10 MB cada uno · APA o IEEE (detección automática)`}
         disabled={creating}
         onChange={setFiles}
         onRejected={setRejected}
