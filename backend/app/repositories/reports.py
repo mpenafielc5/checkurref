@@ -52,6 +52,7 @@ class AnalysisRecord:
     total_references: int | None
     index: float | None
     error_message: str | None
+    storage_path: str | None = None  # ruta del PDF original en Storage
 
 
 @dataclass(frozen=True)
@@ -128,7 +129,9 @@ class SupabaseReportRepository:
             "GET",
             f"{self._rest_url}/t_analisis",
             params={
-                "select": f"{ANALYSIS_COLUMNS},t_documentos(propietario_id,nombre_archivo)",
+                "select": (
+                    f"{ANALYSIS_COLUMNS},t_documentos(propietario_id,nombre_archivo,ruta_storage)"
+                ),
                 "id": f"eq.{analysis_id}",
             },
         )
@@ -188,6 +191,7 @@ def _analysis(row: dict[str, Any]) -> AnalysisRecord:
         total_references=row.get("total_referencias"),
         index=_number(row.get("indice_veracidad")),
         error_message=row.get("mensaje_error"),
+        storage_path=document.get("ruta_storage"),
     )
 
 

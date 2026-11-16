@@ -1,6 +1,10 @@
 """Verifica una referencia: la busca en las fuentes y decide su veredicto (T13).
 
-Une la búsqueda (app/sources) con el motor de decisión. Si la búsqueda por
+Une la búsqueda (app/sources) con el motor de decisión. La búsqueda por título
+se detiene en la primera fuente con candidatos; si entre ellos no está la obra con
+su título (no la hay, o solo una de título parecido), se buscan los candidatos de
+todas las fuentes: un mismo grupo de autores publica obras de títulos parecidos, y
+la otra fuente puede tener la citada. Si la búsqueda por
 título encuentra la obra con otro año, se vuelve a pedir por DOI: la búsqueda de
 Crossref solo trae el año de la publicación en línea, y la referencia puede citar
 con razón el del número impreso de la revista (SourceRecord.other_years).
@@ -23,6 +27,8 @@ from app.verification.decision import (
 class Lookup(Protocol):
     async def lookup(self, fields: ExtractedFields) -> LookupResult: ...
 
+    async def lookup_everywhere(self, fields: ExtractedFields) -> LookupResult: ...
+
 
 class ReferenceVerifier:
     def __init__(self, lookup: Lookup, nli: NliScorer, thresholds: Thresholds = THRESHOLDS) -> None:
@@ -35,6 +41,11 @@ class ReferenceVerifier:
         fields = fields or ExtractedFields()
         result = await self._lookup.lookup(fields)
         verification = decide(text, fields, result, self._nli, self._thresholds)
+        if _title_not_found(result, verification):
+            wider = await self._lookup.lookup_everywhere(fields)
+            if len(wider.candidates) > len(result.candidates):
+                result = wider
+                verification = decide(text, fields, result, self._nli, self._thresholds)
         doi = _doi_to_complete(verification)
         if not doi:
             return verification
@@ -43,6 +54,15 @@ class ReferenceVerifier:
             return verification
         retry = LookupResult(result.strategy, complete.candidates)
         return decide(text, fields, retry, self._nli, self._thresholds)
+
+
+def _title_not_found(result: LookupResult, verification: Verification) -> bool:
+    """La búsqueda por título no halló la obra con su título: no la halló, o la que
+    halló solo tiene un título parecido."""
+    if result.strategy is not Strategy.BIBLIOGRAPHIC_SEARCH:
+        return False
+    title = verification.check(CheckedField.TITLE)
+    return verification.record is None or title is None or not title.matches
 
 
 def _doi_to_complete(verification: Verification) -> str | None:

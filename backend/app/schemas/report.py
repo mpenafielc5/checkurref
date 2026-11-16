@@ -140,3 +140,10 @@ class ReportResponse(BaseModel):
     # Campos que más difieren del registro, de mayor a menor (HU-06 CA01).
     most_different_fields: list[FieldDifference]
     references: list[ReferenceReport]
+
+
+class OriginalPdfResponse(BaseModel):
+    """Enlace temporal al PDF que subió el usuario, para revisarlo junto al informe."""
+
+    url: str
+    expires_in: int  # segundos que sirve el enlace

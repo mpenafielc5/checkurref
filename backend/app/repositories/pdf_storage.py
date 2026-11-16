@@ -16,6 +16,10 @@ class PdfStorage(Protocol):
 
     def delete(self, path: str) -> None: ...
 
+    def signed_url(self, path: str, seconds: int) -> str:
+        """Enlace para ver el PDF que deja de servir a los `seconds` segundos."""
+        ...
+
     def remove(self, paths: Sequence[str]) -> None:
         """Borra los PDF y avisa si no se pudo; si alguno ya no existe, no es un error."""
         ...
@@ -23,6 +27,8 @@ class PdfStorage(Protocol):
 
 class SupabasePdfStorage:
     def __init__(self, storage_url: str, bucket: str, client: httpx.Client) -> None:
+        self._storage_url = storage_url
+        self._bucket = bucket
         self._objects_url = f"{storage_url}/object/{bucket}"
         self._client = client
 
@@ -56,6 +62,17 @@ class SupabasePdfStorage:
         except httpx.HTTPError as error:
             raise SupabaseUnavailableError(str(error)) from error
         ensure_ok(response)
+
+    def signed_url(self, path: str, seconds: int) -> str:
+        try:
+            response = self._client.post(
+                f"{self._storage_url}/object/sign/{self._bucket}/{path}",
+                json={"expiresIn": seconds},
+            )
+        except httpx.HTTPError as error:
+            raise SupabaseUnavailableError(str(error)) from error
+        # Storage responde la ruta firmada relativa a su dirección: /object/sign/…
+        return f"{self._storage_url}{ensure_ok(response).json()['signedURL']}"
 
     def delete(self, path: str) -> None:
         # Se usa solo para limpiar tras otro error; ese error es el que se informa.

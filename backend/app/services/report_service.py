@@ -11,6 +11,7 @@ from collections import Counter
 from uuid import UUID
 
 from app.reports.highlight import highlight
+from app.repositories.pdf_storage import PdfStorage
 from app.repositories.reports import (
     AnalysisRecord,
     ReportRepository,
@@ -27,6 +28,7 @@ from app.schemas.report import (
     Finding,
     HistoryPage,
     NliResult,
+    OriginalPdfResponse,
     ReferenceReport,
     ReportResponse,
     TextSegment,
@@ -62,9 +64,15 @@ class AnalysisNotFinishedError(Exception):
         self.status = status
 
 
+# Lo que sirve el enlace al PDF original: alcanza para revisarlo con el informe abierto,
+# y si alguien lo copia, deja de funcionar pronto.
+ORIGINAL_PDF_SECONDS = 3600
+
+
 class ReportService:
-    def __init__(self, reports: ReportRepository) -> None:
+    def __init__(self, reports: ReportRepository, storage: PdfStorage | None = None) -> None:
         self._reports = reports
+        self._storage = storage
 
     def history(self, owner_id: UUID, page: int, search: str = "") -> HistoryPage:
         page = max(page, 1)
@@ -106,6 +114,15 @@ class ReportService:
             most_different_fields=_most_different(references),
             references=references,
         )
+
+    def original_pdf(self, owner_id: UUID, analysis_id: UUID) -> OriginalPdfResponse:
+        """Enlace temporal al PDF del trabajo, con la misma regla que el informe: solo
+        para su dueño (el estudiante, o el docente que lo subió en un lote)."""
+        analysis = self._owned(owner_id, analysis_id)
+        if self._storage is None or not analysis.storage_path:
+            raise AnalysisNotFoundError(str(analysis_id))
+        url = self._storage.signed_url(analysis.storage_path, ORIGINAL_PDF_SECONDS)
+        return OriginalPdfResponse(url=url, expires_in=ORIGINAL_PDF_SECONDS)
 
     def _owned(self, owner_id: UUID, analysis_id: UUID) -> AnalysisRecord:
         analysis = self._reports.get_analysis(analysis_id)

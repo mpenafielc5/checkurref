@@ -723,6 +723,10 @@ class FakeLookup:
         self.calls.append(key)
         return self.results[key]
 
+    async def lookup_everywhere(self, fields: ExtractedFields) -> LookupResult:
+        self.calls.append("todas")
+        return self.results.get("todas", self.results[None])
+
 
 def test_vuelve_a_pedir_por_doi_si_la_busqueda_trae_otro_anio() -> None:
     from_search = replace(RECORD, year=2021, other_years=())  # la búsqueda no trae el impreso
@@ -734,6 +738,27 @@ def test_vuelve_a_pedir_por_doi_si_la_busqueda_trae_otro_anio() -> None:
     assert verification.verdict is Verdict.VERIFIED
     assert verification.strategy is Strategy.BIBLIOGRAPHIC_SEARCH
     assert lookup.calls == [None, DOI]
+
+
+def test_si_solo_hay_un_titulo_parecido_busca_en_todas_las_fuentes() -> None:
+    # Caso real (datos cambiados): Crossref trae otra obra de los mismos autores, con un
+    # título parecido; OpenAlex tiene la citada, con su título y otro año.
+    other_work = replace(RECORD, doi="10.5555/otra", title="Redes neuronales para la educación")
+    cited = replace(RECORD, doi="10.5555/citada", year=2022, other_years=())
+    lookup = FakeLookup(
+        {
+            None: by_search(other_work),
+            "todas": by_search(other_work, cited),
+            "10.5555/citada": by_doi(cited),  # con otro año, se vuelve a pedir por DOI
+        }
+    )
+    verifier = ReferenceVerifier(lookup, FixedNli(ENTAILS))
+
+    verification = asyncio.run(verifier.verify(TEXT, WITHOUT_DOI))
+
+    assert verification.record is not None and verification.record.doi == "10.5555/citada"
+    assert [check.field for check in verification.mismatches] == [CheckedField.YEAR]
+    assert lookup.calls[:2] == [None, "todas"]
 
 
 def test_con_el_anio_correcto_no_vuelve_a_consultar() -> None:

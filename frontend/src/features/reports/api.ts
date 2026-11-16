@@ -21,6 +21,16 @@ function textIn(body: unknown, key: string): string | null {
 }
 
 /**
+ * Enlace temporal al PDF que se subió, para revisarlo junto al informe. El backend
+ * lo da solo al dueño del trabajo; null si no se pudo obtener.
+ */
+export async function fetchOriginalPdfUrl(analysisId: string): Promise<string | null> {
+  const response = await apiGet(`/analisis/${encodeURIComponent(analysisId)}/pdf`);
+  if (response.kind !== "response" || response.status !== 200) return null;
+  return textIn(response.body, "url");
+}
+
+/**
  * Informe completo de un análisis (HU-06). Si todavía no hay informe (409), se
  * consulta el estado para distinguir un análisis en curso de uno con error.
  */

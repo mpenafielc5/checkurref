@@ -14,7 +14,7 @@ from app.repositories.pdf_storage import SupabasePdfStorage
 from app.repositories.reports import SupabaseReportRepository
 from app.repositories.supabase_http import SupabaseUnavailableError, shared_client
 from app.schemas.analysis import AnalysisSubmittedResponse
-from app.schemas.report import AnalysisItem, HistoryPage, ReportResponse
+from app.schemas.report import AnalysisItem, HistoryPage, OriginalPdfResponse, ReportResponse
 from app.services.report_service import (
     AnalysisNotFinishedError,
     AnalysisNotFoundError,
@@ -82,7 +82,10 @@ def submit_analysis(
 def get_report_service(settings: Annotated[Settings, Depends(get_settings)]) -> ReportService:
     require_supabase(settings)
     client = shared_client(settings.supabase_service_role_key)
-    return ReportService(SupabaseReportRepository(settings.supabase_rest_url, client))
+    return ReportService(
+        SupabaseReportRepository(settings.supabase_rest_url, client),
+        SupabasePdfStorage(settings.supabase_storage_url, settings.storage_bucket, client),
+    )
 
 
 @router.get("/analisis", response_model=HistoryPage)
@@ -139,6 +142,25 @@ def get_report(
     except AnalysisNotFinishedError as error:
         detail = NOT_FINISHED.get(error.status, IN_PROGRESS)
         raise HTTPException(status.HTTP_409_CONFLICT, detail=detail) from None
+    except SupabaseUnavailableError:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=UNAVAILABLE) from None
+
+
+@router.get(
+    "/analisis/{analysis_id}/pdf",
+    response_model=OriginalPdfResponse,
+    responses={404: {"description": NOT_FOUND}},
+)
+def get_original_pdf(
+    analysis_id: UUID,
+    user: ActiveUser,
+    service: Annotated[ReportService, Depends(get_report_service)],
+) -> OriginalPdfResponse:
+    """Enlace temporal al PDF original, para revisarlo junto al informe."""
+    try:
+        return service.original_pdf(user.id, analysis_id)
+    except AnalysisNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=NOT_FOUND) from None
     except SupabaseUnavailableError:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=UNAVAILABLE) from None
 
