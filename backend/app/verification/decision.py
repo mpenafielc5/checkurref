@@ -21,7 +21,7 @@ Veredictos (RF12-CA02):
   otra), y con los autores iguales también (el título pudo citarse traducido).
 - Sin respaldo: la búsqueda terminó sin encontrar la obra.
 - No verificable: faltan datos para buscarla, o no se encontró y es un tipo de
-  obra que las fuentes no cubren (leyes, tesis, páginas web).
+  obra que las fuentes no cubren (leyes, tesis, normas técnicas, páginas web).
 
 Un error de consulta no tiene veredicto (None): no se sabe si la obra existe, así
 que no cuenta como No verificable ni entra en el índice (RNF10).
@@ -156,7 +156,7 @@ def decide(
         return Verification(Verdict.NOT_VERIFIABLE, strategy)
     uncovered = is_uncovered_work(text, fields)
     assessments = [
-        _assess(fields, record, strategy, nli, thresholds, uncovered)
+        _assess(text, fields, record, strategy, nli, thresholds, uncovered)
         for record in result.candidates
     ]
     best = max(assessments, key=_Assessment.rank, default=None)
@@ -283,6 +283,7 @@ class _Evidence:
 
 
 def _assess(
+    text: str,
     fields: ExtractedFields,
     record: SourceRecord,
     strategy: Strategy,
@@ -290,8 +291,10 @@ def _assess(
     thresholds: Thresholds,
     uncovered_work: bool,
 ) -> _Assessment:
-    fields = article_number_as_pages(rejoin_subtitle(fields, record), record)
-    checks = _compare(fields, record, strategy, thresholds)
+    fields = article_number_as_pages(
+        rejoin_subtitle(split_labeled_article_number(fields), record), record
+    )
+    checks = _compare(fields, record, strategy, thresholds, text)
     nli_checks = _infer(fields, record, nli)
     by_field = {check.field: check for check in checks}
     title_nli = next((c.scores for c in nli_checks if c.field is CheckedField.TITLE), None)
@@ -371,6 +374,65 @@ def _search_found_the_work(evidence: _Evidence, thresholds: Thresholds) -> bool:
     return authors.matches or evidence.nli_confirms_title
 
 
+# Número de artículo con su palabra: "Artículo 66", "Article e289", "Art. no. 061103".
+ARTICLE_LABEL = r"(?:art[ií]culo|article|art\.)\s*(?:n[oº°]\.?\s*)?"
+LABELED_ARTICLE = re.compile(rf"\b{ARTICLE_LABEL}(\w+)", re.IGNORECASE)
+VOLUME_AND_ARTICLE = re.compile(rf"^(\w+),?\s*{ARTICLE_LABEL}(\w+)$", re.IGNORECASE)
+# Preprint de arXiv: su número empieza con el año y el mes del envío (2405 = mayo de 2024).
+ARXIV_DOI = re.compile(r"^10\.48550/arxiv\.(\d{2})(\d{2})\.", re.IGNORECASE)
+# Edición posterior a la primera, como la escribe APA: "(4.ª ed.)", "(2nd ed.)", "(3a ed.)".
+LATER_EDITION = re.compile(
+    r"\(\s*([2-9]|\d{2})\s*(?:\.?\s*[ªºa°]|nd|rd|th|st)?\.?\s*(?:ed\.?|edici[oó]n|edition)\s*\)",
+    re.IGNORECASE,
+)
+BOOK_TYPES = {"book", "monograph", "edited-book", "reference-book"}
+
+
+def labeled_article_number(text: str, pages: str) -> bool:
+    """Las páginas citadas son un número de artículo con su palabra en la referencia."""
+    value = pages.strip().casefold()
+    return any(match.group(1).casefold() == value for match in LABELED_ARTICLE.finditer(text))
+
+
+def split_labeled_article_number(fields: ExtractedFields) -> ExtractedFields:
+    """Separa el número de artículo que el extractor dejó con el volumen:
+    "183, Artículo 111110" -> volumen "183" y páginas "111110"."""
+    match = VOLUME_AND_ARTICLE.match(fields.volume or "")
+    if not match or fields.pages:
+        return fields
+    return replace(fields, volume=match.group(1), pages=match.group(2))
+
+
+def arxiv_year(doi: str | None) -> int | None:
+    """Año del primer envío de un preprint de arXiv, según su número; None si no lo es.
+    Es el año que DataCite registra para ese DOI."""
+    match = ARXIV_DOI.match(normalize_doi(doi) or "")
+    return 2000 + int(match.group(1)) if match else None
+
+
+def expected_year(fields: ExtractedFields, record: SourceRecord) -> int | None:
+    """El año de la obra citada. Si se citó el preprint de arXiv, el de su envío: OpenAlex
+    une el preprint con el artículo publicado y da el año de este último."""
+    return arxiv_year(fields.doi) or record.year
+
+
+def cited_year_accepted(fields: ExtractedFields, record: SourceRecord, text: str) -> bool:
+    """El año citado es el de la obra: el del registro, otro de sus años (el del número
+    impreso de la revista), el del preprint de arXiv citado o, en un libro, el de una
+    edición posterior que la referencia declara y la fuente no registra ("(4.ª ed.)",
+    cuando la fuente solo tiene la primera)."""
+    if fields.year is None:
+        return False
+    if fields.year in (record.year, *record.other_years, arxiv_year(fields.doi)):
+        return True
+    return bool(
+        LATER_EDITION.search(text)
+        and record.work_type in BOOK_TYPES
+        and record.year is not None
+        and fields.year > record.year
+    )
+
+
 def article_number_as_pages(fields: ExtractedFields, record: SourceRecord) -> ExtractedFields:
     """Devuelve a las páginas el número de artículo que el extractor tomó por volumen.
 
@@ -444,6 +506,20 @@ def record_lacks_subtitle(given: str, official: str) -> bool:
     return bool(main) and main == _normalize(official)
 
 
+def _title_in_text(official: str, text: str) -> bool:
+    """El título del registro está completo en el texto de la referencia: el extractor
+    lo cortó ("... en la educación" de "... en la educación superior (arXiv:...)"),
+    pero el estudiante lo citó bien."""
+    title = _normalize(official)
+    return len(title.split()) >= MIN_WORDS_TITLE_IN_TEXT and f" {title} " in (
+        f" {_normalize(text)} "
+    )
+
+
+# Un título corto ("Introduction") puede aparecer dentro de otro texto por azar.
+MIN_WORDS_TITLE_IN_TEXT = 4
+
+
 def title_identity(given: str | None, official: str | None) -> float | None:
     """Similitud de los títulos para reconocer la obra.
 
@@ -464,7 +540,11 @@ def title_identity(given: str | None, official: str | None) -> float | None:
 
 
 def _compare(
-    fields: ExtractedFields, record: SourceRecord, strategy: Strategy, thresholds: Thresholds
+    fields: ExtractedFields,
+    record: SourceRecord,
+    strategy: Strategy,
+    thresholds: Thresholds,
+    text: str,
 ) -> tuple[FieldCheck, ...]:
     checks: list[FieldCheck] = []
     if fields.title and record.title:
@@ -476,7 +556,8 @@ def _compare(
                 record.title,
                 similarity,
                 similarity >= thresholds.title_match
-                or record_lacks_subtitle(fields.title, record.title),
+                or record_lacks_subtitle(fields.title, record.title)
+                or _title_in_text(record.title, text),
             )
         )
     given_authors, official_authors = _named(fields.authors), _named(record.authors)
@@ -492,8 +573,8 @@ def _compare(
             )
         )
     if fields.year is not None and record.year is not None:
-        matches = fields.year in (record.year, *record.other_years)
-        official = fields.year if matches else record.year
+        matches = cited_year_accepted(fields, record, text)
+        official = fields.year if matches else expected_year(fields, record)
         checks.append(_direct(CheckedField.YEAR, str(fields.year), str(official), matches))
     if doi := normalize_doi(fields.doi):
         if strategy is Strategy.BIBLIOGRAPHIC_SEARCH:
@@ -523,7 +604,9 @@ def _compare(
     if fields.volume and record.volume:
         matches = _volume(fields.volume) == _volume(record.volume)
         checks.append(_direct(CheckedField.VOLUME, fields.volume, record.volume, matches))
-    if fields.pages and record.pages:
+    # Un número de artículo ("Artículo 66") no se compara con las páginas que la fuente
+    # le da dentro del artículo ("1-26", ACM): son datos distintos.
+    if fields.pages and record.pages and not labeled_article_number(text, fields.pages):
         given, official = _page_bounds(fields.pages), _page_bounds(record.pages)
         if given and official:
             checks.append(
@@ -603,7 +686,9 @@ def same_person(given: Author, official: Author, thresholds: Thresholds) -> bool
     full_name = _normalize(f"{official.given} {official.family}")
     words = [word for word in full_name.split() if word not in PARTICLES]
     if not surname:
-        return False
+        # Un apellido hecho solo de partículas ("Da Do") se busca entero.
+        cited = _normalize(given.family)
+        return bool(cited) and f" {cited} " in f" {full_name} "
     return any(fuzz.ratio(surname[0], word) >= thresholds.surname_match * 100 for word in words)
 
 
@@ -762,6 +847,8 @@ UNCOVERED_WORK = re.compile(
     r"\b(tesis|tesina|trabajo de (titulacion|grado|fin de (grado|master))|ley|reglamento|"
     r"decreto|constitucion de la republica|registro oficial|acuerdo ministerial|codigo organico)\b"
 )
+# Norma técnica citada con su organismo como autor: "ISO/IEC. (2023). ISO/IEC 25010...".
+STANDARD_BODY = re.compile(r"^(?:iso|iec|ieee std|inen|une|astm|ansi|nist sp)\b[\s/.,]")
 URL = re.compile(r"https?://|www\.")
 # Nota entre paréntesis al final del título, cerrada o no: "(Informe n.° 12)", "(3.ª ed.)".
 TITLE_NOTE = re.compile(r"\s*\([^()]*\)?[\s.]*$")
@@ -771,7 +858,7 @@ def is_uncovered_work(text: str, fields: ExtractedFields) -> bool:
     """Tipo de obra que Crossref y OpenAlex casi nunca registran: tesis, normas
     legales o páginas web (con URL, sin DOI ni datos de revista)."""
     plain = _strip_accents(text).lower()
-    if UNCOVERED_WORK.search(plain):
+    if UNCOVERED_WORK.search(plain) or STANDARD_BODY.match(plain):
         return True
     is_web_page = URL.search(plain) and "doi.org" not in plain and not fields.doi
     return bool(is_web_page and not (fields.volume or fields.pages))
@@ -787,8 +874,36 @@ def _strip_accents(text: str) -> str:
 
 
 def _normalize(text: str) -> str:
-    """Minúsculas, sin tildes ni signos: "«Redes», neuronales." -> "redes neuronales"."""
-    return " ".join(re.sub(r"[^\w\s]", " ", _strip_accents(text).lower()).split())
+    """Minúsculas, sin tildes ni signos y en letras latinas: "«Redes», neuronales." ->
+    "redes neuronales"; "Παπάς" -> "papas"."""
+    latin = _strip_accents(text).lower().translate(TO_LATIN)
+    return " ".join(re.sub(r"[^\w\s]", " ", latin).split())
+
+
+# Transliteración simple del griego y del cirílico. OpenAlex da a veces el nombre del
+# autor en su alfabeto ("Νίκος Παπάς") y el estudiante lo cita en latino
+# ("Papas, N."): sin ella, el mismo autor parecía otro. La comparación es difusa,
+# así que basta una correspondencia letra por letra.
+TO_LATIN = str.maketrans(
+    {
+        **dict(zip("αβγδεζηικλμνξοπρσςτυφω", "abgdeziiklmnxoprsstyfo", strict=True)),
+        "θ": "th",
+        "χ": "ch",
+        "ψ": "ps",
+        **dict(zip("абвгдезийклмнопрстуфыэіґ", "abvgdeziiklmnoprstufyeig", strict=True)),
+        "ж": "zh",
+        "х": "kh",
+        "ц": "ts",
+        "ч": "ch",
+        "ш": "sh",
+        "щ": "shch",
+        "ю": "yu",
+        "я": "ya",
+        "є": "ye",
+        "ъ": "",
+        "ь": "",
+    }
+)
 
 
 def _ratio(a: str, b: str) -> float:

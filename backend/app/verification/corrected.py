@@ -40,11 +40,15 @@ from app.pipeline.patterns import IEEE_NUMBER
 from app.sources.lookup import Strategy
 from app.sources.records import Source, SourceRecord, normalize_doi
 from app.verification.decision import (
+    BOOK_TYPES,
     THRESHOLDS,
     CheckedField,
     FieldCheck,
     Verdict,
     Verification,
+    cited_year_accepted,
+    expected_year,
+    labeled_article_number,
     record_lacks_subtitle,
     same_person,
     title_identity,
@@ -67,6 +71,8 @@ ARTICLE_NUMBER = re.compile(r"^(?:[a-z]\d+|\d{5,})$", re.IGNORECASE)
 PAGE_RANGE_DASH = re.compile(r"\d\s*[-‐‑–—]\s*\w")
 # Número de arXiv: nuevo (2101.00001) o antiguo (cond-mat/0101001), con versión.
 ARXIV_NUMBER = re.compile(r"arxiv[.:]\s*((?:[a-z.\-]+/)?\d{4}\.?\d{3,5}(?:v\d+)?)", re.IGNORECASE)
+# DOI que arXiv asigna a sus preprints (DataCite): 10.48550/arXiv.2110.00976.
+ARXIV_DOI = re.compile(r"^10\.48550/arxiv\.", re.IGNORECASE)
 # Obra citada por sus editores: "Salas, D. (Ed.). (2012)".
 EDITED_WORK = re.compile(
     r"\((?P<role>(?:eds?|coords?|comps?|dirs?)\.?)\)\.?\s*\((?:\d{4}|s\.\s?f\.)",
@@ -145,6 +151,10 @@ def trusted_record(fields: ExtractedFields, verification: Verification) -> Sourc
     record = verification.record
     if record is None or verification.verdict not in (Verdict.VERIFIED, Verdict.DISCREPANCY):
         return None
+    if _book_of_the_chapter(fields, record):
+        # El DOI citado es el del libro y no el del capítulo: los datos del registro
+        # (título, todos los autores del libro) cambiarían la obra citada.
+        return None
     if verification.strategy is not Strategy.DIRECT_DOI:
         title = title_identity(fields.title, record.title)
         if title is None:
@@ -154,6 +164,17 @@ def trusted_record(fields: ExtractedFields, verification: Verification) -> Sourc
         if is_translation(fields.title, record.title):
             return None
     return record
+
+
+def _book_of_the_chapter(fields: ExtractedFields, record: SourceRecord) -> bool:
+    """El registro es el libro en el que está el capítulo citado: su título es el libro
+    citado y no el título del capítulo."""
+    if record.work_type not in BOOK_TYPES or not fields.container or not record.title:
+        return False
+    title = title_identity(fields.title, record.title)
+    return (title is None or title < THRESHOLDS.title_match) and (
+        title_identity(fields.container, record.title) or 0.0
+    ) >= THRESHOLDS.container_match
 
 
 def _same_publication(verification: Verification) -> bool:
@@ -243,7 +264,11 @@ def _merge(
     cited: ExtractedFields, record: SourceRecord, verification: Verification, text: str
 ) -> _Values:
     checks = {check.field: check for check in verification.checks}
-    year = cited.year if cited.year in (record.year, *record.other_years) else record.year
+    accepted = cited_year_accepted(cited, record, text)
+    year = cited.year if accepted else expected_year(cited, record)
+    pages = _pick(checks, CheckedField.PAGES, cited.pages, record.pages, text)
+    if cited.pages and labeled_article_number(text, cited.pages):
+        pages = _Value(cited.pages, False)  # número de artículo: el registro no lo tiene
     values = {
         CheckedField.TITLE: _title(cited.title, record.title),
         CheckedField.YEAR: _Value(str(year), year != cited.year) if year else None,
@@ -252,7 +277,7 @@ def _merge(
         ),
         CheckedField.VOLUME: _pick(checks, CheckedField.VOLUME, cited.volume, record.volume, text),
         CheckedField.ISSUE: _pick(checks, CheckedField.ISSUE, cited.issue, record.issue, text),
-        CheckedField.PAGES: _pick(checks, CheckedField.PAGES, cited.pages, record.pages, text),
+        CheckedField.PAGES: pages,
         CheckedField.PUBLISHER: _pick(
             checks, CheckedField.PUBLISHER, cited.publisher, record.publisher, text
         ),
@@ -261,7 +286,14 @@ def _merge(
     present = {field: value for field, value in values.items() if value is not None}
     people, removed = _people(cited.authors, record)
     kind = _kind(record, present, text)
-    if kind is _Kind.PREPRINT and (repository := _repository(record)):
+    doi = present.get(CheckedField.DOI)
+    if doi and ARXIV_DOI.match(doi.text):
+        # Se citó el preprint por su DOI de arXiv, pero OpenAlex une el preprint con el
+        # artículo publicado y da el tipo y la revista de este último: la referencia
+        # corregida conserva la obra citada, el preprint.
+        kind = _Kind.PREPRINT
+        present[CheckedField.CONTAINER] = _Value("arXiv", "arxiv" not in text.casefold())
+    elif kind is _Kind.PREPRINT and (repository := _repository(record)):
         present[CheckedField.CONTAINER] = _Value(
             repository, repository.casefold() not in text.casefold()
         )

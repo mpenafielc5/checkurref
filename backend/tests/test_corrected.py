@@ -501,6 +501,78 @@ def test_preprint_de_arxiv_en_apa_y_en_ieee() -> None:
     assert corrected_reference("[4] x", Norm.IEEE, fields, verification) is None
 
 
+def test_doi_de_arxiv_unido_al_articulo_publicado_sigue_siendo_el_preprint() -> None:
+    # Caso real: OpenAlex une el preprint con su versión en un congreso y da el tipo y
+    # el contenedor del congreso; la referencia citó el preprint por su DOI de arXiv.
+    text = (
+        "Vera, A. (2021). Atención para traducir textos (arXiv:2101.00001). arXiv. "
+        "https://doi.org/10.48550/arXiv.2101.00001"
+    )
+    fields = ExtractedFields(
+        authors=(Author("Vera", "A."),),
+        year=2021,
+        title="Atención para traducir textos",
+        doi="10.48550/arXiv.2101.00001",
+    )
+    record = SourceRecord(
+        source=Source.OPENALEX,
+        doi="10.18653/v1/2022.acl-long.1",
+        title="Atención para traducir textos",
+        authors=(Author("Andrea Vera"),),
+        year=2021,
+        container="Proceedings of the conference - Association for Computational Linguistics",
+        pages="1-10",
+        work_type="conference-paper",
+    )
+
+    apa = correct(text, fields, record, by="doi")
+
+    assert apa.text == (
+        "Vera, A. (2021). Atención para traducir textos. arXiv. "
+        "https://doi.org/10.48550/arxiv.2101.00001"
+    )
+    ieee = correct("[4] A. Vera, " + text, fields, record, norm=Norm.IEEE, by="doi")
+    assert ieee.text == "[4] A. Vera, “Atención para traducir textos,” 2021, arXiv:2101.00001."
+
+
+def test_apa_conserva_el_numero_de_articulo_que_el_registro_da_como_paginas() -> None:
+    # ACM registra las páginas dentro del artículo (1-26): no reemplazan al número.
+    text = APA_WRONG.replace("9(1), 10-25.", "8(1), Artículo 66.").replace("2019", "2021")
+    fields = replace(APA_WRONG_FIELDS, year=2021, volume="8", pages="66")
+    record = replace(ARTICLE, pages="1-26")
+
+    corrected = correct(text, fields, record)
+
+    assert "Revista Andina, 8(1), 66. https://doi.org/" in corrected.text
+    assert CheckedField.PAGES not in corrected.changed_fields
+
+
+def test_sin_referencia_corregida_si_el_doi_es_del_libro_y_no_del_capitulo() -> None:
+    text = (
+        "Vera, A. (2025). Un capítulo sobre redes. En L. Mora (Ed.), Redes en la educación "
+        "(pp. 73-89). Editorial UNEMI. https://doi.org/10.5555/libro"
+    )
+    fields = ExtractedFields(
+        authors=(Author("Vera", "A."),),
+        year=2025,
+        title="Un capítulo sobre redes",
+        container="Redes en la educación",
+        pages="73-89",
+        doi="10.5555/libro",
+    )
+    book = SourceRecord(
+        source=Source.CROSSREF,
+        doi="10.5555/libro",
+        title="Redes en la educación",
+        authors=(Author("Mora", "Luis"), Author("Vera", "Andrea"), Author("Rivas", "Ana")),
+        year=2025,
+        work_type="edited-book",
+    )
+    verification = decide(text, fields, by_doi(book), FakeNli())
+
+    assert corrected_reference(text, Norm.APA, fields, verification) is None
+
+
 def test_ieee_numero_de_articulo_despues_del_anio_y_una_sola_pagina_con_p() -> None:
     # IEEE Reference Guide: "vol. 5, no. 2, Apr. 2013, Art. no. 2600111" y "p. 475".
     text = IEEE_WRONG.replace("pp. 30–45", "pp. 100463")

@@ -11,6 +11,9 @@ Una línea empieza una referencia nueva cuando:
   "Organización. (2020)", y la anterior cerraba una referencia. Es la única
   señal cuando la lista no tiene sangría.
 
+Si la lista usa viñetas ("●", "•"), cada viñeta empieza una referencia y se quita
+del texto.
+
 Una línea que empieza con un DOI o una URL nunca empieza una referencia: algunas
 revistas dejan el DOI en el margen, fuera de la sangría francesa.
 
@@ -35,6 +38,10 @@ AUTHOR_YEAR_START = re.compile(rf"^[{UPPER}][^()]{{0,250}}?{YEAR_IN_PARENS}")
 # "Apellido, I." al inicio: en una lista de autores larga, el año queda más abajo.
 AUTHOR_START = re.compile(rf"^{SURNAME_FIRST}")
 URL_START = re.compile(r"^(?:https?://|www\.|doi:|10\.\d{4,9}/)", re.IGNORECASE)
+# Viñeta de una lista de Word al inicio de la línea: "● Pérez, M. (2020)...".
+BULLET = re.compile(r"^[●•▪◦■□‣⁃○]\s*")
+# Desde cuántas líneas con viñeta la lista se separa por viñetas.
+MIN_BULLETS = 2
 # Una línea que termina así sigue en la siguiente: lista de autores o apellido partidos,
 # también entre las iniciales de un autor ("Mora Vera, J." y "A., Rivas...").
 OPEN_ENDING = re.compile(rf"(?:[,;:&-]|\s(?:y|e|and)|,\s(?:[{UPPER}]\.\s?)+)$")
@@ -75,6 +82,7 @@ class Layout(Enum):
     HANGING = "sangría francesa"  # empieza en el margen
     FIRST_LINE = "sangría de primera línea"  # empieza con sangría
     FLAT = "sin sangría"  # solo el patrón autor-año o [n] marcan el inicio
+    BULLETED = "con viñetas"  # cada viñeta marca el inicio
 
 
 @dataclass(frozen=True)
@@ -123,9 +131,36 @@ def segment_references(section: ReferenceSection) -> Segmentation:
 
 
 def split_entries(lines: list[TextLine]) -> list[SplitEntry]:
+    bulleted = sum(bool(BULLET.match(line.text)) for line in lines) >= MIN_BULLETS
+    if bulleted:
+        groups = _bulleted_groups(lines)
+        layout = Layout.BULLETED
+    else:
+        groups = _groups(lines)
+        layout = _layout(lines, _indents(lines))
+
+    entries: list[SplitEntry] = []
+    for position, group in enumerate(groups):
+        text = group[0].text
+        for line in group[1:]:
+            text = _join(text, line.text)
+        # Sin sangría o con viñetas, todas las entradas empiezan con un patrón
+        # reconocible salvo, quizá, la primera: el texto que precede a la lista.
+        leading_text = (
+            position == 0
+            and layout in (Layout.FLAT, Layout.BULLETED)
+            and not _looks_like_start(text)
+            and not (bulleted and BULLET.match(group[0].text))
+        )
+        text = BULLET.sub("", text)
+        for piece in _split_inline_numbers(text):
+            entries.append(SplitEntry(group[0].page, piece, _issue(piece, leading_text)))
+    return entries
+
+
+def _groups(lines: list[TextLine]) -> list[list[TextLine]]:
     indents = _indents(lines)
     layout = _layout(lines, indents)
-
     groups: list[list[TextLine]] = []
     for index, line in enumerate(lines):
         following = lines[index + 1].text if index + 1 < len(lines) else None
@@ -135,18 +170,19 @@ def split_entries(lines: list[TextLine]) -> list[SplitEntry]:
             groups.append([line])
         else:
             groups[-1].append(line)
+    return groups
 
-    entries: list[SplitEntry] = []
-    for position, group in enumerate(groups):
-        text = group[0].text
-        for line in group[1:]:
-            text = _join(text, line.text)
-        # Sin sangría, todas las entradas empiezan con un patrón reconocible
-        # salvo, quizá, la primera: el texto que precede a la lista.
-        leading_text = position == 0 and layout is Layout.FLAT and not _looks_like_start(text)
-        for piece in _split_inline_numbers(text):
-            entries.append(SplitEntry(group[0].page, piece, _issue(piece, leading_text)))
-    return entries
+
+def _bulleted_groups(lines: list[TextLine]) -> list[list[TextLine]]:
+    """Con viñetas, cada una empieza una referencia; la sangría no se usa: el texto que
+    precede a la lista puede estar a otra altura y confundir el margen."""
+    groups: list[list[TextLine]] = []
+    for line in lines:
+        if not groups or BULLET.match(line.text) or IEEE_START.match(line.text):
+            groups.append([line])
+        else:
+            groups[-1].append(line)
+    return groups
 
 
 def _indents(lines: list[TextLine]) -> list[float]:

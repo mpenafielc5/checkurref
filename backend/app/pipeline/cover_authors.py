@@ -1,9 +1,10 @@
 """Lee los autores de un trabajo desde la portada del PDF (T23, RF19).
 
 En un lote, muchos estudiantes suben el archivo con el nombre de la tarea: los
-autores son lo que permite distinguirlos. Se buscan en la primera página, después
-de una etiqueta conocida, y el dato termina en la siguiente etiqueta. Las dos
-listas de etiquetas están aquí, para agregar variantes con facilidad.
+autores son lo que permite distinguirlos. Se buscan en la portada (la primera
+página con texto), después de una etiqueta conocida, y el dato termina en la
+siguiente etiqueta. Las dos listas de etiquetas están aquí, para agregar variantes
+con facilidad.
 
 No se usan los metadatos del PDF: guardan al creador de la plantilla de Word, no
 al autor real. Si no se reconoce la portada, el trabajo queda sin autores; nunca
@@ -16,7 +17,7 @@ import unicodedata
 
 import pymupdf
 
-from app.pipeline.pdf_text import first_page_lines
+from app.pipeline.pdf_text import cover_page_lines
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ MAX_AUTHORS = 20
 def cover_authors(pdf_bytes: bytes) -> tuple[str, ...]:
     """Autores de la portada; vacío si no se reconocen o si el PDF no se puede leer."""
     try:
-        lines = first_page_lines(pdf_bytes)
+        lines = cover_page_lines(pdf_bytes)
     except (pymupdf.FileDataError, pymupdf.EmptyFileError, RuntimeError, ValueError):
         logger.info("No se pudo leer la portada del PDF")
         return ()
@@ -78,10 +79,10 @@ def cover_authors(pdf_bytes: bytes) -> tuple[str, ...]:
 
 def authors_in(lines: list[str]) -> tuple[str, ...]:
     """Autores en las líneas de una portada, sin repetir y en el orden en que aparecen."""
-    found: dict[str, None] = {}
+    visible = _join_split_labels([_visible(raw) for raw in lines])
+    found: list[str] = []
     collecting = False
-    for raw in lines:
-        line = _visible(raw)
+    for line in visible:
         comparable = _comparable(line)
         if NEXT_LABEL.match(comparable):
             collecting = False
@@ -99,8 +100,33 @@ def authors_in(lines: list[str]) -> tuple[str, ...]:
         if not _is_name(name):
             collecting = False
             continue
-        found[name] = None
-    return tuple(found)[:MAX_AUTHORS]
+        # Una palabra sola continúa el nombre anterior, que no cupo en la celda:
+        # "Mora Vera Luis" / "Andrés". Nadie firma con una sola palabra.
+        if not label and found and " " not in name:
+            joined = f"{found[-1]} {name}"
+            if _is_name(joined):
+                found[-1] = joined
+                continue
+        found.append(name)
+    return tuple(dict.fromkeys(found))[:MAX_AUTHORS]
+
+
+def _join_split_labels(lines: list[str]) -> list[str]:
+    """Une una etiqueta partida en dos líneas por una celda angosta: "Estudiant" / "e(s):"."""
+    joined: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if index + 1 < len(lines) and " " not in line and not AUTHOR_LABEL.match(_comparable(line)):
+            candidate = line + lines[index + 1]
+            label = AUTHOR_LABEL.match(_comparable(candidate))
+            if label and label.end() > len(_comparable(line)):
+                joined.append(candidate)
+                index += 2
+                continue
+        joined.append(line)
+        index += 1
+    return joined
 
 
 def _visible(text: str) -> str:

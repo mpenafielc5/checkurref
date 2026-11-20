@@ -10,12 +10,14 @@ from app.extraction.base import Author, ExtractedFields
 from app.sources.lookup import LookupResult, Strategy
 from app.sources.records import Source, SourceRecord
 from app.verification.decision import (
+    THRESHOLDS,
     CheckedField,
     IndexLevel,
     Verdict,
     decide,
     index_level,
     is_uncovered_work,
+    same_person,
     truthfulness_index,
 )
 from app.verification.nli import NliModel, NliScores
@@ -314,6 +316,101 @@ def test_mismo_segundo_apellido_no_es_la_misma_persona() -> None:
     authors = verification.check(CheckedField.AUTHORS)
     assert authors is not None
     assert authors.matches is False
+
+
+@pytest.mark.parametrize(
+    ("cited", "official"),
+    [("Papas", "Νίκος Παπάς"), ("Petrova", "Анна Петрова")],
+)
+def test_autor_en_alfabeto_griego_o_cirilico_es_el_mismo_que_en_latino(
+    cited: str, official: str
+) -> None:
+    # Caso real: OpenAlex da el nombre en griego y la referencia lo cita en latino.
+    assert same_person(Author(cited, "N."), Author(official), THRESHOLDS)
+    assert not same_person(Author("Vera", "N."), Author(official), THRESHOLDS)
+
+
+def test_apellido_hecho_solo_de_particulas_se_compara_entero() -> None:
+    # Caso real: un apellido como "Da Do", en el que las dos palabras son partículas.
+    assert same_person(Author("Da Do", "A. L."), Author("Da Do", "Ana Lucía"), THRESHOLDS)
+    assert not same_person(Author("Da Do", "A. L."), Author("Del Río", "Ana"), THRESHOLDS)
+
+
+# --- Casos reales de los trabajos de un curso (20 de noviembre de 2026) ----------------------
+
+
+def test_numero_de_articulo_con_su_palabra_no_se_compara_con_las_paginas() -> None:
+    # ACM registra las páginas dentro del artículo (1-26); APA cita "Artículo 66".
+    text = TEXT.replace("8(1), 10-25.", "8(1), Artículo 66.")
+    fields = replace(FIELDS, pages="66")
+
+    assert decide(text, fields, by_doi(replace(RECORD, pages="1-26")), FakeNli()).verdict is (
+        Verdict.VERIFIED
+    )
+    # Sin la palabra, sí son páginas distintas.
+    assert verdict_of(replace(RECORD, pages="1-26"), fields) is Verdict.DISCREPANCY
+
+
+def test_numero_de_articulo_que_el_extractor_dejo_con_el_volumen() -> None:
+    text = TEXT.replace("8(1), 10-25.", "8, Artículo 111110.")
+    fields = replace(FIELDS, volume="8, Artículo 111110", issue=None, pages=None)
+    record = replace(RECORD, issue=None, pages="111110")
+
+    assert decide(text, fields, by_doi(record), FakeNli()).verdict is Verdict.VERIFIED
+
+
+def test_preprint_de_arxiv_unido_al_articulo_publicado_acepta_el_anio_del_envio() -> None:
+    doi = "10.48550/arXiv.2405.20362"
+    fields = replace(FIELDS, year=2024, doi=doi, container=None, volume=None, issue=None)
+    fields = replace(fields, pages=None)
+    record = replace(RECORD, doi="10.1111/jels.12413", year=2025, other_years=())
+    text = TEXT.replace("2021", "2024")
+
+    assert decide(text, fields, by_doi(record), FakeNli()).verdict is Verdict.VERIFIED
+    # Otro año que no es el del envío ni el del registro sigue siendo una discrepancia.
+    wrong = decide(text, replace(fields, year=2022), by_doi(record), FakeNli())
+    year = wrong.check(CheckedField.YEAR)
+    assert year is not None
+    assert (year.given, year.official, year.matches) == ("2022", "2024", False)
+
+
+def test_edicion_posterior_de_un_libro_que_la_fuente_no_registra() -> None:
+    text = "Rivas, L. y Mora, R. (2021). Arquitectura de software (4.ª ed.). Editorial Andina."
+    fields = ExtractedFields(
+        authors=(Author("Rivas", "L."), Author("Mora", "R.")),
+        year=2021,
+        title="Arquitectura de software",
+        publisher="Editorial Andina",
+    )
+    book = SourceRecord(
+        source=Source.OPENALEX,
+        doi=None,
+        title="Arquitectura de software",
+        authors=(Author("Luis Rivas"), Author("Rosa Mora")),
+        year=1997,
+        work_type="book",
+    )
+
+    assert decide(text, fields, by_search(book), FakeNli()).verdict is Verdict.VERIFIED
+    # Sin la edición en la referencia, el año distinto es una discrepancia.
+    plain = text.replace(" (4.ª ed.)", "")
+    assert decide(plain, fields, by_search(book), FakeNli()).verdict is Verdict.DISCREPANCY
+
+
+def test_titulo_cortado_por_el_extractor_pero_completo_en_el_texto() -> None:
+    record = replace(RECORD, title="Redes neuronales en la educación superior tecnológica")
+    text = TEXT.replace("superior.", "superior tecnológica.")
+
+    assert decide(text, FIELDS, by_doi(record), FakeNli()).verdict is Verdict.VERIFIED
+    assert verdict_of(record) is Verdict.DISCREPANCY
+
+
+def test_norma_tecnica_que_no_esta_en_las_fuentes_no_es_verificable() -> None:
+    text = "ISO/IEC. (2023). ISO/IEC 25010:2023. Systems and software engineering. ISO."
+    fields = ExtractedFields(title="ISO/IEC 25010:2023. Systems and software engineering")
+
+    assert decide(text, fields, by_search(), FakeNli()).verdict is Verdict.NOT_VERIFIABLE
+    assert not is_uncovered_work("Isola, M. (2020). Redes. Revista Andina, 8, 1-2.", fields)
 
 
 def test_autor_institucional() -> None:
