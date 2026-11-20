@@ -382,7 +382,9 @@ VOLUME_AND_ARTICLE = re.compile(rf"^(\w+),?\s*{ARTICLE_LABEL}(\w+)$", re.IGNOREC
 ARXIV_DOI = re.compile(r"^10\.48550/arxiv\.(\d{2})(\d{2})\.", re.IGNORECASE)
 # Edición posterior a la primera, como la escribe APA: "(4.ª ed.)", "(2nd ed.)", "(3a ed.)".
 LATER_EDITION = re.compile(
-    r"\(\s*([2-9]|\d{2})\s*(?:\.?\s*[ªºa°]|nd|rd|th|st)?\.?\s*(?:ed\.?|edici[oó]n|edition)\s*\)",
+    r"\(\s*([2-9]|\d{2})\s*(?:\.?\s*[ªºa°]|nd|rd|th|st)?\.?\s*(?:ed\.?|edici[oó]n|edition)\s*\)"
+    # O una versión numerada de una guía: "Guía de la ingeniería, versión 4.0".
+    r"|\bversi[oó]n\s*(?:[2-9]|\d{2})(?:\.\d+)?\b",
     re.IGNORECASE,
 )
 BOOK_TYPES = {"book", "monograph", "edited-book", "reference-book"}
@@ -516,6 +518,15 @@ def _title_in_text(official: str, text: str) -> bool:
     )
 
 
+def _is_cited_container(official_title: str, container: str | None, thresholds: Thresholds) -> bool:
+    """El título del registro es el libro o la revista que la referencia cita como
+    contenedor: el DOI citado es el del libro de un capítulo. Ese título también está
+    en el texto, pero no es el título de la obra citada."""
+    return bool(container) and _ratio(official_title, container or "") >= (
+        thresholds.container_match
+    )
+
+
 # Un título corto ("Introduction") puede aparecer dentro de otro texto por azar.
 MIN_WORDS_TITLE_IN_TEXT = 4
 
@@ -557,7 +568,10 @@ def _compare(
                 similarity,
                 similarity >= thresholds.title_match
                 or record_lacks_subtitle(fields.title, record.title)
-                or _title_in_text(record.title, text),
+                or (
+                    _title_in_text(record.title, text)
+                    and not _is_cited_container(record.title, fields.container, thresholds)
+                ),
             )
         )
     given_authors, official_authors = _named(fields.authors), _named(record.authors)
