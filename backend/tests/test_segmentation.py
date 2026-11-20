@@ -270,6 +270,33 @@ def test_marca_el_texto_que_precede_a_la_lista_y_sigue_con_las_demas() -> None:
     ]
 
 
+def test_lista_con_vinetas_separa_por_la_vineta_y_la_quita() -> None:
+    # Caso real: viñetas con sangría francesa debajo de un párrafo de la plantilla que
+    # está más a la izquierda; por la sangría, cada línea parecía otra referencia.
+    lines = [
+        line("Es el detalle de las fuentes consultadas, en formato APA 7.", MARGIN - 18),
+        line("● Pérez, M. y López, J. (2021). Redes neuronales en la educación"),
+        line("superior. Revista Andina, 8(1), 10-25.", HANGING),
+        line("https://doi.org/10.5555/ra.2021.1", HANGING),
+        line(f"• {APA_2}"),
+    ]
+    entries = split_entries(lines)
+
+    assert [(entry.text, entry.issue) for entry in entries] == [
+        ("Es el detalle de las fuentes consultadas, en formato APA 7.", NOT_A_REFERENCE),
+        (
+            "Pérez, M. y López, J. (2021). Redes neuronales en la educación superior. "
+            "Revista Andina, 8(1), 10-25. https://doi.org/10.5555/ra.2021.1",
+            None,
+        ),
+        (APA_2, None),
+    ]
+
+
+def test_una_sola_vineta_no_cambia_la_separacion_pero_se_quita() -> None:
+    assert texts([line(f"● {APA_1}"), line(APA_2)]) == [APA_1, APA_2]
+
+
 def test_marca_dos_referencias_pegadas_en_una_linea() -> None:
     entries = split_entries([line(f"{APA_1} {APA_2}"), line(APA_3)])
 

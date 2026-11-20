@@ -174,6 +174,38 @@ def test_sin_autores_reconocibles_queda_vacio(lines: list[str]) -> None:
     assert authors_in(lines) == ()
 
 
+def test_une_la_etiqueta_partida_en_dos_lineas() -> None:
+    # Caso real: la celda angosta de la plantilla parte "Estudiante(s):" en dos líneas.
+    lines = ["Carrera: Software", "Estudiant", "e(s):", "Ana Vera", "Luis Rojas", "Tutor: Pablo"]
+
+    assert authors_in(lines) == ("Ana Vera", "Luis Rojas")
+
+
+def test_una_palabra_partida_que_no_forma_etiqueta_no_se_une() -> None:
+    assert authors_in(["Estudiant", "es de la carrera", "Ana Vera"]) == ()
+
+
+def test_una_palabra_sola_continua_el_nombre_anterior() -> None:
+    # Caso real: el nombre no cupo en la celda y la última palabra pasó a otra línea.
+    lines = ["Estudiante(s): Ana Lucía Vera", "Luis Andrés Rojas", "Torres", "Tutor: Pablo"]
+
+    assert authors_in(lines) == ("Ana Lucía Vera", "Luis Andrés Rojas Torres")
+
+
+def test_si_la_primera_pagina_es_solo_imagen_lee_la_siguiente() -> None:
+    pdf = make_pdf(
+        [PageSpec(lines=[]), PageSpec(lines=["Estudiante(s):", "Ana Vera", "Tutor:", "Pablo"])]
+    )
+
+    assert cover_authors(pdf) == ("Ana Vera",)
+
+
+def test_no_busca_mas_alla_de_la_segunda_pagina() -> None:
+    pdf = make_pdf([PageSpec(lines=[]), PageSpec(lines=[]), PageSpec(lines=["Autor:", "Ana Vera"])])
+
+    assert cover_authors(pdf) == ()
+
+
 def test_lee_solo_la_primera_pagina_del_pdf() -> None:
     pdf = make_pdf(
         [

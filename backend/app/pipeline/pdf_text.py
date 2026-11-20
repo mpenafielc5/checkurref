@@ -24,6 +24,8 @@ MIN_CHARS_PER_PAGE = 25
 # un carácter nulo (\x00) al final del texto: AnyStyle no lo lee y PostgreSQL no lo
 # guarda, así que el análisis completo fallaba al guardar las referencias.
 CONTROL_CHARS = re.compile(r"[\x00-\x08\x0e-\x1f\x7f]")
+# Páginas en las que se busca la portada con texto.
+COVER_PAGES = 2
 
 
 @dataclass(frozen=True)
@@ -53,12 +55,21 @@ def extract_pages(pdf_bytes: bytes) -> list[list[TextLine]]:
     return pages
 
 
-def first_page_lines(pdf_bytes: bytes) -> list[str]:
-    """Texto de las líneas de la primera página; vacío si el PDF tiene clave o no tiene páginas."""
+def cover_page_lines(pdf_bytes: bytes) -> list[str]:
+    """Texto de las líneas de la portada; vacío si el PDF tiene clave o no tiene páginas.
+
+    La portada es la primera página con texto entre las primeras COVER_PAGES: algunos
+    trabajos abren con una portada que es solo una imagen y llevan los datos en la
+    página siguiente.
+    """
     with pymupdf.open(stream=pdf_bytes, filetype="pdf") as document:
-        if document.needs_pass or document.page_count == 0:
+        if document.needs_pass:
             return []
-        return [line.text for line in _page_lines(document[0], 1)]
+        for number in range(min(COVER_PAGES, document.page_count)):
+            lines = [line.text for line in _page_lines(document[number], number + 1)]
+            if lines:
+                return lines
+        return []
 
 
 def _page_lines(page: pymupdf.Page, number: int) -> list[TextLine]:

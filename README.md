@@ -6,6 +6,9 @@ documentos académicos mediante Inferencia de Lenguaje Natural.**
 Caso de estudio de la carrera de Ingeniería de Software de la Universidad Estatal
 de Milagro (UNEMI).
 
+**Aplicativo publicado:** [checkurref.vercel.app](https://checkurref.vercel.app),
+con una cuenta institucional de la UNEMI.
+
 ## Qué hace
 
 El estudiante o el docente sube el PDF de un trabajo académico. CheckUrRef extrae
@@ -24,6 +27,18 @@ referencia:
 Aparte del veredicto, revisa el formato de cada referencia según APA 7 o IEEE
 (por ejemplo, un DOI que falta) y muestra cómo debería ir. El formato no cambia
 el veredicto: una referencia puede existir y estar mal escrita.
+
+## Uso por rol
+
+- **Estudiante:** sube el PDF de su trabajo, sigue el avance del análisis y
+  revisa el informe con el veredicto y la referencia corregida de cada
+  referencia, para corregirlas antes de entregar.
+- **Docente:** audita los trabajos de un curso en lotes de hasta 50 PDF, ve en un
+  tablero qué trabajos tienen más riesgo, abre el informe de cada uno y exporta
+  los resultados en CSV.
+- **Administrador:** gestiona los roles y el acceso de los usuarios, consulta las
+  estadísticas generales y, en el Laboratorio, compara los motores de extracción
+  con el estándar de oro.
 
 ## Tecnologías
 
