@@ -397,6 +397,41 @@ def test_edicion_posterior_de_un_libro_que_la_fuente_no_registra() -> None:
     assert decide(plain, fields, by_search(book), FakeNli()).verdict is Verdict.DISCREPANCY
 
 
+def test_version_posterior_de_una_guia_que_la_fuente_no_registra() -> None:
+    text = "Rivas, L. (Ed.). (2024). Guía de la ingeniería de software, versión 4.0. IEEE."
+    fields = ExtractedFields(year=2024, title="Guía de la ingeniería de software")
+    guide = SourceRecord(
+        source=Source.OPENALEX,
+        doi=None,
+        title="Guía de la ingeniería de software",
+        authors=(Author("Luis Rivas"),),
+        year=2001,
+        work_type="book",
+    )
+
+    assert decide(text, fields, by_search(guide), FakeNli()).verdict is Verdict.VERIFIED
+
+
+def test_el_libro_del_capitulo_en_el_texto_no_cuenta_como_su_titulo() -> None:
+    # Caso real: el capítulo se citó con el DOI del libro; el título del libro está en
+    # la referencia, pero como contenedor, no como título de la obra citada.
+    text = (
+        "Vera, A. (2025). Un capítulo sobre redes. En L. Mora (Ed.), Redes neuronales en "
+        "la educación superior (pp. 73-89). Editorial UNEMI. https://doi.org/10.1234/ra.2021.8"
+    )
+    fields = replace(
+        FIELDS,
+        authors=(Author("Vera", "A."),),
+        title="Un capítulo sobre redes",
+        container="Redes neuronales en la educación superior",
+    )
+    record = replace(RECORD, container=None, work_type="edited-book")
+
+    title = decide(text, fields, by_doi(record), FakeNli()).check(CheckedField.TITLE)
+    assert title is not None
+    assert title.matches is False
+
+
 def test_titulo_cortado_por_el_extractor_pero_completo_en_el_texto() -> None:
     record = replace(RECORD, title="Redes neuronales en la educación superior tecnológica")
     text = TEXT.replace("superior.", "superior tecnológica.")

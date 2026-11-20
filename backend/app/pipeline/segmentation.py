@@ -45,6 +45,8 @@ MIN_BULLETS = 2
 # Una línea que termina así sigue en la siguiente: lista de autores o apellido partidos,
 # también entre las iniciales de un autor ("Mora Vera, J." y "A., Rivas...").
 OPEN_ENDING = re.compile(rf"(?:[,;:&-]|\s(?:y|e|and)|,\s(?:[{UPPER}]\.\s?)+)$")
+# Conector antes del último autor de la lista: "& Vera", "y Vera", "and Vera".
+LAST_AUTHOR = re.compile(r"(?:&|\s(?:y|and))\s[^,]+$")
 # Una línea que termina así cierra una referencia: en punto o en su DOI o URL.
 CLOSED_ENDING = re.compile(r"(?:\.|(?:https?://|doi:)\S*)$", re.IGNORECASE)
 # Otra referencia pegada dentro de la entrada, después de un punto o de un DOI o URL.
@@ -256,13 +258,26 @@ def _starts_entry(
         # Fuera de su nivel, solo si la anterior cerraba y esta empieza como referencia.
         if not CLOSED_ENDING.search(previous):
             return False
-    if OPEN_ENDING.search(previous):
+    if OPEN_ENDING.search(previous) or _open_author_list(previous):
         return False
     # Una lista de autores larga deja el año en la línea siguiente.
     text = line.text
-    if following and OPEN_ENDING.search(text):
+    if following and (OPEN_ENDING.search(text) or _open_author_list(text)):
         text = _join(text, following)
     return bool(AUTHOR_YEAR_START.match(text))
+
+
+def _open_author_list(text: str) -> bool:
+    """Lista de autores que sigue en la línea siguiente: ya llegó al último autor
+    ("& Vera"), pero su apellido o sus iniciales y el año pasaron a la otra
+    línea, que entonces empieza como si fuera otra referencia ("Torres, L.
+    (2025)...")."""
+    return bool(
+        AUTHOR_START.match(text)
+        and LAST_AUTHOR.search(text)
+        and not re.search(YEAR_IN_PARENS, text)
+        and not CLOSED_ENDING.search(text)
+    )
 
 
 def _join(text: str, continuation: str) -> str:

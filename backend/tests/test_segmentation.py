@@ -270,6 +270,26 @@ def test_marca_el_texto_que_precede_a_la_lista_y_sigue_con_las_demas() -> None:
     ]
 
 
+def test_ultimo_autor_partido_entre_dos_lineas_no_empieza_otra_referencia() -> None:
+    # Caso real, lista sin sangría: la línea termina en "& Vera" y la siguiente sigue
+    # con "Torres, L. (2025)", que parece el inicio de otra referencia.
+    lines = [
+        line(f"{APA_2[:-1]} https://doi.org/10.5555/ru.2020.1"),
+        line("Pérez Mora, N. R., Rivas Gil, A. G., Salas Ortiz, F. R., & Vera"),
+        line("Torres, L. (2025). Chatbots en la atención al cliente. Revista Andina,"),
+        line("5(3), 206-219. https://doi.org/10.5555/ra.2025.5"),
+        line(APA_3),
+    ]
+
+    assert texts(lines) == [
+        f"{APA_2[:-1]} https://doi.org/10.5555/ru.2020.1",
+        "Pérez Mora, N. R., Rivas Gil, A. G., Salas Ortiz, F. R., & Vera Torres, L. (2025). "
+        "Chatbots en la atención al cliente. Revista Andina, 5(3), 206-219. "
+        "https://doi.org/10.5555/ra.2025.5",
+        APA_3,
+    ]
+
+
 def test_lista_con_vinetas_separa_por_la_vineta_y_la_quita() -> None:
     # Caso real: viñetas con sangría francesa debajo de un párrafo de la plantilla que
     # está más a la izquierda; por la sangría, cada línea parecía otra referencia.
