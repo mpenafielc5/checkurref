@@ -276,15 +276,15 @@ def test_ultimo_autor_partido_entre_dos_lineas_no_empieza_otra_referencia() -> N
     lines = [
         line(f"{APA_2[:-1]} https://doi.org/10.5555/ru.2020.1"),
         line("Pérez Mora, N. R., Rivas Gil, A. G., Salas Ortiz, F. R., & Vera"),
-        line("Torres, L. (2025). Chatbots en la atención al cliente. Revista Andina,"),
-        line("5(3), 206-219. https://doi.org/10.5555/ra.2025.5"),
+        line("Torres, L. (2025). Redes neuronales en la docencia. Revista Andina,"),
+        line("5(3), 40-52. https://doi.org/10.5555/ra.2025.5"),
         line(APA_3),
     ]
 
     assert texts(lines) == [
         f"{APA_2[:-1]} https://doi.org/10.5555/ru.2020.1",
         "Pérez Mora, N. R., Rivas Gil, A. G., Salas Ortiz, F. R., & Vera Torres, L. (2025). "
-        "Chatbots en la atención al cliente. Revista Andina, 5(3), 206-219. "
+        "Redes neuronales en la docencia. Revista Andina, 5(3), 40-52. "
         "https://doi.org/10.5555/ra.2025.5",
         APA_3,
     ]
