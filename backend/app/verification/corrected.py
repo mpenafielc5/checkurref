@@ -85,7 +85,7 @@ COMMA_BEFORE_Y = re.compile(r",\s+y\s+(?=[^,]*,[^,]*$)")
 # Paréntesis que no cierra al final del contenedor.
 UNCLOSED_TAIL = re.compile(r"\s*\([^()]*$")
 # Editores entre paréntesis justo después del título: "(A. Mora & S. Vera, Eds.)".
-EDITORS_NOTE = r"\s*(\([^()]*\b(?:Eds?|Coords?|Comps?|Dirs?|Trads?)\.\))"
+EDITORS_NOTE = r"\s*(\([^()]*\b(?:Eds?|Coords?|Comps?|Dirs?|Trads?|ed)\.\))"
 # Más largo que esto, el texto antes del año no es solo la lista de autores.
 MAX_WRITTEN_AUTHORS = 1500
 # Guiones entre las palabras de un título: el normal y sus variantes tipográficas.

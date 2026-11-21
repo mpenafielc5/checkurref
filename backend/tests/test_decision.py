@@ -398,8 +398,10 @@ def test_edicion_posterior_de_un_libro_que_la_fuente_no_registra() -> None:
 
 
 def test_version_posterior_de_una_guia_que_la_fuente_no_registra() -> None:
-    text = "Rivas, L. (Ed.). (2024). Guía de la ingeniería de software, versión 4.0. IEEE."
-    fields = ExtractedFields(year=2024, title="Guía de la ingeniería de software")
+    text = "Rivas, L. (2024). Guía de la ingeniería de software, versión 4.0. IEEE."
+    fields = ExtractedFields(
+        authors=(Author("Rivas", "L."),), year=2024, title="Guía de la ingeniería de software"
+    )
     guide = SourceRecord(
         source=Source.OPENALEX,
         doi=None,
@@ -410,6 +412,52 @@ def test_version_posterior_de_una_guia_que_la_fuente_no_registra() -> None:
     )
 
     assert decide(text, fields, by_search(guide), FakeNli()).verdict is Verdict.VERIFIED
+    # Sin autores que confirmar, el título de otra edición no basta: el año se compara.
+    no_authors = replace(fields, authors=())
+    verification = decide(text, no_authors, by_search(guide), FakeNli())
+    assert verification.verdict is Verdict.DISCREPANCY
+    year = verification.check(CheckedField.YEAR)
+    assert year is not None
+    assert (year.given, year.official) == ("2024", "2001")
+
+
+def test_otra_version_en_el_registro_no_es_la_obra_citada() -> None:
+    # Caso real: la referencia cita la versión 4.0 de una guía y la fuente solo
+    # registra la 3.0, con su número en el título: no se comparan como la misma obra.
+    text = "Rivas, L. (Ed.). (2024). Guía de la ingeniería de software, versión 4.0. IEEE."
+    fields = ExtractedFields(year=2024, title="Guía de la ingeniería de software")
+    other = SourceRecord(
+        source=Source.OPENALEX,
+        doi=None,
+        title="Guía de la ingeniería de software: versión 3.0",
+        authors=(Author("Pablo Salas"),),
+        year=2014,
+        work_type="book",
+    )
+
+    assert decide(text, fields, by_search(other), FakeNli()).verdict is Verdict.UNSUPPORTED
+
+
+def test_el_anio_de_una_edicion_posterior_no_se_muestra_como_del_registro() -> None:
+    text = "Rivas, L. y Mora, R. (2021). Arquitectura de software (4.ª ed.). Editorial Andina."
+    fields = ExtractedFields(
+        authors=(Author("Rivas", "L."), Author("Mora", "R.")),
+        year=2021,
+        title="Arquitectura de software",
+    )
+    book = SourceRecord(
+        source=Source.OPENALEX,
+        doi=None,
+        title="Arquitectura de software",
+        authors=(Author("Luis Rivas"), Author("Rosa Mora")),
+        year=1997,
+        work_type="book",
+    )
+
+    verification = decide(text, fields, by_search(book), FakeNli())
+
+    assert verification.verdict is Verdict.VERIFIED
+    assert verification.check(CheckedField.YEAR) is None
 
 
 def test_el_libro_del_capitulo_en_el_texto_no_cuenta_como_su_titulo() -> None:

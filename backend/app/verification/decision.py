@@ -315,7 +315,7 @@ def _assess(
         _doi_leads_to_the_work(evidence, thresholds)
         if strategy is Strategy.DIRECT_DOI
         else _search_found_the_work(evidence, thresholds)
-    )
+    ) and not different_edition(text, record)
     return _Assessment(
         record,
         fields,
@@ -388,6 +388,12 @@ LATER_EDITION = re.compile(
     re.IGNORECASE,
 )
 BOOK_TYPES = {"book", "monograph", "edited-book", "reference-book"}
+# Número de la edición o versión: "(4.ª ed.)", "(2nd ed.)", "version 4.0", "Versión 3".
+EDITION_NUMBER = re.compile(
+    r"\b(\d{1,2})\s*(?:\.?\s*[ªºa°]|nd|rd|th|st)?\.?\s*(?:ed\.|edici[oó]n\b|edition\b)"
+    r"|\bversi[oó]n\s*(\d{1,2})(?:\.\d+)?\b",
+    re.IGNORECASE,
+)
 
 
 def labeled_article_number(text: str, pages: str) -> bool:
@@ -427,12 +433,45 @@ def cited_year_accepted(fields: ExtractedFields, record: SourceRecord, text: str
         return False
     if fields.year in (record.year, *record.other_years, arxiv_year(fields.doi)):
         return True
+    return _later_edition_year(fields, record, text)
+
+
+def _later_edition_year(fields: ExtractedFields, record: SourceRecord, text: str) -> bool:
+    """El año citado es el de una edición posterior que la fuente no registra. Ese año
+    no se compara: el registro solo tiene el de otra edición, y mostrarlo como "En el
+    registro" sería falso."""
     return bool(
-        LATER_EDITION.search(text)
+        fields.year is not None
+        and fields.year not in (record.year, *record.other_years, arxiv_year(fields.doi))
+        and LATER_EDITION.search(text)
         and record.work_type in BOOK_TYPES
         and record.year is not None
         and fields.year > record.year
+        and _all_authors_found(fields, record)
     )
+
+
+def _all_authors_found(fields: ExtractedFields, record: SourceRecord) -> bool:
+    """Todos los autores citados firman la obra del registro. Sin autores que
+    confirmar, un título parecido de otra edición no basta para aceptar el año."""
+    given, official = _named(fields.authors), _named(record.authors)
+    return bool(given and official) and all(
+        any(same_person(person, author, THRESHOLDS) for author in official) for person in given
+    )
+
+
+def different_edition(text: str, record: SourceRecord) -> bool:
+    """La referencia declara una edición o versión y el título del registro declara
+    otra: "version 4.0" frente a "Guide ... : Version 3.0". El registro es otra obra."""
+    cited, official = _edition_number(text), _edition_number(record.title or "")
+    return cited is not None and official is not None and cited != official
+
+
+def _edition_number(text: str) -> int | None:
+    match = EDITION_NUMBER.search(text)
+    if not match:
+        return None
+    return int(next(group for group in match.groups() if group))
 
 
 def article_number_as_pages(fields: ExtractedFields, record: SourceRecord) -> ExtractedFields:
@@ -586,7 +625,11 @@ def _compare(
                 similarity == 1.0,
             )
         )
-    if fields.year is not None and record.year is not None:
+    if (
+        fields.year is not None
+        and record.year is not None
+        and not _later_edition_year(fields, record, text)
+    ):
         matches = cited_year_accepted(fields, record, text)
         official = fields.year if matches else expected_year(fields, record)
         checks.append(_direct(CheckedField.YEAR, str(fields.year), str(official), matches))
