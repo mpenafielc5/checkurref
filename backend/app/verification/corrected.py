@@ -36,11 +36,12 @@ from rapidfuzz import fuzz
 
 from app.extraction.base import Author, ExtractedFields
 from app.pipeline.norm_detection import Norm
-from app.pipeline.patterns import IEEE_NUMBER
+from app.pipeline.patterns import IEEE_NUMBER, YEAR_IN_PARENS
 from app.sources.lookup import Strategy
 from app.sources.records import Source, SourceRecord, normalize_doi
 from app.verification.decision import (
     BOOK_TYPES,
+    MIN_WORDS_TITLE_IN_TEXT,
     THRESHOLDS,
     CheckedField,
     FieldCheck,
@@ -71,6 +72,24 @@ ARTICLE_NUMBER = re.compile(r"^(?:[a-z]\d+|\d{5,})$", re.IGNORECASE)
 PAGE_RANGE_DASH = re.compile(r"\d\s*[-‐‑–—]\s*\w")
 # Número de arXiv: nuevo (2101.00001) o antiguo (cond-mat/0101001), con versión.
 ARXIV_NUMBER = re.compile(r"arxiv[.:]\s*((?:[a-z.\-]+/)?\d{4}\.?\d{3,5}(?:v\d+)?)", re.IGNORECASE)
+# Campos que se dan por bien escritos si el valor del registro está tal cual en la referencia.
+WRITTEN_AS_IS = (CheckedField.CONTAINER, CheckedField.PUBLISHER)
+# Guiones largos de un rango o de un número compuesto: "4–1" y "4-1".
+DASHES = re.compile(r"[‐‑–—]")
+# "En" o "In" al inicio del contenedor de un capítulo o de unas actas.
+IN_PREFIX = re.compile(r"^(?:En|In)\s+")
+# Editores entre los autores y el año: "Salas, D. (Ed.). (2012)": el formato lo agrega.
+APA_ROLE_TAIL = re.compile(r"\s*\((?:eds?|coords?|comps?|dirs?)\.?\)\.?\s*$", re.IGNORECASE)
+# Coma antes del "y" del último autor, que en español no va (normas-apa.org).
+COMMA_BEFORE_Y = re.compile(r",\s+y\s+(?=[^,]*,[^,]*$)")
+# Paréntesis que no cierra al final del contenedor.
+UNCLOSED_TAIL = re.compile(r"\s*\([^()]*$")
+# Editores entre paréntesis justo después del título: "(A. Mora & S. Vera, Eds.)".
+EDITORS_NOTE = r"\s*(\([^()]*\b(?:Eds?|Coords?|Comps?|Dirs?|Trads?)\.\))"
+# Más largo que esto, el texto antes del año no es solo la lista de autores.
+MAX_WRITTEN_AUTHORS = 1500
+# Guiones entre las palabras de un título: el normal y sus variantes tipográficas.
+HYPHENS = re.compile(r"[-‐‑–]")
 # DOI que arXiv asigna a sus preprints (DataCite): 10.48550/arXiv.2110.00976.
 ARXIV_DOI = re.compile(r"^10\.48550/arxiv\.", re.IGNORECASE)
 # Obra citada por sus editores: "Salas, D. (Ed.). (2012)".
@@ -255,6 +274,8 @@ class _Values:
     people: tuple[_Person, ...]
     removed_authors: bool  # la referencia nombra autores que el registro no tiene
     fields: dict[CheckedField, _Value]
+    # Los autores tal como están en la referencia, si no hay nada que corregir en ellos.
+    written_authors: str | None = None
 
     def get(self, field: CheckedField) -> _Value | None:
         return self.fields.get(field)
@@ -270,10 +291,10 @@ def _merge(
     if cited.pages and labeled_article_number(text, cited.pages):
         pages = _Value(cited.pages, False)  # número de artículo: el registro no lo tiene
     values = {
-        CheckedField.TITLE: _title(cited.title, record.title),
+        CheckedField.TITLE: _title(cited.title, record.title, cited.container, text),
         CheckedField.YEAR: _Value(str(year), year != cited.year) if year else None,
         CheckedField.CONTAINER: _pick(
-            checks, CheckedField.CONTAINER, cited.container, record.container, text
+            checks, CheckedField.CONTAINER, _without_in(cited.container), record.container, text
         ),
         CheckedField.VOLUME: _pick(checks, CheckedField.VOLUME, cited.volume, record.volume, text),
         CheckedField.ISSUE: _pick(checks, CheckedField.ISSUE, cited.issue, record.issue, text),
@@ -283,8 +304,30 @@ def _merge(
         ),
         CheckedField.DOI: _doi(checks.get(CheckedField.DOI), cited.doi, record.doi),
     }
+    if not cited.volume and record.volume and _same_text(record.volume, record.issue or ""):
+        # El registro repite el número como volumen: "94(94)"; la revista no usa volumen.
+        values[CheckedField.VOLUME] = None
+    if (
+        cited.volume
+        and not cited.issue
+        and not record.volume
+        and _same_text(cited.volume, record.issue or "")
+    ):
+        # "Revista, (94)": la revista no usa volumen y el extractor leyó el número como tal.
+        values[CheckedField.VOLUME] = None
+        values[CheckedField.ISSUE] = _Value(cited.volume, False)
+    values[CheckedField.CONTAINER] = _clean_container(values[CheckedField.CONTAINER], record)
+    values[CheckedField.TITLE] = _with_editors_note(values[CheckedField.TITLE], text)
     present = {field: value for field, value in values.items() if value is not None}
-    people, removed = _people(cited.authors, record)
+    people, removed, fixed_initial = _people(cited.authors, record)
+    # Un apellido de una sola letra ("K, P.") sale de nombres que el extractor o la
+    # fuente separaron mal ("Luis K, M."): entonces se copian como se escribieron.
+    broken = any(len(person.author.family.strip(" .")) <= 1 for person in people)
+    unchanged = broken or (not removed and not fixed_initial)
+    confirmed = unchanged and _author_count_kept(cited, text) and _authors_confirmed(checks, record)
+    written = _written_authors(text) if confirmed else None
+    if written and not _in_norm_format(written, cited, bool(LEADING_NUMBER.match(text))):
+        written = None  # "Ana Vera & Luis Rojas": el formato sí se corrige
     kind = _kind(record, present, text)
     doi = present.get(CheckedField.DOI)
     if doi and ARXIV_DOI.match(doi.text):
@@ -297,7 +340,7 @@ def _merge(
         present[CheckedField.CONTAINER] = _Value(
             repository, repository.casefold() not in text.casefold()
         )
-    return _Values(kind, people, removed, present)
+    return _Values(kind, people, removed, present, written)
 
 
 def _repository(record: SourceRecord) -> str | None:
@@ -356,13 +399,23 @@ def _pick(
         if official and official != given and given in official and official in text:
             return _Value(official, False)
         return _Value(given, False)
+    if official and field in WRITTEN_AS_IS and _phrase_in_text(official, text):
+        # El extractor lo leyó mal (le sumó la editorial, le quitó un paréntesis), pero
+        # la referencia lo trae tal como está registrado: no es una corrección.
+        return _Value(official, False)
     return _Value(official, True) if official else None
 
 
-def _title(given: str | None, official: str | None) -> _Value | None:
+def _title(
+    given: str | None, official: str | None, container: str | None, text: str
+) -> _Value | None:
     """El título citado si solo difiere del registro en mayúsculas o en signos al final,
     si el registro lo trae sin su subtítulo, o si solo le suma la nota del final
-    ("(Informe n.° 12)", "(3.ª ed.)"), que las fuentes no registran."""
+    ("(Informe n.° 12)", "(3.ª ed.)"), que las fuentes no registran.
+
+    Si el extractor cortó el título o no lo encontró, pero el del registro está
+    escrito completo en la referencia, se usa tal como lo escribió el estudiante: no
+    es una corrección."""
     if given and (
         not official
         or _same_text(given, official)
@@ -370,7 +423,113 @@ def _title(given: str | None, official: str | None) -> _Value | None:
         or _same_text(without_title_note(given, official), official)
     ):
         return _Value(given, False)
-    return _Value(official, True) if official else None
+    if not official:
+        return None
+    written = _written_in_text(official, text)
+    if written and (title_identity(container, official) or 0.0) < THRESHOLDS.container_match:
+        return _Value(written, False)
+    return _Value(official, True)
+
+
+def _written_in_text(title: str, text: str) -> str | None:
+    """El título tal como está escrito en la referencia (sin distinguir mayúsculas ni
+    signos entre las palabras: "Bio-Ingeniería" y "Bio‐Ingeniería"); None si no
+    está completo. Un título corto puede aparecer dentro de otro texto por azar.
+
+    Entre dos palabras unidas por guion en el registro ("Objeto-Relacional"), el guion
+    puede faltar en el texto: al final de una línea del PDF se quita al unir las
+    líneas, porque no se distingue de una palabra partida en sílabas. Ahí se devuelve
+    con el guion. Entre palabras separadas por espacio, en cambio, tiene que haber un
+    espacio o un signo: "RedNeuronal" no es "Red Neuronal"."""
+    words = re.findall(r"\w+", title)
+    if len(words) < MIN_WORDS_TITLE_IN_TEXT:
+        return None
+    joiners = re.findall(r"\W+", title.strip(" .,;:"))[: len(words) - 1]
+    if len(joiners) != len(words) - 1:
+        return None
+    pattern = r"\b" + re.escape(words[0])
+    for joiner, word in zip(joiners, words[1:], strict=True):
+        separator = r"(\W*)" if HYPHENS.search(joiner) else r"(\W+)"
+        pattern += separator + re.escape(word)
+    match = re.search(pattern + r"\b", text, re.IGNORECASE)
+    if not match:
+        return None
+    written = match.group(0)
+    for index in range(len(joiners), 0, -1):  # de atrás hacia adelante: no se corren
+        if not match.group(index):
+            position = match.start(index) - match.start(0)
+            written = f"{written[:position]}-{written[position:]}"
+    return written
+
+
+def _authors_confirmed(checks: dict[CheckedField, FieldCheck], record: SourceRecord) -> bool:
+    """Los autores citados son los del registro (la tabla dice que coinciden), o el
+    registro no trae autores con que comparar: entonces no hay nada que corregirles."""
+    check = checks.get(CheckedField.AUTHORS)
+    if check is not None:
+        return check.matches
+    return not any(author.family.strip() for author in record.authors)
+
+
+def _written_authors(text: str) -> str | None:
+    """Los autores tal como están escritos: en APA, lo que va antes del año; en IEEE,
+    entre el número y el título entre comillas. Se copian tal cual porque las fuentes
+    y el extractor separan mal algunos nombres ("Pires da Silva", "M, Rivas")."""
+    number = LEADING_NUMBER.match(text)
+    if number:
+        rest = text[number.end() :]
+        quote = re.search(r"[\"“«]", rest)
+        written = rest[: quote.start()].strip().rstrip(",").strip() if quote else ""
+    else:
+        year = re.search(YEAR_IN_PARENS, text)
+        written = APA_ROLE_TAIL.sub("", text[: year.start()]).strip() if year else ""
+        written = COMMA_BEFORE_Y.sub(" y ", written)
+    return written if 0 < len(written) <= MAX_WRITTEN_AUTHORS else None
+
+
+def _clean_container(value: _Value | None, record: SourceRecord) -> _Value | None:
+    """El contenedor sin lo que el extractor le pegó: la editorial al final ("...
+    Educación. IEEE") o un paréntesis que no cierra ("Congreso (Serie de
+    Informática")."""
+    if value is None:
+        return None
+    container = value.text
+    publisher = record.publisher or ""
+    if publisher and record.container and container.endswith(publisher):
+        rest = container[: -len(publisher)].rstrip(" .,")
+        if _same_text(rest, record.container):
+            container = record.container
+    if container.count("(") > container.count(")"):
+        container = UNCLOSED_TAIL.sub("", container)
+    return _Value(container, value.changed) if container else None
+
+
+def _with_editors_note(value: _Value | None, text: str) -> _Value | None:
+    """El título con los editores que la referencia pone después de él: "Título (A.
+    Mora y S. Vera, Eds.)." (normas-apa.org, libro con autor y editor). Las
+    fuentes no los registran, así que no se pierden."""
+    if value is None:
+        return None
+    note = re.search(re.escape(value.text) + EDITORS_NOTE, text)
+    if not note or note.group(1) in value.text:
+        return value
+    return _Value(f"{value.text} {note.group(1)}", value.changed)
+
+
+def _without_in(container: str | None) -> str | None:
+    """El contenedor sin el "En" o "In" con que lo presenta la referencia: el formato
+    lo vuelve a poner ("En En Proceedings...")."""
+    return IN_PREFIX.sub("", container) if container else container
+
+
+def _phrase_in_text(value: str, text: str) -> bool:
+    """El valor está escrito tal cual en la referencia (sin distinguir mayúsculas ni
+    signos entre las palabras)."""
+    words = re.findall(r"\w+", value)
+    if len(words) < 2:
+        return False
+    pattern = r"\b" + r"\W+".join(re.escape(word) for word in words) + r"\b"
+    return re.search(pattern, text, re.IGNORECASE) is not None
 
 
 def _doi(check: FieldCheck | None, given: str | None, official: str | None) -> _Value | None:
@@ -388,37 +547,79 @@ def _doi(check: FieldCheck | None, given: str | None, official: str | None) -> _
 
 def _same_text(a: str, b: str) -> bool:
     def plain(value: str) -> str:
+        value = DASHES.sub("-", value)  # "4–1" y "4-1" son el mismo número
         return " ".join(value.casefold().strip(" .,;:").split()).lstrip("0")
 
     return plain(a) == plain(b)
 
 
-def _people(cited: Sequence[Author], record: SourceRecord) -> tuple[tuple[_Person, ...], bool]:
+def _people(
+    cited: Sequence[Author], record: SourceRecord
+) -> tuple[tuple[_Person, ...], bool, bool]:
     """Los autores del registro, en su orden. Los que la referencia ya nombraba van
     como los escribió el estudiante: las fuentes separan mal los dos apellidos.
 
     Cada autor citado se usa una sola vez y con el autor del registro que más se le
     parece: "Huertas-Tato" y "Huertas-García" comparten el primer apellido.
+
+    Devuelve también si la referencia nombra autores que el registro no tiene y si
+    alguna inicial citada está equivocada.
     """
     official = [author for author in record.authors if _is_person_or_group(author, record)]
     named = [author for author in cited if author.family.strip()]
     if not official:
-        return tuple(_Person(author, True) for author in named), False
+        return tuple(_Person(author, True) for author in named), False, False
     available = list(named)
     people = []
+    fixed_initial = False
     for author in official:
         match = _closest(author, available)
         if match:
             available.remove(match)
-        if match and _same_first_initial(match, author):
+        if match and (_same_first_initial(match, author) or _reversed_name(match, author)):
             people.append(_Person(match, True))
         elif match:  # el apellido citado es correcto; la inicial, no
             people.append(_Person(Author(match.family, author.given), False))
+            fixed_initial = True
         elif record.source is Source.OPENALEX:
             people.append(_Person(_split_full_name(author), False))
         else:
             people.append(_Person(author, False))
-    return tuple(people), bool(available)  # citados que el registro no tiene
+    return tuple(people), bool(available), fixed_initial
+
+
+def _reversed_name(cited: Author, official: Author) -> bool:
+    """La fuente invirtió el nombre ("M, Rivas" por "Rivas, M."): la inicial
+    citada es la del apellido del registro y el apellido citado está en sus nombres."""
+    initial = _initials(cited.given)[:1]
+    return bool(
+        initial
+        and official.family[:1].upper() == initial[:1]
+        and cited.family.casefold() in official.given.casefold()
+    )
+
+
+def _in_norm_format(written: str, cited: ExtractedFields, ieee: bool) -> bool:
+    """Cada apellido citado está escrito como pide la norma: "Apellido, I." en APA e
+    "I. Apellido" en IEEE. Si no ("Ana Vera"), la lista se arma de nuevo."""
+    for author in cited.authors:
+        family = author.family.strip()
+        if not family or not author.given.strip():
+            continue  # organización: se escribe con su nombre
+        before = r"\.\s*" if ieee else ""
+        after = "" if ieee else r",\s*"
+        if not re.search(before + re.escape(family) + after, written):
+            return False
+    return True
+
+
+def _author_count_kept(cited: ExtractedFields, text: str) -> bool:
+    """La lista citada no se acorta: hasta 20 autores en APA (o ya acortada con los
+    puntos suspensivos) y hasta 6 en IEEE (o ya con "et al.")."""
+    count = len([author for author in cited.authors if author.family.strip()])
+    if LEADING_NUMBER.match(text):
+        return count <= IEEE_MAX_AUTHORS or "et al" in text.casefold()
+    return count <= APA_MAX_AUTHORS or "…" in text or "..." in text
 
 
 def _closest(author: Author, cited: Sequence[Author]) -> Author | None:
@@ -488,7 +689,7 @@ def _apa(values: _Values, text: str) -> list[Segment]:
     # SOBRE escribe "s. f.": las fuentes no coinciden.
     date = _seg(year, CheckedField.YEAR) if year else Segment("s.f.")
 
-    if values.people:
+    if values.people or values.written_authors:
         role = _apa_role(text)
         out += [_apa_authors(values, _apa_connector(text)), Segment(f"{role} ("), date]
         out.append(Segment("). "))
@@ -589,6 +790,8 @@ def _apa_editors(text: str) -> str:
 
 
 def _apa_authors(values: _Values, connector: str) -> Segment:
+    if values.written_authors:
+        return Segment(values.written_authors, CheckedField.AUTHORS)
     names = [_apa_name(person.author) for person in values.people]
     if len(names) > APA_MAX_AUTHORS:
         text = ", ".join(names[: APA_MAX_AUTHORS - 1]) + ", ... " + names[-1]
@@ -623,7 +826,7 @@ def _ieee(values: _Values, text: str) -> list[Segment]:
     number = LEADING_NUMBER.match(text)
     spanish = " y " in re.split(r"[\"“«]", text, maxsplit=1)[0]
     out: list[Segment] = [Segment(f"[{number.group(1)}] ")] if number else []
-    if values.people:
+    if values.people or values.written_authors:
         out += [_ieee_authors(values, "y" if spanish else "and"), Segment(", ")]
 
     title, container = values.get(CheckedField.TITLE), values.get(CheckedField.CONTAINER)
@@ -701,6 +904,8 @@ def _arxiv_number(values: _Values, text: str) -> str | None:
 
 
 def _ieee_authors(values: _Values, connector: str) -> Segment:
+    if values.written_authors:
+        return Segment(values.written_authors, CheckedField.AUTHORS)
     names = [_ieee_name(person.author) for person in values.people]
     if len(names) > IEEE_MAX_AUTHORS:
         # Con "et al." basta que el primero sea el que cita la referencia.

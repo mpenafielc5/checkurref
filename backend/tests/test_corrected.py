@@ -133,9 +133,11 @@ def test_un_titulo_que_solo_difiere_en_mayusculas_no_se_cambia() -> None:
 
 
 def test_un_titulo_distinto_se_toma_del_registro() -> None:
-    fields = replace(APA_WRONG_FIELDS, title="Redes nueronales en la educacion superior")
+    title = "Redes nueronales en la educacion superior"
+    fields = replace(APA_WRONG_FIELDS, title=title)
+    text = APA_WRONG.replace("Redes neuronales en la educación superior", title)
 
-    corrected = correct(APA_WRONG, fields)
+    corrected = correct(text, fields)
 
     assert "Redes neuronales en la educación superior." in corrected.text
     assert CheckedField.TITLE in corrected.changed_fields
@@ -533,6 +535,179 @@ def test_doi_de_arxiv_unido_al_articulo_publicado_sigue_siendo_el_preprint() -> 
     )
     ieee = correct("[4] A. Vera, " + text, fields, record, norm=Norm.IEEE, by="doi")
     assert ieee.text == "[4] A. Vera, “Atención para traducir textos,” 2021, arXiv:2101.00001."
+
+
+@pytest.mark.parametrize(
+    "extracted",
+    ["Redes neuronales en la educación", None],
+    ids=["cortado por el extractor", "sin título extraído"],
+)
+def test_titulo_bien_escrito_en_la_referencia_no_se_marca_como_corregido(
+    extracted: str | None,
+) -> None:
+    # Caso real: el extractor cortó el título o no lo encontró, pero la referencia lo
+    # trae completo; se conserva como lo escribió el estudiante.
+    text = APA_WRONG.replace(
+        "Pérez, M. y López Vera, J. (2019)", "Pérez, M. y López Vera, J. (2021)"
+    )
+    text = text.replace("9(1), 10-25.", "8(1), 10-25.")
+    fields = replace(APA_WRONG_FIELDS, year=2021, volume="8", title=extracted)
+    record = replace(ARTICLE, title="Redes Neuronales en la Educación Superior")
+
+    corrected = correct(text, fields, record, by="doi")
+
+    assert "(2021). Redes neuronales en la educación superior. Revista Andina" in corrected.text
+    assert CheckedField.TITLE not in corrected.changed_fields
+
+
+def test_guion_perdido_al_unir_las_lineas_del_pdf_se_devuelve_sin_marcar() -> None:
+    # Caso real: "objeto-" al final de una línea y "relacionado" en la siguiente; al
+    # unir las líneas se quitó el guion, como si fuera una palabra partida en sílabas.
+    title = "Redes neuronales en la educación superior objetorelacionada"
+    text = APA_WRONG.replace("Redes neuronales en la educación superior", title)
+    fields = replace(APA_WRONG_FIELDS, title=title)
+    record = replace(ARTICLE, title="Redes Neuronales en la Educación Superior Objeto-Relacionada")
+
+    corrected = correct(text, fields, record)
+
+    assert "Redes neuronales en la educación superior objeto-relacionada." in corrected.text
+    assert CheckedField.TITLE not in corrected.changed_fields
+
+
+# --- Casos reales de los trabajos de un curso: lo que el estudiante escribió bien ----------
+
+GOOD_APA = (
+    "Pérez, M. y da Silva Vera, J. (2021). Redes neuronales en la educación superior. "
+    "Revista Andina, 8(1), 10-25. https://doi.org/10.1234/ra.2021.8"
+)
+GOOD_FIELDS = ExtractedFields(
+    authors=(Author("Pérez", "M."), Author("da Silva Vera", "J.")),
+    year=2021,
+    title="Redes neuronales en la educación superior",
+    container="Revista Andina",
+    volume="8",
+    issue="1",
+    pages="10-25",
+    doi="10.1234/ra.2021.8",
+)
+GOOD_RECORD = replace(ARTICLE, authors=(Author("Pérez", "María"), Author("da Silva Vera", "Juan")))
+
+
+def test_autores_bien_escritos_se_copian_aunque_el_extractor_pierda_una_particula() -> None:
+    # Caso real: AnyStyle dejó "Silva Vera, J." y la referencia corregida perdía el "da".
+    fields = replace(GOOD_FIELDS, authors=(Author("Pérez", "M."), Author("Silva Vera", "J.")))
+
+    corrected = correct(GOOD_APA, fields, GOOD_RECORD, by="doi")
+
+    assert corrected.text.startswith("Pérez, M. y da Silva Vera, J. (2021). ")
+    assert CheckedField.AUTHORS not in corrected.changed_fields
+
+
+def test_nombre_invertido_por_la_fuente_no_cambia_la_inicial() -> None:
+    # Caso real: Crossref registra "M, Pérez" para "Pérez, M.".
+    record = replace(GOOD_RECORD, authors=(Author("M", "Pérez"), Author("da Silva Vera", "Juan")))
+
+    corrected = correct(GOOD_APA, GOOD_FIELDS, record, by="doi")
+
+    assert corrected.text.startswith("Pérez, M. y da Silva Vera, J. (2021). ")
+
+
+def test_autores_que_no_estan_en_formato_apa_si_se_corrigen() -> None:
+    text = GOOD_APA.replace("Pérez, M. y da Silva Vera, J.", "María Pérez & Juan da Silva Vera.")
+    fields = replace(
+        GOOD_FIELDS, authors=(Author("Pérez", "María"), Author("da Silva Vera", "Juan"))
+    )
+
+    corrected = correct(text, fields, GOOD_RECORD, by="doi")
+
+    assert corrected.text.startswith("Pérez, M. & da Silva Vera, J. (2021). ")
+
+
+def test_revista_sin_volumen_conserva_solo_el_numero() -> None:
+    # Caso real: "Revista, (94)." y el extractor tomó el 94 como volumen.
+    text = GOOD_APA.replace("8(1), 10-25.", "(94).")
+    fields = replace(GOOD_FIELDS, volume="94", issue=None, pages=None)
+    record = replace(GOOD_RECORD, volume=None, issue="94", pages=None)
+
+    corrected = correct(text, fields, record, by="doi")
+
+    assert "Revista Andina, (94). https://doi.org/" in corrected.text
+
+
+def test_actas_sin_en_repetido_ni_parentesis_abierto() -> None:
+    # Caso real: el extractor dejó "En Congreso ... (CIE" como nombre de las actas.
+    text = (
+        "Vera, A. (2023). Redes en el aula. En Congreso de Educación Superior (CIE) "
+        "(pp. 1–6). IEEE. https://doi.org/10.5555/cie.2023.1"
+    )
+    fields = ExtractedFields(
+        authors=(Author("Vera", "A."),),
+        year=2023,
+        title="Redes en el aula",
+        container="En Congreso de Educación Superior (CIE",
+        pages="1–6",
+        doi="10.5555/cie.2023.1",
+    )
+    record = SourceRecord(
+        source=Source.CROSSREF,
+        doi="10.5555/cie.2023.1",
+        title="Redes en el aula",
+        authors=(Author("Vera", "Ana"),),
+        year=2023,
+        container="Congreso de Educación Superior (CIE)",
+        publisher="IEEE",
+        pages="1-6",
+        work_type="proceedings-article",
+    )
+
+    corrected = correct(text, fields, record, by="doi")
+
+    assert "En Congreso de Educación Superior (CIE) (pp. 1–6). IEEE." in corrected.text
+    assert "En En" not in corrected.text
+    # La editorial pegada al nombre de las actas tampoco se repite.
+    glued = replace(fields, container="Congreso de Educación Superior (CIE). IEEE", pages=None)
+    text = text.replace(" (pp. 1–6)", "")
+    corrected = correct(text, glued, replace(record, pages=None), by="doi")
+    assert "IEEE. IEEE" not in corrected.text
+    assert "En Congreso de Educación Superior (CIE). IEEE." in corrected.text
+
+
+def test_libro_conserva_los_editores_escritos_despues_del_titulo() -> None:
+    text = (
+        "Rivas, L. (2021). Redes neuronales en el aula (A. Mora & S. Vera, Eds.). "
+        "Editorial Andina. https://doi.org/10.5555/libro.2021"
+    )
+    fields = ExtractedFields(
+        authors=(Author("Rivas", "L."),),
+        year=2021,
+        title="Redes neuronales en el aula",
+        publisher="Editorial Andina",
+        doi="10.5555/libro.2021",
+    )
+    record = SourceRecord(
+        source=Source.CROSSREF,
+        doi="10.5555/libro.2021",
+        title="Redes neuronales en el aula",
+        authors=(Author("Rivas", "Luis"),),
+        year=2021,
+        publisher="Editorial Andina",
+        work_type="monograph",
+    )
+
+    corrected = correct(text, fields, record, by="doi")
+
+    assert "Redes neuronales en el aula (A. Mora & S. Vera, Eds.). Editorial" in corrected.text
+
+
+def test_palabras_pegadas_en_el_titulo_si_se_corrigen() -> None:
+    title = "Redes neuronales en la educaciónsuperior"
+    text = APA_WRONG.replace("Redes neuronales en la educación superior", title)
+    fields = replace(APA_WRONG_FIELDS, title=title)
+
+    corrected = correct(text, fields)
+
+    assert "Redes neuronales en la educación superior." in corrected.text
+    assert CheckedField.TITLE in corrected.changed_fields
 
 
 def test_apa_conserva_el_numero_de_articulo_que_el_registro_da_como_paginas() -> None:
