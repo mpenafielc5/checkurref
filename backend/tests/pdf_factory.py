@@ -48,6 +48,14 @@ def make_scanned_pdf() -> bytes:
     return document.tobytes()
 
 
+def make_truncated_pdf() -> bytes:
+    """PDF cortado a mitad del archivo, como una descarga o copia interrumpida.
+
+    Empieza con la firma %PDF- y MuPDF lo abre, pero falla al contar sus páginas.
+    """
+    return make_pdf([PageSpec([f"Página {number}"]) for number in range(1, 6)])[:200]
+
+
 def make_encrypted_pdf() -> bytes:
     document = pymupdf.open()
     document.new_page().insert_text((72, 72), "Documento protegido " * 5)

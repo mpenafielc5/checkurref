@@ -11,7 +11,13 @@ from app.pipeline.errors import (
 )
 from app.pipeline.pdf_text import TEXT_ONLY, TextLine, extract_pages
 from app.pipeline.references_section import extract_reference_section, find_reference_section
-from tests.pdf_factory import PageSpec, make_encrypted_pdf, make_pdf, make_scanned_pdf
+from tests.pdf_factory import (
+    PageSpec,
+    make_encrypted_pdf,
+    make_pdf,
+    make_scanned_pdf,
+    make_truncated_pdf,
+)
 
 REF_1 = "Pérez, M. y López, J. (2021). Redes neuronales en la educación superior."
 REF_2 = "Rivas, A. (2020). Aprendizaje automático aplicado. Editorial UNEMI."
@@ -205,6 +211,7 @@ def test_conserva_la_sangria_de_cada_linea() -> None:
         pytest.param(make_scanned_pdf(), ScannedPdfError, id="escaneado"),
         pytest.param(make_encrypted_pdf(), EncryptedPdfError, id="protegido"),
         pytest.param(b"esto no es un PDF", UnreadablePdfError, id="dañado"),
+        pytest.param(make_truncated_pdf(), UnreadablePdfError, id="cortado"),
         pytest.param(b"", UnreadablePdfError, id="vacío"),
     ],
 )
