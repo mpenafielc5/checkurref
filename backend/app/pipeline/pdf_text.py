@@ -38,16 +38,16 @@ class TextLine:
 def extract_pages(pdf_bytes: bytes) -> list[list[TextLine]]:
     """Líneas no vacías de cada página, en orden de lectura."""
     try:
-        document = pymupdf.open(stream=pdf_bytes, filetype="pdf")
-    except (pymupdf.FileDataError, pymupdf.EmptyFileError) as error:
+        with pymupdf.open(stream=pdf_bytes, filetype="pdf") as document:
+            if document.needs_pass:
+                raise EncryptedPdfError
+            if document.page_count == 0:
+                raise UnreadablePdfError
+            pages = [_page_lines(page, number) for number, page in enumerate(document, start=1)]
+    except RuntimeError as error:
+        # MuPDF señala con RuntimeError cualquier estructura dañada: no solo al abrir
+        # (FileDataError), también al contar o leer las páginas de un PDF cortado.
         raise UnreadablePdfError from error
-
-    with document:
-        if document.needs_pass:
-            raise EncryptedPdfError
-        if document.page_count == 0:
-            raise UnreadablePdfError
-        pages = [_page_lines(page, number) for number, page in enumerate(document, start=1)]
 
     visible_chars = sum(len(line.text.replace(" ", "")) for page in pages for line in page)
     if visible_chars < MIN_CHARS_PER_PAGE * len(pages):
@@ -56,19 +56,23 @@ def extract_pages(pdf_bytes: bytes) -> list[list[TextLine]]:
 
 
 def cover_page_lines(pdf_bytes: bytes) -> list[str]:
-    """Texto de las líneas de la portada; vacío si el PDF tiene clave o no tiene páginas.
+    """Texto de las líneas de la portada; vacío si el PDF tiene clave, no tiene páginas o
+    está dañado.
 
     La portada es la primera página con texto entre las primeras COVER_PAGES: algunos
     trabajos abren con una portada que es solo una imagen y llevan los datos en la
     página siguiente.
     """
-    with pymupdf.open(stream=pdf_bytes, filetype="pdf") as document:
-        if document.needs_pass:
+    try:
+        with pymupdf.open(stream=pdf_bytes, filetype="pdf") as document:
+            if document.needs_pass:
+                return []
+            for number in range(min(COVER_PAGES, document.page_count)):
+                lines = [line.text for line in _page_lines(document[number], number + 1)]
+                if lines:
+                    return lines
             return []
-        for number in range(min(COVER_PAGES, document.page_count)):
-            lines = [line.text for line in _page_lines(document[number], number + 1)]
-            if lines:
-                return lines
+    except RuntimeError:
         return []
 
 

@@ -3,7 +3,13 @@
 import pytest
 
 from app.pipeline.cover_authors import authors_in, cover_authors
-from tests.pdf_factory import PageSpec, make_encrypted_pdf, make_pdf, make_scanned_pdf
+from tests.pdf_factory import (
+    PageSpec,
+    make_encrypted_pdf,
+    make_pdf,
+    make_scanned_pdf,
+    make_truncated_pdf,
+)
 
 COVER = [
     "FACULTAD DE CIENCIAS E INGENIERÍA",
@@ -223,8 +229,8 @@ def test_no_usa_los_metadatos_del_pdf() -> None:
 
 @pytest.mark.parametrize(
     "content",
-    [b"%PDF-roto", make_scanned_pdf(), make_encrypted_pdf()],
-    ids=["ilegible", "escaneado", "con clave"],
+    [b"%PDF-roto", make_truncated_pdf(), make_scanned_pdf(), make_encrypted_pdf()],
+    ids=["ilegible", "cortado", "escaneado", "con clave"],
 )
 def test_un_pdf_que_no_se_puede_leer_queda_sin_autores(content: bytes) -> None:
     assert cover_authors(content) == ()

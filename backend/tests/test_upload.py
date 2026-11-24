@@ -15,7 +15,13 @@ from app.repositories.documents import AnalysisRef, NewDocument, SupabaseDocumen
 from app.repositories.pdf_storage import SupabasePdfStorage
 from app.repositories.supabase_http import SupabaseUnavailableError, service_headers
 from app.services.upload_service import MAX_PDF_BYTES, UploadRejectedError, UploadService
-from tests.pdf_factory import PageSpec, make_encrypted_pdf, make_pdf, make_scanned_pdf
+from tests.pdf_factory import (
+    PageSpec,
+    make_encrypted_pdf,
+    make_pdf,
+    make_scanned_pdf,
+    make_truncated_pdf,
+)
 from tests.session_helpers import USER_ID, act_as, bearer, make_token, trust_test_tokens
 
 OWNER = UUID(USER_ID)
@@ -120,6 +126,9 @@ def test_rechaza_archivos_invalidos(content: bytes, message: str) -> None:
     ("content", "message"),
     [
         pytest.param(b"%PDF-roto", "El archivo no es un PDF válido o está dañado.", id="dañado"),
+        pytest.param(
+            make_truncated_pdf(), "El archivo no es un PDF válido o está dañado.", id="cortado"
+        ),
         pytest.param(
             make_encrypted_pdf(),
             "El PDF está protegido con contraseña. Súbelo sin protección.",
